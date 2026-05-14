@@ -1,0 +1,32 @@
+{
+  "number": 7,
+  "name": "Interlude: Doryani's Contingency",
+  "enabled": true,
+  "temporary": true,
+  "zones": [
+    {
+      "id": "il3_vaal_approach",
+      "name": "Vaal Mountain Approach",
+      "objectives": [
+        { "id": "il3_va_1", "text": "Speak with Doryani — ancient Vaal descendants may be sealed within the mountains" },
+        { "id": "il3_va_2", "text": "Enter the hidden Vaal crypt" }
+      ]
+    },
+    {
+      "id": "il3_vaal_crypt",
+      "name": "Vaal Crypt",
+      "objectives": [
+        { "id": "il3_vc_1", "text": "Explore the depths of the ancient Vaal crypt" },
+        { "id": "il3_vc_2", "text": "Determine whether any Vaal descendants survived — they may hold the key to defeating the Beast" }
+      ]
+    },
+    {
+      "id": "il3_vaal_depths",
+      "name": "Vaal Depths",
+      "objectives": [
+        { "id": "il3_vd_1", "text": "Continue through Doryani's contingency plan — navigate the perils of the sealed mountain" },
+        { "id": "il3_vd_2", "text": "Defeat the final boss to conclude the Contingency" }
+      ]
+    }
+  ]
+}

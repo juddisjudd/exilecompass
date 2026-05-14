@@ -1,0 +1,45 @@
+{
+  "number": 5,
+  "name": "Interlude: Curse of Holten",
+  "enabled": true,
+  "temporary": true,
+  "zones": [
+    {
+      "id": "il1_ogham_town",
+      "name": "Ogham (Return)",
+      "objectives": [
+        { "id": "il1_ot_1", "text": "Speak with Renly — the town of Holten is shrouded in endless darkness" },
+        { "id": "il1_ot_2", "text": "Head out to investigate the curse" }
+      ]
+    },
+    {
+      "id": "il1_holten_outskirts",
+      "name": "Holten Outskirts",
+      "objectives": [
+        { "id": "il1_ho_1", "text": "Find and kill Isolde and Heldra" },
+        { "id": "il1_ho_2", "text": "Continue deeper into the cursed region" }
+      ]
+    },
+    {
+      "id": "il1_holten",
+      "name": "Holten",
+      "objectives": [
+        { "id": "il1_h_1", "text": "Find and kill Siora" },
+        { "id": "il1_h_2", "text": "Find and kill Oswin" },
+        { "id": "il1_h_3", "text": "Locate Thane Wulfric's cult stronghold" }
+      ]
+    },
+    {
+      "id": "il1_cult_stronghold",
+      "name": "Cult Stronghold",
+      "objectives": [
+        {
+          "id": "il1_cs_1",
+          "text": "Find and kill Sigbert and Godwin",
+          "notes": ["Penultimate boss — interlude level does not scale from this kill"]
+        },
+        { "id": "il1_cs_2", "text": "Find and kill Lady Elswyth and Thane Wulfric (act boss)" }
+      ]
+    }
+  ]
+}

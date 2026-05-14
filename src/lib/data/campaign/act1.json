@@ -1,0 +1,261 @@
+{
+  "number": 1,
+  "name": "ACT 1",
+  "enabled": true,
+  "zones": [
+    {
+      "id": "act1_riverbank",
+      "name": "Riverbank",
+      "objectives": [
+        { "id": "riv_1", "text": "Kill Boss, Enter Town" }
+      ]
+    },
+    {
+      "id": "act1_clearfell",
+      "name": "Clearfell",
+      "objectives": [
+        {
+          "id": "clf_1",
+          "text": "Kill Beira of the Rotten Pack",
+          "notes": [
+            "Always north/northeast of waypoint",
+            "Mud burrow and worm boss can be skipped"
+          ],
+          "reward": "Permanent 10% Cold Resistance"
+        },
+        {
+          "id": "clf_2",
+          "text": "Find Exit to Grelwood",
+          "notes": ["Use checkpoint from Beira to return if you find exit first"]
+        },
+        {
+          "id": "clf_3",
+          "text": "Find the Mysterious Campsite",
+          "optional": true,
+          "reward": "Uncut Support Gem"
+        }
+      ]
+    },
+    {
+      "id": "act1_grelwood",
+      "name": "Grelwood",
+      "objectives": [
+        {
+          "id": "grl_1",
+          "text": "Find waypoint, talk to quest NPC",
+          "notes": ["Somewhat in center of zone"]
+        },
+        {
+          "id": "grl_2",
+          "text": "Find exit to Grim Tangle",
+          "notes": ["Enter zone, take waypoint, backtrack to Grelwood"]
+        },
+        {
+          "id": "grl_3",
+          "text": "Find Exit to Red Vale",
+          "notes": ["Enter zone, take waypoint, backtrack to Grelwood"]
+        },
+        {
+          "id": "grl_4",
+          "text": "Go to Red Vale",
+          "notes": ["Via waypoint or checkpoint"]
+        },
+        {
+          "id": "grl_5",
+          "text": "Find and kill Brambleghast",
+          "optional": true,
+          "reward": "Level 1 Uncut Skill Gem"
+        },
+        {
+          "id": "grl_6",
+          "text": "Find the Cauldron in the Witch Hut encounter",
+          "optional": true,
+          "reward": "Free medium mana/life flask"
+        }
+      ]
+    },
+    {
+      "id": "act1_redvale",
+      "name": "Red Vale",
+      "objectives": [
+        {
+          "id": "rdv_1",
+          "text": "Find the three obelisks and get the three quest items"
+        }
+      ]
+    },
+    {
+      "id": "act1_intermediate",
+      "name": "Intermediate",
+      "objectives": [
+        { "id": "int_1", "text": "Go back to town, get runic tools from Renly" },
+        { "id": "int_2", "text": "Go to Grelwood waypoint, click the three runes, talk to Una" },
+        { "id": "int_3", "text": "Go back to town, talk to Una" },
+        { "id": "int_4", "text": "Go to Grim Tangle waypoint" }
+      ]
+    },
+    {
+      "id": "act1_grimtangle",
+      "name": "Grim Tangle",
+      "objectives": [
+        { "id": "grt_1", "text": "Find exit to Cemetery of the Eternals" },
+        {
+          "id": "grt_2",
+          "text": "Find and kill The Rotten Druid",
+          "optional": true,
+          "reward": "Uncut Support Gem"
+        }
+      ]
+    },
+    {
+      "id": "act1_cemetery",
+      "name": "Cemetery of the Eternals",
+      "objectives": [
+        {
+          "id": "cem_1",
+          "text": "Find the Mausoleum, kill the boss in there",
+          "notes": ["On second boss, use checkpoint to teleport to zone beginning, then use waypoint to cemetery"]
+        },
+        {
+          "id": "cem_2",
+          "text": "Find the Tomb, kill the boss in there",
+          "notes": ["On second boss, use checkpoint to teleport to zone beginning, then use waypoint to cemetery"]
+        },
+        {
+          "id": "cem_3",
+          "text": "Find the embattled trove ambush encounter",
+          "optional": true,
+          "reward": "Uncut Support Gem"
+        },
+        { "id": "cem_4", "text": "Talk to Lachlan, open the gate, kill Lachlan" },
+        { "id": "cem_5", "text": "Enter Hunting Grounds" }
+      ]
+    },
+    {
+      "id": "act1_hunting",
+      "name": "Hunting Grounds",
+      "objectives": [
+        {
+          "id": "hnt_1",
+          "text": "Find and kill Crowbell",
+          "reward": "2 Skill Points"
+        },
+        {
+          "id": "hnt_2",
+          "text": "Find exit to Ogham Farmlands",
+          "notes": ["Enter zone, take waypoint, backtrack to hunting grounds"]
+        },
+        {
+          "id": "hnt_3",
+          "text": "Find exit to Freythorn",
+          "notes": ["Enter zone, take waypoint, backtrack to hunting grounds"]
+        },
+        {
+          "id": "hnt_4",
+          "text": "Go to Freythorn",
+          "notes": ["Via townportal+waypoint if it isn't the last you have found"]
+        },
+        {
+          "id": "hnt_5",
+          "text": "Find and complete the Ritual site",
+          "optional": true,
+          "reward": "Level 4 Uncut Skill Gem"
+        },
+        {
+          "id": "hnt_6",
+          "text": "Find and finish the Dryad Encounter",
+          "optional": true,
+          "reward": "Uncut Support Gem"
+        }
+      ]
+    },
+    {
+      "id": "act1_freythorn",
+      "name": "Freythorn",
+      "objectives": [
+        {
+          "id": "fry_1",
+          "text": "Do all 4 rituals, kill King of the Mists at the 4th",
+          "reward": "30 Spirit (Normal only)"
+        },
+        {
+          "id": "fry_2",
+          "text": "Go to Ogham Farmlands",
+          "notes": ["Via townportal+waypoint"]
+        }
+      ]
+    },
+    {
+      "id": "act1_ogham",
+      "name": "Ogham Farmlands",
+      "objectives": [
+        {
+          "id": "ogm_1",
+          "text": "Find Una's lute",
+          "notes": ["Somewhat in center of zone"],
+          "reward": "2 Skill Points"
+        },
+        { "id": "ogm_2", "text": "Find exit to Ogham Village" },
+        {
+          "id": "ogm_3",
+          "text": "Find the Crop Circle and kill the rare dog",
+          "optional": true,
+          "reward": "Level 4 Uncut Skill Gem"
+        }
+      ]
+    },
+    {
+      "id": "act1_oghamvil",
+      "name": "Ogham Village",
+      "objectives": [
+        {
+          "id": "ogv_1",
+          "text": "Find Smithing Tools",
+          "notes": ["Only needed on first character per league"]
+        },
+        { "id": "ogv_2", "text": "Find and kill the Executioner" },
+        { "id": "ogv_3", "text": "Go to Manor Ramparts" }
+      ]
+    },
+    {
+      "id": "act1_manor",
+      "name": "The Manor Ramparts",
+      "objectives": [
+        {
+          "id": "mnr_1",
+          "text": "Find exit to Ogham Manor",
+          "notes": ["Always go the opposite direction of the waypoint after you enter the zone"]
+        },
+        {
+          "id": "mnr_2",
+          "text": "Find the Gallows",
+          "optional": true,
+          "notes": ["Location from character creation screen"],
+          "reward": "Uncut Support Gem"
+        }
+      ]
+    },
+    {
+      "id": "act1_oghammanor",
+      "name": "Ogham Manor",
+      "objectives": [
+        { "id": "om_1", "text": "Find and kill Candlemass" },
+        { "id": "om_2", "text": "Find and go down stairs twice" },
+        { "id": "om_3", "text": "Find elevator to boss, kill boss, go back down" }
+      ]
+    },
+    {
+      "id": "act1_town_final",
+      "name": "Town (Final)",
+      "objectives": [
+        {
+          "id": "twn_1",
+          "text": "Talk to Renly to turn in the Smithing Tools",
+          "notes": ["Only needed on first character per league"],
+          "reward": "Unlocks Salvaging Bench"
+        },
+        { "id": "twn_2", "text": "Talk to the Hooded One to go to Act 2" }
+      ]
+    }
+  ]
+}

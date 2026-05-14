@@ -1,0 +1,329 @@
+{
+  "number": 2,
+  "name": "ACT 2",
+  "enabled": true,
+  "zones": [
+    {
+      "id": "act2_vastiri",
+      "name": "Vastiri Outskirts",
+      "objectives": [
+        { "id": "vst_1", "text": "Find and kill Rathbreaker" },
+        {
+          "id": "vst_2",
+          "text": "Portal back to camp, enter caravan",
+          "notes": ["Can also go ESC > Respawn at Checkpoint"]
+        }
+      ]
+    },
+    {
+      "id": "act2_town1",
+      "name": "Town #1",
+      "objectives": [
+        { "id": "tw1_1", "text": "Speak to everyone, use desert map to go to Mawdun Quarry" }
+      ]
+    },
+    {
+      "id": "act2_mawdun_q",
+      "name": "Mawdun Quarry",
+      "objectives": [
+        {
+          "id": "mq_1",
+          "text": "Find exit to Mawdun Mine",
+          "notes": ["Follow the checkpoints"]
+        }
+      ]
+    },
+    {
+      "id": "act2_mawdun_m",
+      "name": "Mawdun Mine",
+      "objectives": [
+        { "id": "mm_1", "text": "Find and kill Rudja" },
+        { "id": "mm_2", "text": "Talk to Risu, portal back to town" }
+      ]
+    },
+    {
+      "id": "act2_town2",
+      "name": "Town #2",
+      "objectives": [
+        { "id": "tw2_1", "text": "Talk to Risu, then use desert map to go to Halani Gates" },
+        { "id": "tw2_2", "text": "Talk to Asala at the gates, go back to caravan, talk to Risu again, then to Asala again" },
+        { "id": "tw2_3", "text": "Use desert map to go to Traitor's Passage" }
+      ]
+    },
+    {
+      "id": "act2_traitor",
+      "name": "Traitor's Passage",
+      "objectives": [
+        {
+          "id": "tr_1",
+          "text": "Find and kill Basala, pick up the Djinn Barya quest item",
+          "notes": ["If you find paper on the walls, you are close"]
+        },
+        {
+          "id": "tr_2",
+          "text": "Find the exit to the Halani Gates",
+          "notes": ["Stairs up means you are on the right way"]
+        },
+        {
+          "id": "tr_3",
+          "text": "Find and loot the Bell Chest",
+          "optional": true,
+          "notes": ["Dead end with checkpoint, monsters, and dropped gold"],
+          "reward": "Two level 6 Uncut Skill Gems (UNCONFIRMED)"
+        }
+      ]
+    },
+    {
+      "id": "act2_halani",
+      "name": "The Halani Gates",
+      "objectives": [
+        {
+          "id": "hlg_1",
+          "text": "Find and kill Jamanra the Risen King",
+          "notes": ["Always keep close to canyon. Cross canyon three times to find boss."]
+        },
+        { "id": "hlg_2", "text": "Go down the stairs and to the bottom right (or left) of the zone, then back to town" }
+      ]
+    },
+    {
+      "id": "act2_town3",
+      "name": "Town #3",
+      "objectives": [
+        {
+          "id": "tw3_1",
+          "text": "Speak to Zarka and turn in her quest",
+          "reward": "Level 7 Uncut Skill Gem"
+        },
+        {
+          "id": "tw3_2",
+          "text": "Use the desert map to go to the Trial of Sekhemas",
+          "notes": ["Take waypoint, then go back to town. Do trial whenever ready."]
+        },
+        { "id": "tw3_3", "text": "Talk to everyone, then use desert map to go to Keth" }
+      ]
+    },
+    {
+      "id": "act2_keth",
+      "name": "Keth",
+      "objectives": [
+        {
+          "id": "kth_1",
+          "text": "Kill Kabala, the Constrictor Queen",
+          "notes": ["Somewhat in the middle of the zone"],
+          "reward": "2 Skill Points"
+        },
+        {
+          "id": "kth_2",
+          "text": "Kill snake monsters until you find the Kabala Clan Relic",
+          "notes": ["Can also drop in the Lost City"]
+        },
+        {
+          "id": "kth_3",
+          "text": "Find exit to the Lost City",
+          "notes": ["Always bottom right of zone, after big bridge. Take checkpoint, do rest if not yet done."]
+        },
+        { "id": "kth_4", "text": "Go to the Lost City" }
+      ]
+    },
+    {
+      "id": "act2_lostcity",
+      "name": "The Lost City",
+      "objectives": [
+        { "id": "lc_1", "text": "Find exit and go to the Buried Shrines" },
+        {
+          "id": "lc_2",
+          "text": "Find the Golden Tomb",
+          "optional": true,
+          "reward": "Uncut Spirit Gem"
+        },
+        {
+          "id": "lc_3",
+          "text": "Find the Ninth Treasure of Keth (big gilded beetle)",
+          "optional": true,
+          "notes": ["Event name 'The Galleria' on map"],
+          "reward": "Random Jewel"
+        }
+      ]
+    },
+    {
+      "id": "act2_buried",
+      "name": "Buried Shrines",
+      "objectives": [
+        { "id": "bs_1", "text": "Find the Heart of Keth" },
+        {
+          "id": "bs_2",
+          "text": "Find and loot the guarded sarcophagus",
+          "optional": true,
+          "reward": "Uncut Support Gem"
+        },
+        {
+          "id": "bs_3",
+          "text": "Find and complete the Elemental Offering Event",
+          "optional": true,
+          "reward": "Random resistance ring (ruby suggested)"
+        }
+      ]
+    },
+    {
+      "id": "act2_heart",
+      "name": "Heart of Keth",
+      "objectives": [
+        { "id": "hk_1", "text": "Kill Azarian the Forsaken Son" },
+        { "id": "hk_2", "text": "Talk to the goddess, loot the cinders, burn the goddess, loot the Essence of Water" }
+      ]
+    },
+    {
+      "id": "act2_town4",
+      "name": "Town #4",
+      "objectives": [
+        {
+          "id": "tw4_1",
+          "text": "Talk to Zarka",
+          "reward": "Uncut Support Gem"
+        },
+        { "id": "tw4_2", "text": "Use desert map to go to Mastodon Badlands" }
+      ]
+    },
+    {
+      "id": "act2_mastodon",
+      "name": "Mastodon Badlands",
+      "objectives": [
+        { "id": "mb_1", "text": "Find the exit to the Bone Pits" },
+        { "id": "mb_2", "text": "Find the Lightless Passage to unlock the Well of Souls" },
+        {
+          "id": "mb_3",
+          "text": "Kill hyena enemies until you find the Sun Clan Relic",
+          "optional": true,
+          "notes": ["More likely to be found in Bone Pits anyway"]
+        },
+        {
+          "id": "mb_4",
+          "text": "Find and loot the Shrine of Bones",
+          "optional": true,
+          "notes": ["Rare effigy near checkpoint"],
+          "reward": "Uncut Support Gem"
+        }
+      ]
+    },
+    {
+      "id": "act2_bonepits",
+      "name": "The Bone Pits",
+      "objectives": [
+        { "id": "bp_1", "text": "Find and kill the zone boss and loot the horn" },
+        { "id": "bp_2", "text": "Kill hyena enemies until you find the Sun Clan Relic" },
+        { "id": "bp_3", "text": "Portal back to town" }
+      ]
+    },
+    {
+      "id": "act2_town5",
+      "name": "Town #5",
+      "objectives": [
+        {
+          "id": "tw5_1",
+          "text": "Talk to Zarka",
+          "reward": "Uncut Support Gem"
+        },
+        { "id": "tw5_2", "text": "Use desert map to go to the Valley of Titans" }
+      ]
+    },
+    {
+      "id": "act2_valley",
+      "name": "The Valley of the Titans",
+      "objectives": [
+        { "id": "vl_1", "text": "Find and click the three ancient seals" },
+        {
+          "id": "vl_2",
+          "text": "Find the medallion and place the two relics (permanent buff choice)",
+          "notes": ["Waypoint is here. Choose a buff — can be changed later."],
+          "reward": "Permanent buff choice"
+        },
+        { "id": "vl_3", "text": "Find the exit to the Titan Grotto" },
+        { "id": "vl_4", "text": "Go to the Titan Grotto" }
+      ]
+    },
+    {
+      "id": "act2_titan",
+      "name": "Titan Grotto",
+      "objectives": [
+        { "id": "tg_1", "text": "Find and kill the boss, then go back to town" }
+      ]
+    },
+    {
+      "id": "act2_town6",
+      "name": "Town #6",
+      "objectives": [
+        { "id": "tw6_1", "text": "Talk to Zarka, then Asala" },
+        { "id": "tw6_2", "text": "Use the desert map to travel to Traitor's Passage" },
+        { "id": "tw6_3", "text": "Go to the front of the caravan and sound the horn" },
+        { "id": "tw6_4", "text": "Use the desert map to travel to Deshar" }
+      ]
+    },
+    {
+      "id": "act2_deshar",
+      "name": "Deshar",
+      "objectives": [
+        { "id": "dsh_1", "text": "Talk to the abandoned rhoa BECAUSE IT'S THE RIGHT THING TO DO YOU MONSTER." },
+        {
+          "id": "dsh_2",
+          "text": "Find the final letter on a corpse on the ground",
+          "notes": ["Near a big tower on the ground"],
+          "reward": "2 Skill Points (on quest turn-in)"
+        },
+        {
+          "id": "dsh_3",
+          "text": "Find the exit to the Path of Mourning",
+          "notes": ["Enter zone, take waypoint, backtrack to Deshar"]
+        },
+        { "id": "dsh_4", "text": "Go to the Path of Mourning" }
+      ]
+    },
+    {
+      "id": "act2_mourning",
+      "name": "The Path of Mourning",
+      "objectives": [
+        { "id": "pm_1", "text": "Find the exit to the Spires of Deshar" }
+      ]
+    },
+    {
+      "id": "act2_spires",
+      "name": "The Spires of Deshar",
+      "objectives": [
+        {
+          "id": "sp_1",
+          "text": "Find the Sisters of Garukhan",
+          "reward": "Permanent 10% Lightning Resistance"
+        },
+        { "id": "sp_2", "text": "Find and kill Tor Gul, the Defiler" },
+        { "id": "sp_3", "text": "Portal back to town" }
+      ]
+    },
+    {
+      "id": "act2_town7",
+      "name": "Town #7",
+      "objectives": [
+        {
+          "id": "tw7_1",
+          "text": "Turn in the final letter at Shambrin",
+          "reward": "2 Skill Points"
+        },
+        { "id": "tw7_2", "text": "Talk to everyone, then use desert map to go to the Dreadnought" }
+      ]
+    },
+    {
+      "id": "act2_dreadnought",
+      "name": "The Dreadnought",
+      "objectives": [
+        { "id": "drd_1", "text": "Find the exit to the Dreadnought Vanguard, then find and kill Jamara, the Abomination" },
+        { "id": "drd_2", "text": "Portal back to town" }
+      ]
+    },
+    {
+      "id": "act2_town8",
+      "name": "Town #8",
+      "objectives": [
+        { "id": "tw8_1", "text": "Leave the Caravan, talk to the Hooded One, go back to the Caravan" },
+        { "id": "tw8_2", "text": "Talk to Asala to go to Act 3" }
+      ]
+    }
+  ]
+}

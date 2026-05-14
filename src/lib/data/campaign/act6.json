@@ -1,0 +1,14 @@
+{
+  "number": 6,
+  "name": "ACT 6",
+  "enabled": false,
+  "zones": [
+    {
+      "id": "act6_placeholder",
+      "name": "Coming Soon",
+      "objectives": [
+        { "id": "ph6_1", "text": "Content not released yet" }
+      ]
+    }
+  ]
+}

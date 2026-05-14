@@ -1,0 +1,15 @@
+[package]
+name = "overlay-core"
+version = "0.1.0"
+edition = "2021"
+description = "Platform-agnostic game overlay window utilities — find/track game windows, apply no-inject overlay styles"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+] }

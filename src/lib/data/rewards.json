@@ -1,0 +1,68 @@
+{
+  "groups": [
+    {
+      "id": "skill_points",
+      "label": "Passive Skill Points",
+      "color": "#e8e4de",
+      "rewards": [
+        { "id": "sp_crowbell",     "value": 2, "source": "Crowbell",                      "location": "Hunting Grounds",        "act": "Act 1" },
+        { "id": "sp_una_lute",    "value": 2, "source": "Una's Lute quest",               "location": "Ogham Farmlands",        "act": "Act 1" },
+        { "id": "sp_kabala",      "value": 2, "source": "Kabala, the Constrictor Queen",  "location": "Keth",                   "act": "Act 2" },
+        { "id": "sp_shambrin",    "value": 2, "source": "Turn in final letter",           "location": "Town",                   "act": "Act 2" },
+        { "id": "sp_silverfist",  "value": 2, "source": "The Mighty Silverfist",          "location": "Jungle Ruins",           "act": "Act 3" },
+        { "id": "sp_heart",       "value": 2, "source": "Sacrificial Heart ritual",       "location": "Aggorat",                "act": "Act 3" },
+        { "id": "sp_blind_beast", "value": 2, "source": "The Blind Beast",                "location": "Isle of Kin",            "act": "Act 4" },
+        { "id": "sp_tujen",       "value": 2, "source": "Tujen quest reward",             "location": "Journey's End",          "act": "Act 4" },
+        { "id": "sp_hinekora",    "value": 2, "source": "Tattoo of Hinekora",             "location": "Trial of the Ancestors", "act": "Act 4" },
+        { "id": "sp_int1_oswin",  "value": 2, "source": "Oswin",                          "location": "Holten",                 "act": "Interlude 1" },
+        { "id": "sp_int2_quest",  "value": 2, "source": "Akthi / Anundr quest",           "location": "The Stolen Barya",       "act": "Interlude 2" },
+        { "id": "sp_int3_yeti",   "value": 2, "source": "Yeti boss",                      "location": "Vaal Depths",            "act": "Interlude 3" },
+        { "id": "sp_int3_hooded", "value": 2, "source": "Hooded One dialogue",            "location": "Vaal Depths",            "act": "Interlude 3" }
+      ]
+    },
+    {
+      "id": "resistances",
+      "label": "Resistances",
+      "color": "#86efac",
+      "rewards": [
+        { "id": "res_cold",      "value": 10, "source": "Beira of the Rotten Pack",  "location": "Clearfell",              "act": "Act 1", "element": "cold" },
+        { "id": "res_lightning", "value": 10, "source": "Sisters of Garukhan",        "location": "Spires of Deshar",       "act": "Act 2", "element": "lightning" },
+        { "id": "res_fire",      "value": 10, "source": "Blackjaw",                   "location": "Jiquani's Machinarium",  "act": "Act 3", "element": "fire" }
+      ]
+    },
+    {
+      "id": "spirit",
+      "label": "Spirit",
+      "color": "#c4b5fd",
+      "rewards": [
+        { "id": "spirit_mists",    "value": 30, "source": "King of the Mists (4th ritual)", "location": "Freythorn",      "act": "Act 1" },
+        { "id": "spirit_ignagduk", "value": 30, "source": "Ignagduk",                       "location": "Azak Bog",       "act": "Act 3" },
+        { "id": "spirit_lythara",  "value": 40, "source": "Lythara",                        "location": "Vaal Depths",    "act": "Interlude 3" }
+      ]
+    },
+    {
+      "id": "life_mana",
+      "label": "Life & Mana",
+      "color": "#fca5a5",
+      "rewards": [
+        { "id": "life_candlemass", "value": 0, "label": "+20 Max Life",  "source": "Candlemass",            "location": "Clearfell",        "act": "Act 1" },
+        { "id": "mana_silent",     "value": 0, "label": "+5% Max Mana", "source": "Silent Hall (press F)", "location": "Eye of Hinekora",  "act": "Act 4" },
+        { "id": "life_molten",     "value": 0, "label": "+5% Max Life", "source": "Molten One's Gift",     "location": "The Stolen Barya", "act": "Interlude 2" }
+      ]
+    },
+    {
+      "id": "choices",
+      "label": "Choice Buffs",
+      "color": "#93c5fd",
+      "rewards": [
+        { "id": "choice_valley",        "value": 0, "label": "Swap", "source": "Valley Altar — +1 Charm Slot (choose: Charges or Duration)",       "location": "Valley of the Titans",   "act": "Act 2" },
+        { "id": "choice_venom_vial",    "value": 0, "label": "Pick 1", "source": "Venom Vial — Stun Thresh / Ailment Thresh / Mana Regen",         "location": "Aggorat",                "act": "Act 3" },
+        { "id": "choice_abandoned",     "value": 0, "label": "Swap", "source": "Abandoned Prison — +30% Life or Mana Flask Recovery",              "location": "The Vastiri Desert",     "act": "Act 4" },
+        { "id": "choice_trial_tawhoa",  "value": 0, "label": "Pick 1", "source": "Tawhoa's Test — +5 Dex or +5 Lightning Res",                     "location": "Trial of the Ancestors", "act": "Act 4" },
+        { "id": "choice_trial_tasalio", "value": 0, "label": "Pick 1", "source": "Tasalio's Test — +5 Int or +5 Cold Res",                         "location": "Trial of the Ancestors", "act": "Act 4" },
+        { "id": "choice_trial_ngamahu", "value": 0, "label": "Pick 1", "source": "Ngamahu's Test — +5 Str or +5 Fire Res",                         "location": "Trial of the Ancestors", "act": "Act 4" },
+        { "id": "choice_seven_pillars", "value": 0, "label": "Swap", "source": "Seven Pillars — Defences / AoE / CDR / Attrs / Move Speed / Res", "location": "The Stolen Barya",       "act": "Interlude 2" }
+      ]
+    }
+  ]
+}

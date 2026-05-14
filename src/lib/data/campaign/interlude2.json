@@ -1,0 +1,36 @@
+{
+  "number": 6,
+  "name": "Interlude: The Stolen Barya",
+  "enabled": true,
+  "temporary": true,
+  "zones": [
+    {
+      "id": "il2_vastiri_return",
+      "name": "Vastiri Desert (Return)",
+      "objectives": [
+        { "id": "il2_vr_1", "text": "Speak with Asala — the sacred ritual of the Gift of Water has been disrupted" },
+        { "id": "il2_vr_2", "text": "The Sel Khari, guardians of the ritual, have mysteriously vanished — investigate" }
+      ]
+    },
+    {
+      "id": "il2_sel_khari_territory",
+      "name": "Sel Khari Territory",
+      "objectives": [
+        { "id": "il2_sk_1", "text": "Search for the missing Sel Khari guardians" },
+        { "id": "il2_sk_2", "text": "Uncover who stole the Barya and disrupted the sacred water ritual" }
+      ]
+    },
+    {
+      "id": "il2_faridun_domain",
+      "name": "Faridun Domain",
+      "objectives": [
+        {
+          "id": "il2_fd_1",
+          "text": "Find and kill Stormgore",
+          "notes": ["Penultimate boss — interlude level does not scale from this kill"]
+        },
+        { "id": "il2_fd_2", "text": "Find and kill Azmadi, the Faridun Prince (act boss)" }
+      ]
+    }
+  ]
+}

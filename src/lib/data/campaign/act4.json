@@ -1,0 +1,373 @@
+{
+  "number": 4,
+  "name": "ACT 4",
+  "enabled": true,
+  "zones": [
+    {
+      "id": "act4_town1",
+      "name": "Town #1",
+      "objectives": [
+        { "id": "a4t1_1", "text": "Speak with Doryani, then Alva" },
+        {
+          "id": "a4t1_2",
+          "text": "Take the Boat Charter",
+          "notes": ["Speak with Tujen, Ange, Kanu and Makoru to select an island"]
+        },
+        {
+          "id": "a4t1_3",
+          "text": "Suggested island order (UNCONFIRMED):",
+          "notes": [
+            "Whakapanu first (currency exchange)",
+            "Shrike and Prison as 'main' islands",
+            "Arastas after three islands",
+            "Ngamahu after Arastas"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "act4_intermed",
+      "name": "Intermediate (Multiple visits)",
+      "objectives": [
+        {
+          "id": "int4_1",
+          "text": "Talk to Missionary Lorandis (after first island)",
+          "notes": ["In front of where Rog is"]
+        },
+        {
+          "id": "int4_2",
+          "text": "Talk to Tavakai (after first island)",
+          "notes": ["On second ship"]
+        },
+        { "id": "int4_3", "text": "Talk to Makoru (ship) about map pieces" },
+        {
+          "id": "int4_4",
+          "text": "After all four map pieces: Plunder's Point unlocked",
+          "notes": ["Optional island for XP and loot"]
+        },
+        {
+          "id": "int4_5",
+          "text": "Return to Ange (town) for hideout quest",
+          "notes": ["Enables trading after clearing and inviting"]
+        },
+        {
+          "id": "int4_6",
+          "text": "After Shark Fin: sail to Ngamahu and turn in at Kaimana",
+          "notes": ["Or wait until after Arastas (UNCONFIRMED)"],
+          "reward": "Level 11 Uncut Gems"
+        },
+        {
+          "id": "int4_7",
+          "text": "After Isle of Kin: speak with Matiki (Boat)",
+          "notes": ["Unlocks Eye of Hinekora"]
+        },
+        {
+          "id": "int4_8",
+          "text": "After Kedge Bay: speak to Tujen for quest reward",
+          "reward": "Level 13 Uncut Skill Gem"
+        }
+      ]
+    },
+    {
+      "id": "act4_whakapanu",
+      "name": "Whakapanu Island",
+      "objectives": [
+        {
+          "id": "wkp_1",
+          "text": "Find the Crabshell Cavern and defeat the rare",
+          "optional": true,
+          "notes": ["Alongside beach part"],
+          "reward": "Level 4 Uncut Support Gem"
+        },
+        {
+          "id": "wkp_2",
+          "text": "Find the Shark Pit and defeat the Great White One for Shark Fin",
+          "optional": true,
+          "notes": [
+            "Before Arastas or after main quest",
+            "Trigger by moving close to water gaps in rock"
+          ],
+          "reward": "Shark Fin + Uncut Gem choice (on Ngamahu)"
+        },
+        {
+          "id": "wkp_3",
+          "text": "Find the Petrified Pirate to get torn map piece",
+          "optional": true,
+          "reward": "Torn Map Piece"
+        },
+        {
+          "id": "wkp_4",
+          "text": "Find the exit to the Singing Caverns",
+          "notes": ["Approximately far end of island (UNCONFIRMED)"]
+        }
+      ]
+    },
+    {
+      "id": "act4_singing",
+      "name": "Singing Caverns",
+      "objectives": [
+        {
+          "id": "sng_1",
+          "text": "Find the Beckoning Clam and complete counter for Humming Pearl",
+          "optional": true,
+          "notes": ["Turn in to Rog in town"],
+          "reward": "Rare amulet +8 all elemental resistance"
+        },
+        { "id": "sng_2", "text": "Find the Chamber of Echoes and kill Diamora, Song of Death" },
+        { "id": "sng_3", "text": "Speak to the Hooded One" },
+        { "id": "sng_4", "text": "Go back to the Ship and select new location" }
+      ]
+    },
+    {
+      "id": "act4_shrike",
+      "name": "Shrike Island",
+      "objectives": [
+        {
+          "id": "shk_1",
+          "text": "Find the Corpse Nest encounter and loot torn map piece",
+          "optional": true,
+          "reward": "Torn Map Piece"
+        },
+        { "id": "shk_2", "text": "Find the corrupted nests and kill the Scourge of the Skies" },
+        { "id": "shk_3", "text": "Go back to the Ship and select new location" }
+      ]
+    },
+    {
+      "id": "act4_prison",
+      "name": "Abandoned Prison",
+      "objectives": [
+        { "id": "prn_1", "text": "Kill monsters until the Chapel Key drops" },
+        { "id": "prn_2", "text": "Find and open the Chapel Door, kill the rare and its minions" },
+        {
+          "id": "prn_3",
+          "text": "Find the exit to the Solitary Confinement",
+          "notes": ["30% increased Mana or Life Recovery from flasks — can be changed later."]
+        }
+      ]
+    },
+    {
+      "id": "act4_solitary",
+      "name": "Solitary Confinement",
+      "objectives": [
+        {
+          "id": "sol_1",
+          "text": "Find and kill Bronnach, the Manhunter",
+          "optional": true,
+          "notes": ["Guaranteed unique + rares (UNCONFIRMED)"]
+        },
+        { "id": "sol_2", "text": "Find and kill the prisoner" },
+        { "id": "sol_3", "text": "Go back to the Ship and select new location" }
+      ]
+    },
+    {
+      "id": "act4_isle",
+      "name": "Isle of Kin",
+      "objectives": [
+        {
+          "id": "ilk_1",
+          "text": "Find the Voltaxic Spire (big sulphur rock)",
+          "optional": true,
+          "notes": ["30% movement, 30% damage as lightning, 15% ele res for zone"]
+        },
+        {
+          "id": "ilk_2",
+          "text": "Find the beast pen counter, free and kill Mimbok the Enslaved",
+          "optional": true,
+          "reward": "Uncut gems"
+        },
+        {
+          "id": "ilk_3",
+          "text": "Find the wrecked boat and loot torn map device from flayed sailor",
+          "optional": true,
+          "reward": "Torn Map Piece"
+        },
+        {
+          "id": "ilk_4",
+          "text": "Find the Primal Arena and kill The Blind Beast",
+          "reward": "2 Skill Points"
+        },
+        { "id": "ilk_5", "text": "Find the exit to the Volcanic Warrens" }
+      ]
+    },
+    {
+      "id": "act4_volcanic",
+      "name": "Volcanic Warrens",
+      "objectives": [
+        { "id": "vlc_1", "text": "Find the Tyrant's Throne and kill Krutog, Lord of Kin" },
+        { "id": "vlc_2", "text": "Speak with Matiki" },
+        { "id": "vlc_3", "text": "Go back to the Ship and select new location" }
+      ]
+    },
+    {
+      "id": "act4_kedge",
+      "name": "Kedge Bay",
+      "objectives": [
+        {
+          "id": "kdg_1",
+          "text": "Find the dead man's chest and loot torn map device",
+          "optional": true,
+          "reward": "Torn Map Piece"
+        },
+        { "id": "kdg_2", "text": "Find the exit to Journey's End" }
+      ]
+    },
+    {
+      "id": "act4_journey",
+      "name": "Journey's End",
+      "objectives": [
+        { "id": "jny_1", "text": "Summon and speak to Tujen" },
+        {
+          "id": "jny_2",
+          "text": "Find and loot the rigged ship",
+          "optional": true,
+          "notes": ["Timer starts on first chest — loot disappears after."]
+        },
+        { "id": "jny_3", "text": "Find the Captain's Chair, kill Captain Hartlin and loot the Verisium" },
+        { "id": "jny_4", "text": "Go back (via checkpoint) and talk to Freya Hartlin" },
+        { "id": "jny_5", "text": "Go back to town, speak with Dannig and take the Verisium Spikes" },
+        { "id": "jny_6", "text": "Return to Journey's End and talk to Freya Hartlin again" },
+        { "id": "jny_7", "text": "Impale one of the totems and finish the Delirium encounter by killing Omniphobia" },
+        {
+          "id": "jny_8",
+          "text": "Port back to town and speak with Tujen",
+          "reward": "2 Skill Points + Level 13 Skill Gem"
+        }
+      ]
+    },
+    {
+      "id": "act4_eye",
+      "name": "Eye of Hinekora",
+      "objectives": [
+        {
+          "id": "eye_1",
+          "text": "When briefly exiting caves, find rare chest behind waterfall",
+          "optional": true,
+          "notes": ["(UNCONFIRMED)"],
+          "reward": "Level 12 Uncut Skill Gem"
+        },
+        {
+          "id": "eye_2",
+          "text": "Progress through cavern and complete each 'Test of Mettle' encounter",
+          "notes": ["Very linear, impossible to miss except the next one"]
+        },
+        {
+          "id": "eye_3",
+          "text": "Find the Silent Hall and press F in the room behind it",
+          "notes": ["Pay respects"],
+          "reward": "5% Increased Maximum Mana"
+        },
+        { "id": "eye_4", "text": "Find the exit to the Hall of the Dead" }
+      ]
+    },
+    {
+      "id": "act4_hall",
+      "name": "Hall of the Dead",
+      "objectives": [
+        {
+          "id": "hll_1",
+          "text": "Find the three tests (Tawhoa, Tasalio, Ngamahu) and loot blank tattoos",
+          "notes": ["Turn in at totem in arena, use tattoo for bonus"],
+          "reward": "Permanent reward (cannot change later — UNCONFIRMED)"
+        },
+        { "id": "hll_2", "text": "Find Yama's Test, defeat Yama the White and loot Silver Coin" },
+        { "id": "hll_3", "text": "Exit to the Trial of the Ancestors behind Yama encounter" }
+      ]
+    },
+    {
+      "id": "act4_trial",
+      "name": "Trial of the Ancestors",
+      "objectives": [
+        {
+          "id": "trl_1",
+          "text": "Talk to Navali and get the Tattoo of Hinekora",
+          "reward": "2 Passive Skill Points"
+        },
+        {
+          "id": "trl_2",
+          "text": "Future third way of acquiring ascendency points",
+          "notes": ["Not yet implemented"]
+        },
+        { "id": "trl_3", "text": "Go back to the Ship and select new location" }
+      ]
+    },
+    {
+      "id": "act4_plunder",
+      "name": "Plunder's Point (After all 4 map pieces)",
+      "objectives": [
+        {
+          "id": "pln_1",
+          "text": "Summon and speak to Dannig, then place explosives and start Expedition encounter",
+          "optional": true,
+          "reward": "Expedition loot"
+        },
+        { "id": "pln_2", "text": "Go back to the Ship and select new location" }
+      ]
+    },
+    {
+      "id": "act4_arastas",
+      "name": "Arastas",
+      "objectives": [
+        { "id": "ars_1", "text": "Talk to and follow Missionary Lorandis into church, then go out again" },
+        { "id": "ars_2", "text": "Destroy the forcefield with attack/spell and kill everyone" },
+        {
+          "id": "ars_3",
+          "text": "Find the Evening and Morning Bell",
+          "optional": true,
+          "notes": ["Hug left wall for evening bell, right wall for morning bell (UNCONFIRMED)"],
+          "reward": "3x Exalted + 3x Regal"
+        },
+        { "id": "ars_4", "text": "Continue until you find the Excavated Pit and kill Torvian, Hand of the Saviour" },
+        { "id": "ars_5", "text": "Enter the Excavation" }
+      ]
+    },
+    {
+      "id": "act4_excavation",
+      "name": "The Excavation",
+      "objectives": [
+        {
+          "id": "exc_1",
+          "text": "Find the Excavated Cache",
+          "optional": true,
+          "reward": "Level 4 Uncut Support Gem"
+        },
+        { "id": "exc_2", "text": "Find the Precursor Forge and defeat Benedictus, First Herald of Utopia" },
+        { "id": "exc_3", "text": "Witness lore events, talk to Hidden One, return via portal" }
+      ]
+    },
+    {
+      "id": "act4_town_inter",
+      "name": "Town (Intermediate after Arastas)",
+      "objectives": [
+        { "id": "a4ti_1", "text": "Talk to the Hidden One again" },
+        { "id": "a4ti_2", "text": "Talk to Rhodri on the ship to set sail to Ngamahu" }
+      ]
+    },
+    {
+      "id": "act4_ngamahu",
+      "name": "Ngamahu",
+      "objectives": [
+        {
+          "id": "nga_1",
+          "text": "Find the Medicine Circle and talk to Kaimana",
+          "notes": ["Choose 1 of 3 uncut gems (before Arastas or after main quest)"],
+          "reward": "Uncut Gem (choice)"
+        },
+        {
+          "id": "nga_2",
+          "text": "Turn in Shark Fin from Whakapanu Island",
+          "notes": ["Use lore options to get turn-in option"]
+        },
+        { "id": "nga_3", "text": "Find and enter the Heart of the Tribe" }
+      ]
+    },
+    {
+      "id": "act4_heart",
+      "name": "Heart of the Tribe",
+      "objectives": [
+        { "id": "hrt_1", "text": "Find the Sacred Interior and defeat Tavakai" },
+        { "id": "hrt_2", "text": "Go back to town and speak with the Hooded One" },
+        { "id": "hrt_3", "text": "This is the end of Act 4" }
+      ]
+    }
+  ]
+}
