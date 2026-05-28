@@ -114,6 +114,34 @@ fn candidate_log_paths() -> Vec<String> {
     paths
 }
 
+// ── pobb.in fetch (bypasses browser CORS) ────────────────────────────────────
+
+/// Fetch the raw PoB export code for a given pobb.in build ID.
+/// Done from Rust so browser CORS restrictions don't apply.
+#[tauri::command]
+async fn fetch_pobb_code(build_id: String) -> Result<String, String> {
+    let url = format!("https://pobb.in/{}/raw", build_id);
+    let client = reqwest::Client::builder()
+        .user_agent("ExileCompass/1.0")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Network error fetching pobb.in: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "pobb.in returned HTTP {} — paste the export code directly instead",
+            response.status()
+        ));
+    }
+
+    response.text().await.map_err(|e| e.to_string())
+}
+
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 /// Return the current PoE2 window info without attaching.
@@ -192,6 +220,7 @@ pub fn run() {
             focus_game,
             get_overlay_status,
             detect_log_file,
+            fetch_pobb_code,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

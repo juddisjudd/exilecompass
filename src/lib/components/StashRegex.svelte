@@ -13,28 +13,89 @@
         { label: 'Item Rarity',     pattern: 'i.+ty:' },
         { label: 'Drop Chance',     pattern: 'w.+e:' },
         { label: 'Delirium',        pattern: 'delir' },
+        { label: 'Breach',          pattern: 'breach' },
         { label: '40%+ Pack',       pattern: '([4-9].)%.*ed.pa' },
         { label: '60%+ Rarity',     pattern: '([6-9].|1..)%.*rar..(?!ch)' },
         { label: '15%+ Quantity',   pattern: '(1[5-9]|2.)%.*quan' },
       ],
     },
     {
-      label: 'Gear',
+      label: 'Defences',
+      snippets: [
+        { label: 'Max Life',        pattern: 'max.*li' },
+        { label: 'Energy Shield',   pattern: 'nrgy sh' },
+        { label: 'Evasion',         pattern: 'vasion' },
+        { label: 'Armour',          pattern: 'armour' },
+        { label: 'Ward',            pattern: 'ward' },
+        { label: 'Block',           pattern: 'block' },
+        { label: 'Life Regen',      pattern: 'li.*reg' },
+        { label: 'Leech',           pattern: 'leech' },
+      ],
+    },
+    {
+      label: 'Resistance',
       snippets: [
         { label: 'Fire Res',        pattern: 'fire res' },
         { label: 'Cold Res',        pattern: 'cold res' },
         { label: 'Lightning Res',   pattern: 'ight.*res' },
         { label: 'Chaos Res',       pattern: 'chaos res' },
-        { label: 'All Res',         pattern: 'all.*res' },
-        { label: 'Max Life',        pattern: 'max.*life' },
-        { label: 'Energy Shield',   pattern: 'nrgy sh' },
-        { label: 'Armour',          pattern: 'armour' },
-        { label: 'Evasion',         pattern: 'evasion' },
-        { label: 'Move Speed',      pattern: 'ent sp' },
+        { label: 'All Ele Res',     pattern: 'all.*res' },
+      ],
+    },
+    {
+      label: 'Damage',
+      snippets: [
+        { label: 'Spell Dmg',       pattern: 'ell.*ge$' },
+        { label: 'Phys Dmg',        pattern: 'to phys' },
+        { label: 'Fire Dmg',        pattern: 'fi.*dam' },
+        { label: 'Cold Dmg',        pattern: 'co.*dam' },
+        { label: 'Lightning Dmg',   pattern: 'li.*dam' },
+        { label: 'Chaos Dmg',       pattern: 'ch.*dam' },
         { label: 'Attack Speed',    pattern: 'ck sp' },
-        { label: 'Crit Chance',     pattern: 'crit' },
-        { label: 'Spell Damage',    pattern: 'spell' },
-        { label: 'Flat Phys',       pattern: 'to phys' },
+        { label: 'Cast Speed',      pattern: 'ast sp' },
+        { label: 'Crit Chance',     pattern: 'crit ch' },
+        { label: 'Crit Multi',      pattern: 'crit mu' },
+        { label: 'Move Speed',      pattern: 'ent sp' },
+      ],
+    },
+    {
+      label: 'Attributes',
+      snippets: [
+        { label: 'Strength',        pattern: 'treng' },
+        { label: 'Dexterity',       pattern: 'dext' },
+        { label: 'Intelligence',    pattern: 'ntell' },
+        { label: 'All Attributes',  pattern: 'all.*att' },
+        { label: 'Spirit',          pattern: 'spirit' },
+      ],
+    },
+    {
+      label: 'Gear Slots',
+      snippets: [
+        { label: 'Helmet',          pattern: 'helmet' },
+        { label: 'Gloves',          pattern: 'gloves' },
+        { label: 'Boots',           pattern: 'boots' },
+        { label: 'Body Armour',     pattern: 'body ar' },
+        { label: 'Shield',          pattern: 'shield' },
+        { label: 'Belt',            pattern: 'belt' },
+        { label: 'Ring',            pattern: 'ring' },
+        { label: 'Amulet',          pattern: 'amulet' },
+        { label: 'Quiver',          pattern: 'quiver' },
+        { label: 'Focus',           pattern: 'focus' },
+      ],
+    },
+    {
+      label: 'Weapons',
+      snippets: [
+        { label: 'Bow',             pattern: 'bow' },
+        { label: 'Crossbow',        pattern: 'rossbow' },
+        { label: 'Wand',            pattern: 'wand' },
+        { label: 'Staff',           pattern: 'staff' },
+        { label: 'Spear',           pattern: 'spear' },
+        { label: 'Mace',            pattern: 'mace' },
+        { label: 'Sword',           pattern: 'sword' },
+        { label: 'Axe',             pattern: 'axe' },
+        { label: 'Dagger',          pattern: 'dagger' },
+        { label: 'Claw',            pattern: 'claw' },
       ],
     },
     {
@@ -42,37 +103,45 @@
       snippets: [
         { label: 'Uncut Skill',     pattern: 'uncut sk' },
         { label: 'Uncut Support',   pattern: 'uncut su' },
-        { label: 'Spirit Gem',      pattern: 'spirit gem' },
+        { label: 'Uncut Spirit',    pattern: 'uncut sp' },
         { label: 'Quality',         pattern: 'quality' },
       ],
     },
     {
       label: 'Items',
       snippets: [
-        { label: 'Exalted Orb',     pattern: 'exalted' },
-        { label: 'Divine Orb',      pattern: 'divine' },
-        { label: 'Chaos Orb',       pattern: 'chaos orb' },
+        { label: 'Rare',            pattern: 'rare' },
+        { label: 'Unique',          pattern: 'unique' },
+        { label: 'Magic',           pattern: 'magic' },
+        { label: 'Corrupted',       pattern: 'orrupt' },
         { label: 'Waystone',        pattern: 'waystone' },
-        { label: 'Rune',            pattern: 'rune' },
         { label: 'Jewel',           pattern: 'jewel' },
         { label: 'Flask',           pattern: 'flask' },
+        { label: 'Rune',            pattern: 'rune' },
         { label: 'Charm',           pattern: 'charm' },
-        { label: 'Unique',          pattern: 'unique' },
-        { label: 'Corrupted',       pattern: 'corr' },
+        { label: 'Exalted Orb',     pattern: 'exalted' },
+        { label: 'Divine Orb',      pattern: 'divine' },
+        { label: 'Essence',         pattern: 'essence' },
       ],
     },
   ];
 
   const PRESETS = [
-    { label: 'Good Waystones',  value: '"i.+ty:|m.+e:|r.+s:"',                    desc: 'Any rarity / pack size / rare-monster mod' },
-    { label: 'Deli Maps',       value: '"delir" "m.+e:"',                          desc: 'Delirium + pack size (both required)' },
-    { label: '40%+ Pack Size',  value: '"([4-9].)%.*ed.pa"',                       desc: '40 %+ monster pack size' },
-    { label: '60%+ Rarity',     value: '"([6-9].|1..)%.*rar..(?!ch)"',             desc: '60 %+ item rarity (excludes chance)' },
-    { label: 'Rarity + Pack',   value: '"i.+ty:" "m.+e:"',                         desc: 'Must have both rarity AND pack size' },
-    { label: 'All Res Gear',    value: '"fire res|cold res|ight.*res|chaos res"',  desc: 'Any elemental resistance mod' },
-    { label: 'Defenses',        value: '"max.*life|nrgy sh|armour|evasion"',       desc: 'Life, ES, armour, or evasion' },
-    { label: 'Gems',            value: '"uncut sk|uncut su|spirit gem"',            desc: 'Uncut skill / support + spirit gems' },
-    { label: 'Currency',        value: '"exalted|divine|chaos orb"',               desc: 'Key endgame currencies' },
+    { label: 'Good Waystones',  value: '"i.+ty:|m.+e:|r.+s:"',                             desc: 'Any rarity / pack size / rare-monster mod' },
+    { label: 'Deli Maps',       value: '"delir" "m.+e:"',                                   desc: 'Delirium + pack size (both required)' },
+    { label: '40%+ Pack Size',  value: '"([4-9].)%.*ed.pa"',                                desc: '40%+ monster pack size' },
+    { label: '60%+ Rarity',     value: '"([6-9].|1..)%.*rar..(?!ch)"',                      desc: '60%+ item rarity (excludes chance)' },
+    { label: 'Rarity + Pack',   value: '"i.+ty:" "m.+e:"',                                  desc: 'Both rarity AND pack size' },
+    { label: 'Any Ele Res',     value: '"fire res|cold res|ight.*res"',                      desc: 'Fire, cold, or lightning resistance' },
+    { label: 'All Res Gear',    value: '"fire res" "cold res" "ight.*res"',                  desc: 'Must have all three elemental res' },
+    { label: 'Defences',        value: '"max.*li|nrgy sh|armour|vasion"',                    desc: 'Life, ES, armour, or evasion' },
+    { label: 'Life + Fire Res', value: '"max.*li" "fire res"',                               desc: 'Must have both max life AND fire res' },
+    { label: 'Gems',            value: '"uncut sk|uncut su|uncut sp"',                       desc: 'Any uncut gem (skill / support / spirit)' },
+    { label: 'Weapons',         value: '"bow|rossbow|wand|staff|spear|mace|sword|axe"',      desc: 'Any weapon type' },
+    { label: 'Accessories',     value: '"ring|amulet|belt"',                                 desc: 'Rings, amulets, and belts' },
+    { label: 'Currency',        value: '"exalted|divine|essence"',                           desc: 'Exalted, divine, or essence' },
+    { label: 'Rares w/ Life',   value: '"rare" "max.*li"',                                   desc: 'Rare items with max life mod' },
+    { label: 'Corrupted Uniq',  value: '"unique" "orrupt"',                                  desc: 'Corrupted unique items' },
   ];
 
   const PRESETS_TAB = CATEGORIES.length;
@@ -92,8 +161,8 @@
   );
 
   const charCount = $derived(assembled.length);
-  const charOver  = $derived(charCount > 50);
-  const charWarn  = $derived(charCount > 40 && !charOver);
+  const charOver  = $derived(charCount >= 250);
+  const charWarn  = $derived(charCount >= 200 && !charOver);
 
   const testResult = $derived.by(() => {
     if (!assembled || !testInput) return null;
@@ -168,7 +237,7 @@
   <!-- Header -->
   <div class="builder-header">
     <h3>Stash Search Builder</h3>
-    <span class="header-hint">regex · 50-char limit</span>
+    <span class="header-hint">regex · 250-char limit</span>
   </div>
 
   <!-- Assembled output -->
@@ -193,11 +262,11 @@
           class="char-fill"
           class:warn={charWarn}
           class:over={charOver}
-          style="width: {Math.min((charCount / 50) * 100, 100)}%"
+          style="width: {Math.min((charCount / 250) * 100, 100)}%"
         ></div>
       </div>
       <span class="char-label" class:warn={charWarn} class:over={charOver}>
-        {charCount}/50{charOver ? ` (+${charCount - 50})` : ''}
+        {charCount}/250{charOver ? ` (+${charCount - 250})` : ''}
       </span>
     </div>
   </div>
@@ -241,26 +310,28 @@
   </div>
 
   <!-- Category tabs -->
-  <div class="cat-tabs">
+  <div class="cat-tabs" role="tablist" aria-label="Regex snippet categories">
     {#each CATEGORIES as cat, i (cat.label)}
     <button
       class="cat-tab"
       class:active={activeCategory === i}
       onclick={() => (activeCategory = i)}
+      type="button"
     >{cat.label}</button>
     {/each}
     <button
-      class="cat-tab presets-tab"
+      class="cat-tab cat-tab-presets"
       class:active={activeCategory === PRESETS_TAB}
       onclick={() => (activeCategory = PRESETS_TAB)}
+      type="button"
     >Presets</button>
   </div>
 
   <!-- Snippets / Presets panel -->
-  <div class="snippets-panel">
+  <div class="snippets-panel" class:presets-mode={activeCategory === PRESETS_TAB}>
     {#if activeCategory === PRESETS_TAB}
       {#each PRESETS as preset (preset.label)}
-      <button class="preset-item" onclick={() => applyPreset(preset.value)}>
+      <button class="preset-item" onclick={() => applyPreset(preset.value)} type="button">
         <span class="preset-name">{preset.label}</span>
         <code class="preset-val">{preset.value}</code>
         <span class="preset-desc">{preset.desc}</span>
@@ -268,7 +339,7 @@
       {/each}
     {:else}
       {#each CATEGORIES[activeCategory].snippets as snippet (snippet.pattern)}
-      <button class="snippet" onclick={() => addSnippet(snippet.pattern)} title={snippet.pattern}>
+      <button class="snippet" onclick={() => addSnippet(snippet.pattern)} title={snippet.pattern} type="button">
         {snippet.label}
       </button>
       {/each}
@@ -302,6 +373,8 @@
     flex-direction: column;
     gap: 6px;
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
   /* ── Header ─────────────────────────────────────────── */
@@ -415,6 +488,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    flex-shrink: 0;
   }
   .groups-header {
     display: flex;
@@ -455,6 +529,7 @@
     display: flex;
     flex-direction: column;
     gap: 3px;
+    min-height: 0;
   }
   .group-row {
     display: flex;
@@ -523,12 +598,18 @@
 
   /* ── Category tabs ───────────────────────────────────── */
   .cat-tabs {
-    display: flex;
-    gap: 2px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+    gap: 3px;
+    flex-shrink: 0;
   }
   .cat-tab {
-    padding: 3px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 28px;
+    padding: 5px 8px;
     background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
     border: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent);
     border-radius: 2px;
@@ -538,6 +619,7 @@
     letter-spacing: 0.04em;
     cursor: pointer;
     transition: all 0.12s;
+    text-align: center;
   }
   .cat-tab.active {
     background: color-mix(in srgb, var(--c-primary) 10%, transparent);
@@ -548,22 +630,38 @@
     color: color-mix(in srgb, var(--c-accent) 90%, #fff 10%);
     border-color: color-mix(in srgb, var(--c-accent) 32%, transparent);
   }
-  .presets-tab { margin-left: auto; }
+  .cat-tab-presets {
+    background: color-mix(in srgb, var(--c-bg) 82%, var(--c-mid));
+  }
 
   /* ── Snippets / Presets panel ────────────────────────── */
   .snippets-panel {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 6px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 6px;
+    padding: 8px;
     background: color-mix(in srgb, var(--c-bg) 96%, var(--c-mid));
     border: 1px solid color-mix(in srgb, var(--c-accent) 14%, transparent);
     border-radius: 3px;
-    min-height: 52px;
-    align-content: flex-start;
+    flex: 1 1 auto;
+    min-height: 128px;
+    max-height: none;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    align-content: start;
+    min-width: 0;
+  }
+  .snippets-panel.presets-mode {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
   .snippet {
-    padding: 3px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 34px;
+    padding: 6px 8px;
     background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
     border: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
     border-radius: 2px;
@@ -571,7 +669,8 @@
     font-size: 10px;
     cursor: pointer;
     transition: all 0.1s;
-    white-space: nowrap;
+    text-align: center;
+    line-height: 1.3;
   }
   .snippet:hover {
     background: color-mix(in srgb, var(--c-primary) 8%, transparent);
@@ -579,20 +678,20 @@
     color: var(--c-primary);
   }
   .snippets-hint {
-    width: 100%;
+    grid-column: 1 / -1;
     font-size: 9px;
     color: color-mix(in srgb, var(--c-muted) 40%, transparent);
-    margin-top: 2px;
-    align-self: flex-end;
+    padding-top: 2px;
   }
 
   /* Preset items */
   .preset-item {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    width: 100%;
-    padding: 6px 8px;
+    gap: 4px;
+    min-width: 0;
+    min-height: 82px;
+    padding: 8px 9px;
     background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
     border: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent);
     border-radius: 2px;
@@ -614,6 +713,9 @@
     font-family: 'JetBrains Mono', 'Consolas', monospace;
     font-size: 10px;
     color: color-mix(in srgb, var(--c-accent) 75%, #fff 25%);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
   }
   .preset-desc {
     font-size: 9px;
@@ -625,7 +727,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    margin-top: auto;
+    flex-shrink: 0;
   }
   .test-label {
     display: flex;

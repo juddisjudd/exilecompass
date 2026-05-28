@@ -11,6 +11,14 @@
   import PermanentRewards from '$lib/components/PermanentRewards.svelte';
   import StashRegex from '$lib/components/StashRegex.svelte';
   import SpeedrunTimer from '$lib/components/SpeedrunTimer.svelte';
+  import BuildOverview from '$lib/components/BuildOverview.svelte';
+  import {
+    importPob,
+    loadStoredBuild,
+    saveBuild,
+    clearBuild as clearStoredBuild,
+    type PobBuild,
+  } from '$lib/pob';
   import { m } from '$lib/paraglide/messages.js';
   import { getLocale, locales, setLocale } from '$lib/paraglide/runtime.js';
   import {
@@ -34,7 +42,7 @@
 
   type AppLocale = (typeof locales)[number];
   type SettingsTabId = 'hotkeys' | 'language' | 'logFile' | 'importBuilds';
-  type MainViewId = 'campaign' | 'rewards' | 'stash' | 'timer';
+  type MainViewId = 'campaign' | 'rewards' | 'stash' | 'timer' | 'build';
 
   const LOG_FILE_STORAGE_KEY = 'EXILECOMPASS_LOG_FILE_PATH_V1';
   const SETTINGS_GROUPS = ['GENERAL', 'IMPORT'] as const;
@@ -59,6 +67,13 @@
   let autoDetecting = $state(false);
   let hotkeyBindings = $state<HotkeyBindings>(getDefaultHotkeyBindings());
   let hotkeyDrafts = $state<HotkeyBindings>(getDefaultHotkeyBindings());
+
+  // PoB build state
+  let pobBuild = $state<PobBuild | null>(null);
+  let pobInput = $state('');
+  let pobImporting = $state(false);
+  let pobError = $state('');
+  let pobSuccess = $state(false);
 
   function getSettingsGroupLabel(group: 'GENERAL' | 'IMPORT') {
     return group === 'GENERAL' ? m.settings_group_general() : m.settings_group_import();
@@ -85,6 +100,7 @@
     hotkeyDrafts = { ...hotkeyBindings };
     selectedLocale = getLocale() as AppLocale;
     logFilePath = window.localStorage.getItem(LOG_FILE_STORAGE_KEY) ?? '';
+    pobBuild = loadStoredBuild();
 
     syncGlobalClickThroughHotkey(hotkeyBindings.toggleClickThrough).catch((e) => {
       hotkeyError = `${m.error_failed_register_clickthrough_hotkey()} ${String(e)}`;
@@ -284,6 +300,31 @@
     logFilePath = '';
     window.localStorage.removeItem(LOG_FILE_STORAGE_KEY);
   }
+
+  async function handlePobImport() {
+    if (!pobInput.trim()) return;
+    pobImporting = true;
+    pobError = '';
+    pobSuccess = false;
+    try {
+      const build = await importPob(pobInput);
+      saveBuild(build);
+      pobBuild = build;
+      pobSuccess = true;
+      pobInput = '';
+      setTimeout(() => (pobSuccess = false), 3000);
+    } catch (e) {
+      pobError = String(e).replace(/^Error:\s*/, '');
+    } finally {
+      pobImporting = false;
+    }
+  }
+
+  function handlePobClear() {
+    clearStoredBuild();
+    pobBuild = null;
+    pobError = '';
+  }
 </script>
 
 <svelte:window onkeydown={handleHotkey} />
@@ -397,7 +438,40 @@
 
             {:else if activeSettingsTab === 'importBuilds'}
               <div class="settings-section-title">{m.settings_import_builds_title()}</div>
-              <div class="placeholder-text">{m.settings_import_builds_placeholder()}</div>
+              <label class="field-label" for="pob-input">PoB Export Code or pobb.in Link</label>
+              <textarea
+                id="pob-input"
+                class="field-input pob-textarea"
+                bind:value={pobInput}
+                placeholder="Paste PoB export code or https://pobb.in/… link"
+                rows="4"
+                spellcheck="false"
+              ></textarea>
+              <div class="settings-actions">
+                <button
+                  class="btn btn-primary"
+                  onclick={handlePobImport}
+                  disabled={!pobInput.trim() || pobImporting}
+                >
+                  {pobImporting ? 'Importing…' : pobSuccess ? '✓ Imported' : 'Import Build'}
+                </button>
+                {#if pobBuild}
+                  <button class="btn btn-ghost" onclick={handlePobClear}>Clear</button>
+                {/if}
+              </div>
+              {#if pobError}
+                <p class="inline-error">{pobError}</p>
+              {/if}
+              {#if pobBuild}
+                <div class="pob-current">
+                  <span class="pob-current-label">Imported:</span>
+                  <span class="pob-current-name">{pobBuild.ascendClassName || pobBuild.className} · Lv {pobBuild.level}</span>
+                  <span class="pob-current-links">{pobBuild.skillGroups.length} skill link{pobBuild.skillGroups.length !== 1 ? 's' : ''}</span>
+                </div>
+              {/if}
+              <p class="field-help">
+                In Path of Building: Export → Export Code. Supports direct codes and pobb.in links.
+              </p>
             {/if}
           </div>
         </div>
@@ -441,6 +515,12 @@
             onclick={() => (mainView = 'timer')}
             type="button"
           >{m.nav_timer()}</button>
+          <button
+            class="view-tab"
+            class:active={mainView === 'build'}
+            onclick={() => (mainView = 'build')}
+            type="button"
+          >{m.nav_build()}</button>
         </div>
 
         <!-- Tab content -->
@@ -451,8 +531,14 @@
             <PermanentRewards />
           {:else if mainView === 'stash'}
             <StashRegex />
-          {:else}
+          {:else if mainView === 'timer'}
             <SpeedrunTimer />
+          {:else}
+            <BuildOverview
+              build={pobBuild}
+              onClear={handlePobClear}
+              onOpenImport={() => { showSettings = true; activeSettingsTab = 'importBuilds'; }}
+            />
           {/if}
         </div>
 
@@ -764,17 +850,7 @@
     line-height: 1.45;
   }
 
-  .placeholder-text {
-    padding: 12px;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 16%, transparent);
-    border-radius: 2px;
-    background: color-mix(in srgb, var(--c-bg) 96%, var(--c-mid));
-    color: color-mix(in srgb, var(--c-muted) 82%, #fff 18%);
-    font-size: 11px;
-    line-height: 1.5;
-  }
-
-  .settings-actions {
+.settings-actions {
     display: flex;
     gap: 6px;
   }
@@ -926,6 +1002,43 @@
   .btn-ghost:hover {
     background: color-mix(in srgb, var(--c-accent) 8%, transparent);
     color: var(--c-primary);
+  }
+
+  .pob-textarea {
+    resize: vertical;
+    min-height: 70px;
+    font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 10px;
+  }
+
+  .pob-current {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: color-mix(in srgb, var(--c-primary) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-primary) 22%, transparent);
+    border-radius: 2px;
+  }
+
+  .pob-current-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--c-muted) 80%, transparent);
+  }
+
+  .pob-current-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--c-primary);
+    flex: 1;
+  }
+
+  .pob-current-links {
+    font-size: 10px;
+    color: color-mix(in srgb, var(--c-accent) 70%, transparent);
   }
 
 
