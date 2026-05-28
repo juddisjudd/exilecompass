@@ -12,13 +12,11 @@
 
   const win = getCurrentWindow();
 
-  async function minimize() { await win.minimize(); }
   async function close() { await win.close(); }
 </script>
 
 <header class="titlebar" data-tauri-drag-region>
   <div class="titlebar-left">
-    <img class="app-icon" src="/compass.svg" alt="" aria-hidden="true" />
     <span class="app-title">{title}</span>
   </div>
 
@@ -33,84 +31,63 @@
       {@render controlsLeft()}
     {/if}
 
-    <button class="ctrl-btn ctrl-minimize" onclick={minimize} title="Minimize" aria-label="Minimize">
-      <svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor" aria-hidden="true">
-        <rect width="10" height="1"/>
-      </svg>
-    </button>
-    <button class="ctrl-btn ctrl-close" onclick={close} title="Close" aria-label="Close">
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-        <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-    </button>
+    <!-- PoE2 close button image -->
+    <button class="ctrl-btn ctrl-close" onclick={close} title="Close" aria-label="Close"></button>
   </div>
 </header>
 
 <style>
   .titlebar {
     --c-primary: #e8e4de;
-    --c-mid: #1c1c1e;
-    --c-accent: #b8b4ae;
-    --c-muted: #48484c;
-    --c-bg: #080808;
+    --c-mid:     #1c1c1e;
+    --c-accent:  #b8b4ae;
+    --c-muted:   #48484c;
+    --c-bg:      #080808;
 
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 34px;
+    /* Height at ~55% of natural 88px — gives the ornaments enough room */
+    height: 48px;
     padding: 0 4px 0 10px;
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--c-bg) 88%, var(--c-mid)) 0%,
-      color-mix(in srgb, var(--c-bg) 96%, var(--c-mid)) 100%
-    );
-    border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 42%, transparent);
+
+    /* Must sit above the PoeFrame overlay (z-index: 100) */
+    position: relative;
+    z-index: 200;
+
+    /* 3-piece horizontal bar — caps scale to height, middle STRETCHES to fill */
+    background-image:
+      url('/ui/windowtitlebarleft.webp'),
+      url('/ui/windowtitlebarright.webp'),
+      url('/ui/windowtitlebarmiddle.webp');
+    background-position: left center, right center, 0 0;
+    background-repeat:   no-repeat,  no-repeat,   no-repeat;
+    background-size:     auto 100%,  auto 100%,   100% 100%;
+
     user-select: none;
     -webkit-user-select: none;
     flex-shrink: 0;
     position: relative;
   }
 
-  .titlebar::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 10%;
-    right: 10%;
-    height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      color-mix(in srgb, var(--c-primary) 24%, transparent),
-      transparent
-    );
-    pointer-events: none;
-  }
-
   .titlebar-left {
     display: flex;
     align-items: center;
-    gap: 7px;
-  }
-
-  .app-icon {
-    width: 15px;
-    height: 15px;
-    opacity: 0.78;
-    flex-shrink: 0;
-    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c-primary) 50%, transparent));
+    /* clear the left gear ornament, shifted ~20px further left */
+    padding-left: 62px;
   }
 
   .app-title {
     font-family: 'Inter Tight', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.14em;
-    color: var(--c-primary);
+    letter-spacing: 0.18em;
+    /* Warm parchment — matches PoE2 panel title colour */
+    color: #e2c98a;
     text-transform: uppercase;
     text-shadow:
-      0 0 12px color-mix(in srgb, var(--c-primary) 45%, transparent),
-      0 1px 3px rgba(0, 0, 0, 0.8);
+      0 0 14px rgba(210,185,110,0.55),
+      0 1px 4px rgba(0,0,0,0.95);
   }
 
   .titlebar-center {
@@ -123,27 +100,44 @@
   .titlebar-controls {
     display: flex;
     align-items: center;
-    gap: 1px;
+    gap: 2px;
+    /* close button pushed toward the right corner */
+    padding-right: 14px;
   }
 
   .ctrl-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 2px;
+    width: 28px;
+    height: 28px;
     border: none;
     background: transparent;
-    color: color-mix(in srgb, var(--c-muted) 70%, transparent);
+    color: #c8b060;
     cursor: pointer;
-    transition: color 0.15s, background 0.15s;
+    transition: all 0.15s;
+    border-radius: 2px;
+    opacity: 0.7;
   }
 
-  .ctrl-btn:hover {
-    background: rgba(255, 255, 255, 0.04);
-  }
+  .ctrl-btn:hover { opacity: 1; }
 
-  .ctrl-minimize:hover { color: var(--c-primary); }
-  .ctrl-close:hover { color: #f38d78; }
+
+
+  /* Close button uses the PoE2 bronze X image */
+  .ctrl-close {
+    width: 28px;
+    height: 28px;
+    background-image: url('/ui/buttonclosenormal.webp');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent;
+    font-size: 0;
+    opacity: 0.8;
+  }
+  .ctrl-close:hover {
+    background-image: url('/ui/buttonclosehover.webp');
+    opacity: 1;
+  }
 </style>

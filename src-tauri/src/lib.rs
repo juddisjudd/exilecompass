@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 use overlay_core::{find_poe2_window, focus_window, is_window_alive, WindowInfo};
-use tauri::{State, WebviewWindow};
+use tauri::{AppHandle, Manager, State, WebviewWindow};
 
 struct OverlayState {
     game_hwnd: Mutex<Option<isize>>,
@@ -15,6 +16,51 @@ impl OverlayState {
             click_through: Mutex::new(false),
         }
     }
+}
+
+// ── Persistent settings store (disk-backed) ──────────────────────────────────
+//
+// WebView2's localStorage is not reliably persisted across dev restarts, so
+// config values that must survive restarts (e.g. the chosen log file path) are
+// stored in a real JSON file under the OS app-config directory instead.
+
+fn settings_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("settings.json"))
+}
+
+fn read_settings(app: &AppHandle) -> HashMap<String, String> {
+    settings_path(app)
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn write_settings(app: &AppHandle, map: &HashMap<String, String>) -> Result<(), String> {
+    let path = settings_path(app)?;
+    let json = serde_json::to_string_pretty(map).map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn store_get(app: AppHandle, key: String) -> Option<String> {
+    read_settings(&app).get(&key).cloned()
+}
+
+#[tauri::command]
+fn store_set(app: AppHandle, key: String, value: String) -> Result<(), String> {
+    let mut map = read_settings(&app);
+    map.insert(key, value);
+    write_settings(&app, &map)
+}
+
+#[tauri::command]
+fn store_remove(app: AppHandle, key: String) -> Result<(), String> {
+    let mut map = read_settings(&app);
+    map.remove(&key);
+    write_settings(&app, &map)
 }
 
 // ── Log file detection ────────────────────────────────────────────────────────
@@ -112,6 +158,44 @@ fn candidate_log_paths() -> Vec<String> {
     }
 
     paths
+}
+
+// ── Log file tail-reading ─────────────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+struct LogTailResult {
+    lines: Vec<String>,
+    file_size: u64,
+}
+
+/// Read new lines from a log file starting at `from_byte`.
+/// Returns the lines added since that offset plus the current file size.
+/// If the file is smaller than `from_byte` (truncated/rotated), `file_size`
+/// will be less than `from_byte` and the caller should reset its offset.
+#[tauri::command]
+fn read_log_tail(path: String, from_byte: u64) -> Result<LogTailResult, String> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader, Seek, SeekFrom};
+
+    let mut file = File::open(&path).map_err(|e| e.to_string())?;
+    let file_size = file.metadata().map_err(|e| e.to_string())?.len();
+
+    let start = from_byte.min(file_size);
+    if start >= file_size {
+        return Ok(LogTailResult { lines: vec![], file_size });
+    }
+
+    file.seek(SeekFrom::Start(start)).map_err(|e| e.to_string())?;
+    let reader = BufReader::new(file);
+    let lines = reader.lines().filter_map(|l| l.ok()).collect();
+
+    Ok(LogTailResult { lines, file_size })
+}
+
+/// Read an entire UTF-8 text file (used for importing GGG `.build` files).
+#[tauri::command]
+fn read_text_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
 // ── pobb.in fetch (bypasses browser CORS) ────────────────────────────────────
@@ -220,7 +304,12 @@ pub fn run() {
             focus_game,
             get_overlay_status,
             detect_log_file,
+            read_log_tail,
+            read_text_file,
             fetch_pobb_code,
+            store_get,
+            store_set,
+            store_remove,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

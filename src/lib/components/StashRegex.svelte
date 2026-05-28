@@ -236,8 +236,8 @@
 <div class="regex-builder">
   <!-- Header -->
   <div class="builder-header">
-    <h3>Stash Search Builder</h3>
-    <span class="header-hint">regex · 250-char limit</span>
+    <h3>REGEX Builder</h3>
+    <span class="header-hint">250-char limit</span>
   </div>
 
   <!-- Assembled output -->
@@ -246,15 +246,14 @@
       <code class="output-text" class:empty={!assembled}>
         {assembled || 'add patterns below…'}
       </code>
-      <button class="act-btn" class:copied onclick={copyToClipboard} disabled={!assembled} title="Copy to clipboard">
-        {#if copied}✓{:else}
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">
-          <rect x="2" y="5" width="9" height="10" rx="1"/>
-          <path d="M5 5V3a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-1"/>
-        </svg>
+      <button class="act-btn act-copy" class:copied onclick={copyToClipboard} disabled={!assembled} title="Copy to clipboard">
+        {#if copied}<span class="copied-check">✓</span>{:else}
+          <img src="/ui/fouriconcopy.webp" width="16" height="16" alt="" aria-hidden="true" />
         {/if}
       </button>
-      <button class="act-btn act-clear" onclick={clearAll} disabled={!assembled} title="Clear all">✕</button>
+      <button class="act-btn act-clear" onclick={clearAll} disabled={!assembled} title="Clear all">
+        <img src="/ui/fouriconclear.webp" width="16" height="16" alt="" aria-hidden="true" />
+      </button>
     </div>
     <div class="char-bar">
       <div class="char-track">
@@ -451,8 +450,11 @@
     border-color: color-mix(in srgb, var(--c-primary) 40%, transparent);
   }
   .act-btn:disabled { opacity: 0.3; cursor: default; }
-  .act-btn.copied { color: #4ade80; border-color: color-mix(in srgb, #4ade80 40%, transparent); }
-  .act-clear:hover:not(:disabled) { color: #f38d78; border-color: color-mix(in srgb, #f38d78 40%, transparent); }
+  .act-copy.copied { border-color: color-mix(in srgb, #4ade80 40%, transparent); }
+  .copied-check { color: #4ade80; font-size: 13px; font-weight: 700; }
+  .act-clear:hover:not(:disabled) { border-color: color-mix(in srgb, #f38d78 40%, transparent); }
+  .act-btn img { display: block; opacity: 0.7; transition: opacity 0.12s; }
+  .act-btn:hover:not(:disabled) img { opacity: 1; }
 
   .char-bar {
     display: flex;

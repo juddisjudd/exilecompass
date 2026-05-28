@@ -7,18 +7,27 @@
     unregister as unregisterGlobalShortcut,
   } from '@tauri-apps/plugin-global-shortcut';
   import TitleBar from '$lib/components/TitleBar.svelte';
+  import PoeFrame from '$lib/components/PoeFrame.svelte';
   import CampaignGuide from '$lib/components/CampaignGuide.svelte';
   import PermanentRewards from '$lib/components/PermanentRewards.svelte';
   import StashRegex from '$lib/components/StashRegex.svelte';
   import SpeedrunTimer from '$lib/components/SpeedrunTimer.svelte';
   import BuildOverview from '$lib/components/BuildOverview.svelte';
   import {
-    importPob,
+    importBuild,
     loadStoredBuild,
     saveBuild,
     clearBuild as clearStoredBuild,
     type PobBuild,
   } from '$lib/pob';
+  import {
+    initWatcherForFile,
+    loadWatcherState,
+    clearWatcherState,
+    pollLog,
+    type LogWatcherState,
+  } from '$lib/logWatcher';
+  import { persistGet, persistSet, persistRemove } from '$lib/persist';
   import { m } from '$lib/paraglide/messages.js';
   import { getLocale, locales, setLocale } from '$lib/paraglide/runtime.js';
   import {
@@ -39,12 +48,14 @@
     type HotkeyBindings,
   } from '$lib/hotkeys';
   import { invoke } from '@tauri-apps/api/core';
+  import { getCurrentWebview } from '@tauri-apps/api/webview';
 
   type AppLocale = (typeof locales)[number];
   type SettingsTabId = 'hotkeys' | 'language' | 'logFile' | 'importBuilds';
   type MainViewId = 'campaign' | 'rewards' | 'stash' | 'timer' | 'build';
 
-  const LOG_FILE_STORAGE_KEY = 'EXILECOMPASS_LOG_FILE_PATH_V1';
+  const LOG_FILE_STORAGE_KEY   = 'EXILECOMPASS_LOG_FILE_PATH_V1';
+  const CT_OPACITY_KEY         = 'EXILECOMPASS_CT_OPACITY_V1';
   const SETTINGS_GROUPS = ['GENERAL', 'IMPORT'] as const;
   const SETTINGS_TABS: Array<{ group: 'GENERAL' | 'IMPORT'; id: SettingsTabId }> = [
     { group: 'GENERAL', id: 'hotkeys' },
@@ -68,12 +79,26 @@
   let hotkeyBindings = $state<HotkeyBindings>(getDefaultHotkeyBindings());
   let hotkeyDrafts = $state<HotkeyBindings>(getDefaultHotkeyBindings());
 
+  // Click-through opacity (0.1 – 0.9, default 40%)
+  let ctOpacity = $state(0.4);
+
+  // Apply/remove transparency whenever click-through state or opacity changes
+  $effect(() => {
+    document.body.style.opacity = overlayState.clickThrough ? String(ctOpacity) : '1';
+  });
+
   // PoB build state
   let pobBuild = $state<PobBuild | null>(null);
+
+  // Log watcher state
+  let logWatcherState = $state<LogWatcherState | null>(null);
+  let logWatcherArea = { current: '' };
+  let rewardsComponent = $state<{ autoMarkReward: (id: string) => void; getCollected: () => Set<string> } | null>(null);
   let pobInput = $state('');
   let pobImporting = $state(false);
   let pobError = $state('');
   let pobSuccess = $state(false);
+  let buildDragOver = $state(false);
 
   function getSettingsGroupLabel(group: 'GENERAL' | 'IMPORT') {
     return group === 'GENERAL' ? m.settings_group_general() : m.settings_group_import();
@@ -99,8 +124,15 @@
     hotkeyBindings = loadHotkeyBindings();
     hotkeyDrafts = { ...hotkeyBindings };
     selectedLocale = getLocale() as AppLocale;
-    logFilePath = window.localStorage.getItem(LOG_FILE_STORAGE_KEY) ?? '';
     pobBuild = loadStoredBuild();
+    const savedOpacity = window.localStorage.getItem(CT_OPACITY_KEY);
+    if (savedOpacity) ctOpacity = parseFloat(savedOpacity);
+
+    // Log file path + watcher state are disk-backed (reliable across restarts)
+    (async () => {
+      logFilePath = (await persistGet(LOG_FILE_STORAGE_KEY)) ?? '';
+      logWatcherState = await loadWatcherState();
+    })();
 
     syncGlobalClickThroughHotkey(hotkeyBindings.toggleClickThrough).catch((e) => {
       hotkeyError = `${m.error_failed_register_clickthrough_hotkey()} ${String(e)}`;
@@ -143,9 +175,41 @@
     syncOverlayAttachment();
     pollTimer = setInterval(syncOverlayAttachment, 1000);
 
+    // Log file polling — runs every 2 s, independent of game detection
+    const syncLog = async () => {
+      if (cancelled || !logFilePath || !logWatcherState || !rewardsComponent) return;
+      try {
+        const collected = rewardsComponent.getCollected();
+        const { ids, state } = await pollLog(logFilePath, logWatcherState, collected, logWatcherArea);
+        logWatcherState = state;
+        for (const id of ids) rewardsComponent.autoMarkReward(id);
+      } catch { /* file may not exist yet */ }
+    };
+    const logTimer = setInterval(syncLog, 2000);
+
+    // Native file drag-and-drop — drop a .build/.json file anywhere to import it
+    let unlistenDrop: (() => void) | undefined;
+    (async () => {
+      const isBuildFile = (x: string) => /\.(build|json)$/i.test(x);
+      unlistenDrop = await getCurrentWebview().onDragDropEvent((event) => {
+        const p = event.payload;
+        if (p.type === 'enter') {
+          buildDragOver = p.paths.some(isBuildFile);
+        } else if (p.type === 'leave') {
+          buildDragOver = false;
+        } else if (p.type === 'drop') {
+          buildDragOver = false;
+          const file = p.paths.find(isBuildFile);
+          if (file) importDroppedFile(file);
+        }
+      });
+    })();
+
     return () => {
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
+      clearInterval(logTimer);
+      unlistenDrop?.();
       if (registeredClickThroughShortcut) {
         unregisterGlobalShortcut(registeredClickThroughShortcut).catch(() => {});
       }
@@ -258,14 +322,22 @@
     } catch { return locale; }
   }
 
+  async function setLogFile(path: string) {
+    logFilePath = path;
+    await persistSet(LOG_FILE_STORAGE_KEY, path);
+    try {
+      logWatcherState = await initWatcherForFile(path);
+      logWatcherArea.current = '';
+    } catch { /* file access error — state stays null */ }
+  }
+
   async function autoDetectLogFile() {
     logFileError = '';
     autoDetecting = true;
     try {
       const detected = await invoke<string | null>('detect_log_file');
       if (detected) {
-        logFilePath = detected;
-        window.localStorage.setItem(LOG_FILE_STORAGE_KEY, detected);
+        await setLogFile(detected);
       } else {
         logFileError = m.error_log_not_found();
       }
@@ -288,26 +360,31 @@
         ],
       });
       if (!selection || Array.isArray(selection)) return;
-      logFilePath = selection;
-      window.localStorage.setItem(LOG_FILE_STORAGE_KEY, selection);
+      await setLogFile(selection as string);
     } catch (e) {
       logFileError = `${m.error_failed_open_file_picker()} ${String(e)}`;
     }
   }
 
+  function handleCtOpacityChange() {
+    window.localStorage.setItem(CT_OPACITY_KEY, String(ctOpacity));
+  }
+
   function clearLogFile() {
     logFileError = '';
     logFilePath = '';
-    window.localStorage.removeItem(LOG_FILE_STORAGE_KEY);
+    logWatcherState = null;
+    void persistRemove(LOG_FILE_STORAGE_KEY);
+    void clearWatcherState();
   }
 
-  async function handlePobImport() {
-    if (!pobInput.trim()) return;
+  async function runBuildImport(text: string) {
+    if (!text.trim()) return;
     pobImporting = true;
     pobError = '';
     pobSuccess = false;
     try {
-      const build = await importPob(pobInput);
+      const build = await importBuild(text);
       saveBuild(build);
       pobBuild = build;
       pobSuccess = true;
@@ -317,6 +394,40 @@
       pobError = String(e).replace(/^Error:\s*/, '');
     } finally {
       pobImporting = false;
+    }
+  }
+
+  function handlePobImport() {
+    runBuildImport(pobInput);
+  }
+
+  async function chooseBuildFile() {
+    pobError = '';
+    try {
+      const selection = await open({
+        directory: false,
+        multiple: false,
+        filters: [
+          { name: 'Build Files', extensions: ['build', 'json'] },
+          { name: m.dialog_all_files(), extensions: ['*'] },
+        ],
+      });
+      if (!selection || Array.isArray(selection)) return;
+      const text = await invoke<string>('read_text_file', { path: selection });
+      await runBuildImport(text);
+    } catch (e) {
+      pobError = String(e).replace(/^Error:\s*/, '');
+    }
+  }
+
+  /** Read a dropped build file and import it. */
+  async function importDroppedFile(path: string) {
+    try {
+      const text = await invoke<string>('read_text_file', { path });
+      await runBuildImport(text);
+      if (pobBuild) mainView = 'build';
+    } catch (e) {
+      pobError = String(e).replace(/^Error:\s*/, '');
     }
   }
 
@@ -330,35 +441,11 @@
 <svelte:window onkeydown={handleHotkey} />
 
 <div class="app-shell">
-  <TitleBar title={m.app_title()}>
-    {#snippet controlsLeft()}
-      <div
-        class="status-wifi"
-        class:attached={overlayState.attached}
-        class:game-running={overlayState.gameRunning && !overlayState.attached}
-        aria-label={overlayState.attached ? 'Attached' : overlayState.gameRunning ? 'Game found' : 'Waiting for game'}
-      >
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M1.5 8.5a14.5 14.5 0 0 1 21 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <path d="M5.5 12.5a9.5 9.5 0 0 1 13 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <path d="M9.5 16.5a5.5 5.5 0 0 1 5 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <circle cx="12" cy="20.5" r="1.5" fill="currentColor"/>
-        </svg>
-      </div>
-      <button
-        class="titlebar-icon-btn"
-        class:active={showSettings}
-        onclick={() => (showSettings = !showSettings)}
-        title={m.tooltip_settings_hotkeys()}
-        aria-label={m.tooltip_settings_hotkeys()}
-      >
-        <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="13" height="13">
-          <path fill-rule="evenodd" clip-rule="evenodd" d="M6.50001 0H9.50001L10.0939 2.37548C10.7276 2.6115 11.3107 2.95155 11.8223 3.37488L14.1782 2.70096L15.6782 5.29904L13.9173 7.00166C13.9717 7.32634 14 7.65987 14 8C14 8.34013 13.9717 8.67366 13.9173 8.99834L15.6782 10.701L14.1782 13.299L11.8223 12.6251C11.3107 13.0484 10.7276 13.3885 10.0939 13.6245L9.50001 16H6.50001L5.90614 13.6245C5.27242 13.3885 4.68934 13.0484 4.17768 12.6251L1.82181 13.299L0.321808 10.701L2.08269 8.99834C2.02831 8.67366 2.00001 8.34013 2.00001 8C2.00001 7.65987 2.02831 7.32634 2.08269 7.00166L0.321808 5.29904L1.82181 2.70096L4.17768 3.37488C4.68934 2.95155 5.27241 2.6115 5.90614 2.37548L6.50001 0ZM8.00001 10C9.10458 10 10 9.10457 10 8C10 6.89543 9.10458 6 8.00001 6C6.89544 6 6.00001 6.89543 6.00001 8C6.00001 9.10457 6.89544 10 8.00001 10Z" fill="currentColor"/>
-        </svg>
-      </button>
-    {/snippet}
-  </TitleBar>
+  <!-- Title bar sits above the frame -->
+  <TitleBar title={m.app_title()} />
 
+  <!-- Frame wraps only the content area below the title bar -->
+  <PoeFrame>
   <main class="content">
     {#if showSettings}
       <!-- Settings panel as overlay -->
@@ -408,6 +495,26 @@
                 <p class="inline-error">{hotkeyError}</p>
               {/if}
 
+              <!-- Click-through opacity -->
+              <div class="ct-opacity-section">
+                <div class="settings-section-title" style="margin-top:4px">Click-Through Opacity</div>
+                <div class="ct-slider-row">
+                  <input
+                    type="range"
+                    class="ct-slider"
+                    min="0.05"
+                    max="0.90"
+                    step="0.05"
+                    bind:value={ctOpacity}
+                    oninput={handleCtOpacityChange}
+                    style="--pct:{Math.round((ctOpacity - 0.05) / 0.85 * 100)}"
+                    aria-label="Click-through opacity"
+                  />
+                  <span class="ct-slider-val">{Math.round(ctOpacity * 100)}%</span>
+                </div>
+                <p class="field-help">Overlay opacity while click-through mode is active.</p>
+              </div>
+
             {:else if activeSettingsTab === 'language'}
               <div class="settings-section-title">{m.label_language()}</div>
               <label class="field-label" for="language-select">{m.label_language()}</label>
@@ -431,6 +538,12 @@
                   <button class="btn btn-ghost" type="button" onclick={clearLogFile}>{m.action_clear()}</button>
                 {/if}
               </div>
+              {#if logWatcherState}
+                <div class="log-watcher-status">
+                  <span class="lws-dot"></span>
+                  <span>Watching · auto-completing rewards from log</span>
+                </div>
+              {/if}
               <p class="field-help">{m.settings_log_file_help()}</p>
               {#if logFileError}
                 <p class="inline-error">{logFileError}</p>
@@ -438,12 +551,12 @@
 
             {:else if activeSettingsTab === 'importBuilds'}
               <div class="settings-section-title">{m.settings_import_builds_title()}</div>
-              <label class="field-label" for="pob-input">PoB Export Code or pobb.in Link</label>
+              <label class="field-label" for="pob-input">PoB Code, pobb.in Link, or GGG .build File</label>
               <textarea
                 id="pob-input"
                 class="field-input pob-textarea"
                 bind:value={pobInput}
-                placeholder="Paste PoB export code or https://pobb.in/… link"
+                placeholder="Paste a PoB export code, a https://pobb.in/… link, or the contents of an official .build file"
                 rows="4"
                 spellcheck="false"
               ></textarea>
@@ -455,6 +568,9 @@
                 >
                   {pobImporting ? 'Importing…' : pobSuccess ? '✓ Imported' : 'Import Build'}
                 </button>
+                <button class="btn btn-ghost" onclick={chooseBuildFile} disabled={pobImporting}>
+                  Browse .build
+                </button>
                 {#if pobBuild}
                   <button class="btn btn-ghost" onclick={handlePobClear}>Clear</button>
                 {/if}
@@ -465,12 +581,15 @@
               {#if pobBuild}
                 <div class="pob-current">
                   <span class="pob-current-label">Imported:</span>
-                  <span class="pob-current-name">{pobBuild.ascendClassName || pobBuild.className} · Lv {pobBuild.level}</span>
-                  <span class="pob-current-links">{pobBuild.skillGroups.length} skill link{pobBuild.skillGroups.length !== 1 ? 's' : ''}</span>
+                  <span class="pob-current-name">
+                    {pobBuild.buildName || pobBuild.ascendClassName || pobBuild.className}{pobBuild.level > 0 ? ` · Lv ${pobBuild.level}` : ''}
+                  </span>
+                  <span class="pob-current-links">{pobBuild.source === 'ggg' ? 'GGG' : 'PoB'}</span>
                 </div>
               {/if}
               <p class="field-help">
-                In Path of Building: Export → Export Code. Supports direct codes and pobb.in links.
+                Path of Building: Export → Export Code (or paste a pobb.in link).
+                Official build files: paste the contents of a <code>.build</code> JSON file.
               </p>
             {/if}
           </div>
@@ -482,6 +601,7 @@
         <div class="waiting-spinner" aria-hidden="true"></div>
         <p class="waiting-title">Waiting for Path of Exile 2</p>
         <p class="waiting-sub">Launch the game and the overlay will attach automatically.</p>
+        <button class="btn btn-ghost" onclick={() => (showSettings = true)}>Settings</button>
         {#if error}
           <p class="error-bar" style="margin-top:12px">{error}</p>
         {/if}
@@ -521,6 +641,13 @@
             onclick={() => (mainView = 'build')}
             type="button"
           >{m.nav_build()}</button>
+          <button
+            class="tab-options-btn"
+            class:active={showSettings}
+            onclick={() => (showSettings = !showSettings)}
+            title={m.tooltip_settings_hotkeys()}
+            aria-label={m.tooltip_settings_hotkeys()}
+          ></button>
         </div>
 
         <!-- Tab content -->
@@ -528,7 +655,7 @@
           {#if mainView === 'campaign'}
             <CampaignGuide />
           {:else if mainView === 'rewards'}
-            <PermanentRewards />
+            <PermanentRewards bind:this={rewardsComponent} />
           {:else if mainView === 'stash'}
             <StashRegex />
           {:else if mainView === 'timer'}
@@ -538,6 +665,16 @@
               build={pobBuild}
               onClear={handlePobClear}
               onOpenImport={() => { showSettings = true; activeSettingsTab = 'importBuilds'; }}
+              onSkillSetChange={(idx) => {
+                if (!pobBuild) return;
+                pobBuild = { ...pobBuild, activeSkillSet: idx };
+                saveBuild(pobBuild);
+              }}
+              onItemSetChange={(idx) => {
+                if (!pobBuild) return;
+                pobBuild = { ...pobBuild, activeItemSet: idx };
+                saveBuild(pobBuild);
+              }}
             />
           {/if}
         </div>
@@ -548,6 +685,18 @@
       </div>
     {/if}
   </main>
+  </PoeFrame>
+
+  {#if buildDragOver}
+    <div class="build-drop-overlay">
+      <div class="build-drop-box">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+        <span>Drop to import build</span>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -588,78 +737,63 @@
   /* ── App shell ───────────────────────────────────────────────── */
   .app-shell {
     --c-primary: #e8e4de;
-    --c-accent: #b8b4ae;
-    --c-mid: #1c1c1e;
-    --c-muted: #48484c;
-    --c-bg: #080808;
+    --c-accent:  #b8b4ae;
+    --c-mid:     #1c1c1e;
+    --c-muted:   #48484c;
+    --c-bg:      #080808;
 
     display: flex;
     flex-direction: column;
     width: 100vw;
     height: 100vh;
-    background: color-mix(in srgb, var(--c-bg) 98%, #000);
+
+    /* Dark overlay (80%) over texture tile — makes seams imperceptible */
+    background-color: #080808;
+    background-image:
+      linear-gradient(rgba(6,6,8,0.80), rgba(6,6,8,0.80)),
+      url('/ui/background1.webp');
+    background-size: auto, 348px 348px;
+    background-repeat: no-repeat, repeat;
+
+    /* Round the window corners so the square texture tucks behind the
+       ornate frame/titlebar corners (window is transparent). */
+    border-radius: 10px;
+    overflow: hidden;
+
+    padding: 0;
   }
 
-  /* ── Status wifi icon (in titlebar) ─────────────────────────── */
-  .status-wifi {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
+  /* PoE2 options/settings button — sits at the right end of the tab row */
+  .tab-options-btn {
+    /* 96×84 image; match the 26px tab height (96*26/84 ≈ 30 wide) */
+    width: 30px;
     height: 26px;
-    margin-right: 2px;
-    color: color-mix(in srgb, var(--c-muted) 55%, transparent);
-    opacity: 0.5;
-    animation: wifi-pulse 2.4s ease-in-out infinite;
-    transition: color 0.3s, opacity 0.3s, filter 0.3s;
-  }
-
-  .status-wifi.game-running {
-    color: #f0c040;
-    opacity: 0.8;
-    animation: none;
-    filter: drop-shadow(0 0 4px color-mix(in srgb, #f0c040 50%, transparent));
-  }
-
-  .status-wifi.attached {
-    color: #4ade80;
-    opacity: 1;
-    animation: none;
-    filter: drop-shadow(0 0 5px color-mix(in srgb, #4ade80 55%, transparent));
-  }
-
-  @keyframes wifi-pulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.6; }
-  }
-
-  .titlebar-icon-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
     border: none;
-    border-radius: 3px;
-    background: transparent;
-    color: color-mix(in srgb, var(--c-muted) 80%, transparent);
+    background: url('/ui/buttonoptionsnormal.webp') center/contain no-repeat;
     cursor: pointer;
-    transition: color 0.15s, background 0.15s;
+    opacity: 0.8;
+    transition: opacity 0.12s;
+    flex-shrink: 0;
+    margin-left: 2px;
   }
-
-  .titlebar-icon-btn:hover,
-  .titlebar-icon-btn.active {
-    color: var(--c-primary);
-    background: color-mix(in srgb, var(--c-primary) 8%, transparent);
+  .tab-options-btn:hover {
+    background-image: url('/ui/buttonoptionshover.webp');
+    opacity: 1;
+  }
+  .tab-options-btn.active {
+    background-image: url('/ui/buttonoptionspressed.webp');
+    opacity: 1;
   }
 
   /* ── Main content area ───────────────────────────────────────── */
   .content {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 8px;
+    /* clears the 16px frame edges on all four sides (frame now wraps content) */
+    padding: 18px 18px 20px 18px;
   }
 
   /* ── Settings overlay ────────────────────────────────────────── */
@@ -694,21 +828,18 @@
   }
 
   .close-settings {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    background: transparent;
+    width: 26px;
+    height: 26px;
     border: none;
-    color: color-mix(in srgb, var(--c-muted) 80%, transparent);
-    font-size: 12px;
+    background: url('/ui/buttonclosenormal.webp') center/contain no-repeat;
+    color: transparent;
+    font-size: 0;
     cursor: pointer;
-    border-radius: 2px;
-    transition: color 0.15s;
+    opacity: 0.75;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
   }
-
-  .close-settings:hover { color: #f38d78; }
+  .close-settings:hover { opacity: 1; background-image: url('/ui/buttonclosehover.webp'); }
 
   .settings-body {
     display: grid;
@@ -873,30 +1004,54 @@
 
   .view-tab {
     flex: 1;
-    padding: 5px 8px;
-    background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
+    height: 26px;
+    padding: 0 6px;
     border: none;
-    border-radius: 2px 2px 0 0;
-    color: color-mix(in srgb, var(--c-accent) 65%, transparent);
+    border-radius: 0;
     font-family: 'Inter Tight', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: opacity 0.12s, color 0.12s;
+
+    background-image:
+      url('/ui/buttongenericnormalleft.webp'),
+      url('/ui/buttongenericnormalright.webp'),
+      url('/ui/buttongenericnormalmiddle.webp');
+    background-position: left center, right center, 0 0;
+    background-repeat:   no-repeat,   no-repeat,   no-repeat;
+    background-size:     auto 100%,   auto 100%,   100% 100%;
+
+    color: color-mix(in srgb, #c8b060 60%, transparent);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    opacity: 0.7;
   }
 
   .view-tab:hover {
-    background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
-    color: var(--c-accent);
+    background-image:
+      url('/ui/buttongenerichoverleft.webp'),
+      url('/ui/buttongenerichoverright.webp'),
+      url('/ui/buttongenerichovermiddle.webp');
+    background-position: left center, right center, 0 0;
+    background-repeat:   no-repeat,   no-repeat,   no-repeat;
+    background-size:     auto 100%,   auto 100%,   100% 100%;
+    color: #c8b060;
+    opacity: 1;
   }
 
   .view-tab.active {
-    background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
-    border-bottom: 2px solid var(--c-primary);
-    color: var(--c-primary);
-    text-shadow: 0 0 8px color-mix(in srgb, var(--c-primary) 30%, transparent);
+    background-image:
+      url('/ui/buttongenericpressedleft.webp'),
+      url('/ui/buttongenericpressedright.webp'),
+      url('/ui/buttongenericpressedmiddle.webp');
+    background-position: left center, right center, 0 0;
+    background-repeat:   no-repeat,   no-repeat,   no-repeat;
+    background-size:     auto 100%,   auto 100%,   100% 100%;
+    color: #e8d070;
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(232,208,112,0.5), 0 1px 2px rgba(0,0,0,0.8);
   }
 
   /* Content pane */
@@ -965,44 +1120,62 @@
     line-height: 1.5;
   }
 
-  /* ── Shared button styles ────────────────────────────────────── */
+  /* ── Shared button styles — 3-piece PoE2 game button ────────── */
+  /* Pieces are 44×80px; at 30px height each cap scales to ~16.5px wide */
   .btn {
-    padding: 5px 13px;
-    border-radius: 2px;
+    height: 30px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 0;
+    font-family: 'Inter Tight', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s, transform 0.1s;
-    border: 1px solid transparent;
+    transition: opacity 0.12s, filter 0.12s;
+
+    /* 3-piece: caps scale to height, middle stretches — no tiling seams */
+    background-image:
+      url('/ui/buttongenericnormalleft.webp'),
+      url('/ui/buttongenericnormalright.webp'),
+      url('/ui/buttongenericnormalmiddle.webp');
+    background-position: left center, right center, 0 0;
+    background-repeat:   no-repeat,   no-repeat,   no-repeat;
+    background-size:     auto 100%,   auto 100%,   100% 100%;
+
+    color: #c8b060;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   }
 
-  .btn:hover { transform: translateY(-1px); }
-  .btn:active { transform: translateY(0); }
-
-  .btn-primary {
-    background: color-mix(in srgb, var(--c-primary) 15%, transparent);
-    border-color: color-mix(in srgb, var(--c-primary) 45%, transparent);
-    color: var(--c-primary);
-    box-shadow: 0 0 8px color-mix(in srgb, var(--c-primary) 12%, transparent);
+  .btn:hover {
+    background-image:
+      url('/ui/buttongenerichoverleft.webp'),
+      url('/ui/buttongenerichoverright.webp'),
+      url('/ui/buttongenerichovermiddle.webp');
+    background-position: left center, right center, 0 0;
+    background-repeat:   no-repeat,   no-repeat,   no-repeat;
+    background-size:     auto 100%,   auto 100%,   100% 100%;
+    color: #e8d070;
+    filter: drop-shadow(0 0 4px rgba(200,176,60,0.3));
   }
 
-  .btn-primary:hover {
-    background: color-mix(in srgb, var(--c-primary) 22%, transparent);
-    border-color: color-mix(in srgb, var(--c-primary) 60%, transparent);
+  .btn:active {
+    background-image:
+      url('/ui/buttongenericpressedleft.webp'),
+      url('/ui/buttongenericpressedright.webp'),
+      url('/ui/buttongenericpressedmiddle.webp');
+    background-position: left center, right center, 0 0;
+    background-repeat:   no-repeat,   no-repeat,   no-repeat;
+    background-size:     auto 100%,   auto 100%,   100% 100%;
+    color: #a89040;
+    filter: none;
   }
 
-  .btn-ghost {
-    background: transparent;
-    border-color: color-mix(in srgb, var(--c-accent) 30%, transparent);
-    color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%);
-  }
-
-  .btn-ghost:hover {
-    background: color-mix(in srgb, var(--c-accent) 8%, transparent);
-    color: var(--c-primary);
-  }
+  /* Primary and ghost both use the same game button; ghost is slightly dimmed */
+  .btn-primary { opacity: 1; }
+  .btn-ghost   { opacity: 0.78; }
+  .btn-ghost:hover { opacity: 1; }
 
   .pob-textarea {
     resize: vertical;
@@ -1039,6 +1212,125 @@
   .pob-current-links {
     font-size: 10px;
     color: color-mix(in srgb, var(--c-accent) 70%, transparent);
+  }
+
+  .log-watcher-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: color-mix(in srgb, #4ade80 6%, transparent);
+    border: 1px solid color-mix(in srgb, #4ade80 22%, transparent);
+    border-radius: 2px;
+    font-size: 10px;
+    color: color-mix(in srgb, #4ade80 75%, transparent);
+  }
+
+  .lws-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #4ade80;
+    flex-shrink: 0;
+    animation: lws-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes lws-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Click-through opacity slider ───────────────────────────── */
+  .ct-opacity-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ct-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ct-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(
+      to right,
+      #c8a040 calc(var(--pct, 44) * 1%),
+      color-mix(in srgb, var(--c-mid) 80%, transparent) calc(var(--pct, 44) * 1%)
+    );
+    outline: none;
+    cursor: pointer;
+  }
+
+  .ct-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #c8a040;
+    border: 2px solid color-mix(in srgb, #c8a040 60%, #000 40%);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(200,160,64,0.5);
+    transition: box-shadow 0.15s;
+  }
+  .ct-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 10px rgba(200,160,64,0.8);
+  }
+  .ct-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #c8a040;
+    border: 2px solid color-mix(in srgb, #c8a040 60%, #000 40%);
+    cursor: pointer;
+  }
+
+  .ct-slider-val {
+    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    font-feature-settings: 'tnum';
+    min-width: 34px;
+    text-align: right;
+    color: #c8a040;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Build file drop overlay ────────────────────────────────── */
+  .build-drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--c-bg) 78%, transparent);
+    backdrop-filter: blur(1px);
+    pointer-events: none;
+  }
+
+  .build-drop-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 28px 40px;
+    border: 2px dashed color-mix(in srgb, #c8a040 60%, transparent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
+    color: #e2c98a;
+    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(200,160,64,0.4);
   }
 
 

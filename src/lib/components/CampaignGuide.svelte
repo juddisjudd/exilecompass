@@ -270,15 +270,19 @@
 
   .toggle-icon {
     display: inline-block;
-    font-size: 8px;
-    color: color-mix(in srgb, var(--c-accent) 70%, transparent);
-    transition: transform 0.2s ease;
+    width: 14px;
+    height: 14px;
     flex-shrink: 0;
-    width: 10px;
-  }
-
-  .toggle-icon.expanded {
+    background: url('/ui/buttoncollapsenormal.webp') center/contain no-repeat;
+    /* The collapse image points UP; rotate 90° to point right (collapsed state) */
     transform: rotate(90deg);
+    transition: transform 0.2s ease, opacity 0.15s;
+    opacity: 0.6;
+    font-size: 0;
+  }
+  .toggle-icon.expanded {
+    transform: rotate(180deg);
+    opacity: 0.9;
   }
 
   .act-title {
@@ -408,37 +412,21 @@
   .objective-checkbox {
     flex-shrink: 0;
     appearance: none;
-    width: 13px;
-    height: 13px;
+    width: 16px;
+    height: 16px;
     margin-top: 1px;
-    background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 50%, transparent);
-    border-radius: 2px;
+    border: none;
+    border-radius: 0;
+    background: url('/ui/checkboxsquareunchecked.webp') center/contain no-repeat;
     cursor: pointer;
-    position: relative;
-    transition: border-color 0.15s, background 0.15s;
     align-self: flex-start;
-    margin-top: 2px;
+    transition: opacity 0.12s;
   }
-
-  .objective-checkbox:hover {
-    border-color: var(--c-primary);
-  }
-
+  .objective-checkbox:hover { opacity: 0.8; }
   .objective-checkbox:checked {
-    background: color-mix(in srgb, var(--c-primary) 20%, transparent);
-    border-color: var(--c-primary);
+    background-image: url('/ui/checkboxsquarechecked.webp');
   }
-
-  .objective-checkbox:checked::after {
-    content: '✓';
-    position: absolute;
-    top: -3px;
-    left: 1px;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--c-primary);
-  }
+  .objective-checkbox:checked::after { display: none; }
 
   .objective-text {
     font-size: 11px;

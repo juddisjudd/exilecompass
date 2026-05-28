@@ -9,6 +9,8 @@
   type Reward = RewardGroup['rewards'][number];
 
   let collected = $state(new SvelteSet<string>());
+  // IDs auto-detected from the log file (shown with a small indicator)
+  let autoDetected = $state(new SvelteSet<string>());
 
   onMount(() => {
     const saved = window.localStorage.getItem(STATE_KEY);
@@ -17,10 +19,17 @@
         collected = new SvelteSet<string>(JSON.parse(saved));
       } catch { /* ignore */ }
     }
+    const savedAuto = window.localStorage.getItem(STATE_KEY + '_AUTO');
+    if (savedAuto) {
+      try {
+        autoDetected = new SvelteSet<string>(JSON.parse(savedAuto));
+      } catch { /* ignore */ }
+    }
   });
 
   function save() {
     window.localStorage.setItem(STATE_KEY, JSON.stringify(Array.from(collected)));
+    window.localStorage.setItem(STATE_KEY + '_AUTO', JSON.stringify(Array.from(autoDetected)));
   }
 
   function toggle(id: string) {
@@ -31,8 +40,23 @@
   function resetAll() {
     if (confirm('Reset all reward progress?')) {
       collected = new SvelteSet<string>();
+      autoDetected = new SvelteSet<string>();
       save();
     }
+  }
+
+  /** Called by the log watcher when a reward is detected in the log file. */
+  export function autoMarkReward(id: string) {
+    if (!collected.has(id)) {
+      collected.add(id);
+      autoDetected.add(id);
+      save();
+    }
+  }
+
+  /** Returns current collected IDs for the log watcher to avoid re-processing. */
+  export function getCollected(): Set<string> {
+    return new Set(collected);
   }
 
   function groupCollected(group: RewardGroup): number {
@@ -97,6 +121,9 @@
             <span class="reward-source">{reward.source}</span>
             <span class="reward-location">{reward.location} · {reward.act}</span>
           </span>
+          {#if autoDetected.has(reward.id)}
+            <span class="auto-badge" title="Auto-detected from log file">log</span>
+          {/if}
           <span class="reward-value" style="color: {valueColor(reward)}; border-color: color-mix(in srgb, {valueColor(reward)} 28%, transparent); background: color-mix(in srgb, {valueColor(reward)} 8%, transparent)">
             {valueLabel(reward)}
           </span>
@@ -203,29 +230,20 @@
   .reward-check {
     flex-shrink: 0;
     appearance: none;
-    width: 13px;
-    height: 13px;
-    background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 50%, transparent);
-    border-radius: 2px;
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 0;
+    background: url('/ui/checkboxunchecked.webp') center/contain no-repeat;
     cursor: pointer;
-    position: relative;
-    transition: border-color 0.15s, background 0.15s;
     align-self: center;
+    transition: opacity 0.12s;
   }
+  .reward-check:hover { opacity: 0.85; }
   .reward-check:checked {
-    background: color-mix(in srgb, var(--c-primary) 20%, transparent);
-    border-color: var(--c-primary);
+    background-image: url('/ui/checkboxchecked.webp');
   }
-  .reward-check:checked::after {
-    content: '✓';
-    position: absolute;
-    top: -3px;
-    left: 1px;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--c-primary);
-  }
+  .reward-check:checked::after { display: none; }
 
   .reward-info {
     display: flex;
@@ -251,6 +269,20 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .auto-badge {
+    flex-shrink: 0;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1px 4px;
+    border-radius: 2px;
+    border: 1px solid color-mix(in srgb, #4ade80 30%, transparent);
+    background: color-mix(in srgb, #4ade80 8%, transparent);
+    color: color-mix(in srgb, #4ade80 80%, transparent);
+    white-space: nowrap;
   }
 
   .reward-value {
