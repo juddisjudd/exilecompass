@@ -157,5 +157,5 @@ bun run release    # build installers
 
 ## License
 
-Released under the [MIT License](LICENSE). Not affiliated with or endorsed by
+Released under the [AGPL-3.0 license](LICENSE). Not affiliated with or endorsed by
 Grinding Gear Games. Path of Exile 2 is a trademark of Grinding Gear Games.
