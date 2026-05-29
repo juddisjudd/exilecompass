@@ -1,7 +1,10 @@
 export type HotkeyActionId =
   | 'toggleClickThrough'
   | 'refreshStatus'
-  | 'toggleSettings';
+  | 'toggleSettings'
+  | 'toggleCampaignTimer'
+  | 'campaignCompleteNext'
+  | 'campaignUndoLast';
 
 export interface HotkeyAction {
   id: HotkeyActionId;
@@ -13,6 +16,9 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: 'toggleClickThrough', description: 'Toggle click-through mode', defaultCombo: 'Ctrl+Shift+C' },
   { id: 'refreshStatus', description: 'Refresh game detection', defaultCombo: 'Ctrl+Shift+R' },
   { id: 'toggleSettings', description: 'Toggle settings panel', defaultCombo: 'Ctrl+Shift+Comma' },
+  { id: 'toggleCampaignTimer', description: 'Start/stop campaign timer', defaultCombo: 'Ctrl+Shift+T' },
+  { id: 'campaignCompleteNext', description: 'Complete next campaign objective', defaultCombo: 'Ctrl+Shift+X' },
+  { id: 'campaignUndoLast', description: 'Undo last campaign objective', defaultCombo: 'Ctrl+Shift+Z' },
 ];
 
 const STORAGE_KEY = 'EXILECOMPASS_HOTKEYS_V1';

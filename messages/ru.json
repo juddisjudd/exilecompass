@@ -152,5 +152,22 @@
   "regex_placeholder_output": "добавьте шаблоны ниже…",
   "regex_placeholder_test": "Вставьте сюда текст подсказки предмета для проверки…",
   "regex_copy": "Копировать в буфер обмена",
-  "regex_clear_all": "Очистить всё"
+  "regex_clear_all": "Очистить всё",
+  "timer_stop": "Стоп",
+  "timer_total": "Итого",
+  "timer_mode_manual": "Вручную",
+  "timer_mode_campaign": "Кампания",
+  "timer_campaign_idle": "Нажмите «Старт» (или свою клавишу) в начале кампании.",
+  "timer_campaign_hint": "Акты разбиваются автоматически по файлу лога (Настройки → Файл лога).",
+  "hotkey_toggle_campaign_timer": "Запуск/остановка таймера кампании",
+  "hotkey_campaign_complete_next": "Завершить следующую цель кампании",
+  "hotkey_campaign_undo_last": "Отменить последнюю цель кампании",
+  "update_checking": "Проверка…",
+  "update_up_to_date": "Установлена последняя версия.",
+  "action_check_updates": "Проверить обновления",
+  "settings_tab_about": "О программе",
+  "about_version": "Версия",
+  "about_support_title": "Поддержка",
+  "about_support_text": "Если вам нравится ExileCompass, поддержите разработку.",
+  "about_kofi": "Поддержать на Ko-fi"
 }

@@ -28,6 +28,8 @@
     type LogWatcherState,
   } from '$lib/logWatcher';
   import { persistGet, persistSet, persistRemove } from '$lib/persist';
+  import { campaignTimer } from '$lib/campaignTimer.svelte';
+  import { campaignProgress } from '$lib/campaignProgress.svelte';
   import { m } from '$lib/paraglide/messages.js';
   import { getLocale, locales, setLocale } from '$lib/paraglide/runtime.js';
   import {
@@ -49,28 +51,32 @@
   } from '$lib/hotkeys';
   import { invoke } from '@tauri-apps/api/core';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
+  import { getVersion } from '@tauri-apps/api/app';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { checkForUpdate, installUpdate } from '$lib/updater';
   import type { Update } from '@tauri-apps/plugin-updater';
 
   type AppLocale = (typeof locales)[number];
-  type SettingsTabId = 'hotkeys' | 'language' | 'logFile' | 'importBuilds';
+  type SettingsTabId = 'hotkeys' | 'language' | 'logFile' | 'importBuilds' | 'about';
+
+  const KOFI_URL = 'https://ko-fi.com/ohitsjudd';
   type MainViewId = 'campaign' | 'rewards' | 'stash' | 'timer' | 'build';
 
   const LOG_FILE_STORAGE_KEY   = 'EXILECOMPASS_LOG_FILE_PATH_V1';
   const CT_OPACITY_KEY         = 'EXILECOMPASS_CT_OPACITY_V1';
-  const SETTINGS_GROUPS = ['GENERAL', 'IMPORT'] as const;
-  const SETTINGS_TABS: Array<{ group: 'GENERAL' | 'IMPORT'; id: SettingsTabId }> = [
+  const SETTINGS_GROUPS = ['GENERAL', 'IMPORT', 'ABOUT'] as const;
+  const SETTINGS_TABS: Array<{ group: 'GENERAL' | 'IMPORT' | 'ABOUT'; id: SettingsTabId }> = [
     { group: 'GENERAL', id: 'hotkeys' },
     { group: 'GENERAL', id: 'language' },
     { group: 'GENERAL', id: 'logFile' },
     { group: 'IMPORT', id: 'importBuilds' },
+    { group: 'ABOUT', id: 'about' },
   ];
 
   let error = $state('');
   let showSettings = $state(false);
   let mainView = $state<MainViewId>('campaign');
   let hotkeyError = $state('');
-  let registeredClickThroughShortcut = '';
   let autoAttachInFlight = false;
   let lastAttached = false;
   let activeSettingsTab = $state<SettingsTabId>('hotkeys');
@@ -107,21 +113,32 @@
   let updateInstalling = $state(false);
   let updateProgress = $state(0);
   let updateDismissed = $state(false);
+  let updateChecking = $state(false);
+  let updateCheckMsg = $state('');
 
-  function getSettingsGroupLabel(group: 'GENERAL' | 'IMPORT') {
-    return group === 'GENERAL' ? m.settings_group_general() : m.settings_group_import();
+  // About
+  let appVersion = $state('');
+
+  function getSettingsGroupLabel(group: 'GENERAL' | 'IMPORT' | 'ABOUT') {
+    if (group === 'GENERAL') return m.settings_group_general();
+    if (group === 'IMPORT') return m.settings_group_import();
+    return m.settings_tab_about();
   }
 
   function getSettingsTabLabel(tabId: SettingsTabId) {
     if (tabId === 'hotkeys') return m.settings_tab_hotkeys();
     if (tabId === 'language') return m.label_language();
     if (tabId === 'logFile') return m.settings_tab_log_file();
-    return m.settings_tab_import_builds();
+    if (tabId === 'importBuilds') return m.settings_tab_import_builds();
+    return m.settings_tab_about();
   }
 
   function getHotkeyDescription(actionId: HotkeyActionId) {
     if (actionId === 'toggleClickThrough') return m.hotkey_toggle_clickthrough();
     if (actionId === 'refreshStatus') return m.hotkey_refresh_status();
+    if (actionId === 'toggleCampaignTimer') return m.hotkey_toggle_campaign_timer();
+    if (actionId === 'campaignCompleteNext') return m.hotkey_campaign_complete_next();
+    if (actionId === 'campaignUndoLast') return m.hotkey_campaign_undo_last();
     return m.hotkey_toggle_settings();
   }
 
@@ -136,15 +153,18 @@
     const savedOpacity = window.localStorage.getItem(CT_OPACITY_KEY);
     if (savedOpacity) ctOpacity = parseFloat(savedOpacity);
 
-    // Log file path + watcher state are disk-backed (reliable across restarts)
+    getVersion().then((v) => (appVersion = v)).catch(() => {});
+
+    // Log file path + watcher state are disk-backed (reliable across restarts).
+    // Restore the campaign timer BEFORE the watcher state enables polling, so a
+    // run in progress resumes before any new scene lines are processed.
     (async () => {
+      await campaignTimer.load();
       logFilePath = (await persistGet(LOG_FILE_STORAGE_KEY)) ?? '';
       logWatcherState = await loadWatcherState();
     })();
 
-    syncGlobalClickThroughHotkey(hotkeyBindings.toggleClickThrough).catch((e) => {
-      hotkeyError = `${m.error_failed_register_clickthrough_hotkey()} ${String(e)}`;
-    });
+    void syncAllGlobalShortcuts(hotkeyBindings);
 
     const syncOverlayAttachment = async () => {
       if (cancelled || autoAttachInFlight) return;
@@ -185,12 +205,15 @@
 
     // Log file polling — runs every 2 s, independent of game detection
     const syncLog = async () => {
-      if (cancelled || !logFilePath || !logWatcherState || !rewardsComponent) return;
+      if (cancelled || !logFilePath || !logWatcherState) return;
       try {
-        const collected = rewardsComponent.getCollected();
-        const { ids, state } = await pollLog(logFilePath, logWatcherState, collected, logWatcherArea);
+        const collected = rewardsComponent?.getCollected() ?? new Set<string>();
+        const { ids, scenes, state } = await pollLog(logFilePath, logWatcherState, collected, logWatcherArea);
         logWatcherState = state;
-        for (const id of ids) rewardsComponent.autoMarkReward(id);
+        // Feed scene transitions to the campaign timer (works even if the
+        // rewards tab isn't mounted).
+        for (const s of scenes) campaignTimer.handleScene(s.scene, s.timeMs);
+        if (rewardsComponent) for (const id of ids) rewardsComponent.autoMarkReward(id);
       } catch { /* file may not exist yet */ }
     };
     const logTimer = setInterval(syncLog, 2000);
@@ -223,8 +246,8 @@
       if (pollTimer) clearInterval(pollTimer);
       clearInterval(logTimer);
       unlistenDrop?.();
-      if (registeredClickThroughShortcut) {
-        unregisterGlobalShortcut(registeredClickThroughShortcut).catch(() => {});
+      for (const accel of registeredGlobals.values()) {
+        unregisterGlobalShortcut(accel).catch(() => {});
       }
     };
   });
@@ -244,22 +267,57 @@
     return mappedParts.join('+');
   }
 
-  async function syncGlobalClickThroughHotkey(combo: string) {
+  // ── Global shortcuts ─────────────────────────────────────────────────────────
+  // These work even when the game (not the overlay) is focused.
+  const GLOBAL_ACTIONS: Partial<Record<HotkeyActionId, () => void | Promise<void>>> = {
+    toggleClickThrough: async () => { await toggleClickThrough(); await refreshStatus(); },
+    toggleCampaignTimer: () => campaignTimer.toggle(),
+    campaignCompleteNext: () => { campaignProgress.completeNext(); },
+    campaignUndoLast: () => { campaignProgress.undoLast(); },
+  };
+
+  // action id → currently registered accelerator
+  const registeredGlobals = new Map<HotkeyActionId, string>();
+
+  async function syncGlobalShortcut(action: HotkeyActionId, combo: string) {
+    const handler = GLOBAL_ACTIONS[action];
+    if (!handler) return;
+
     const accelerator = toGlobalShortcutAccelerator(combo);
-    if (!accelerator) throw new Error(`${m.error_invalid_clickthrough_combo()} ${combo}`);
-    if (registeredClickThroughShortcut && registeredClickThroughShortcut !== accelerator) {
-      await unregisterGlobalShortcut(registeredClickThroughShortcut);
-      registeredClickThroughShortcut = '';
+    const prev = registeredGlobals.get(action);
+
+    if (prev && prev !== accelerator) {
+      try { await unregisterGlobalShortcut(prev); } catch { /* ignore */ }
+      registeredGlobals.delete(action);
     }
+    if (!accelerator) {
+      if (action === 'toggleClickThrough') {
+        throw new Error(`${m.error_invalid_clickthrough_combo()} ${combo}`);
+      }
+      return;
+    }
+    if (prev === accelerator) return; // already bound as-is
+
     if (await isGlobalShortcutRegistered(accelerator)) {
-      await unregisterGlobalShortcut(accelerator);
+      try { await unregisterGlobalShortcut(accelerator); } catch { /* ignore */ }
     }
-    await registerGlobalShortcut(accelerator, async (event) => {
+    await registerGlobalShortcut(accelerator, (event) => {
       if (event.state !== 'Pressed') return;
-      await toggleClickThrough();
-      await refreshStatus();
+      void handler();
     });
-    registeredClickThroughShortcut = accelerator;
+    registeredGlobals.set(action, accelerator);
+  }
+
+  async function syncAllGlobalShortcuts(bindings: HotkeyBindings) {
+    for (const action of Object.keys(GLOBAL_ACTIONS) as HotkeyActionId[]) {
+      try {
+        await syncGlobalShortcut(action, bindings[action]);
+      } catch (e) {
+        if (action === 'toggleClickThrough') {
+          hotkeyError = `${m.error_failed_register_clickthrough_hotkey()} ${String(e)}`;
+        }
+      }
+    }
   }
 
   async function handleAttach() {
@@ -311,7 +369,7 @@
     hotkeyBindings = next;
     hotkeyDrafts = { ...next };
     saveHotkeyBindings(next);
-    await syncGlobalClickThroughHotkey(next.toggleClickThrough);
+    await syncAllGlobalShortcuts(next);
   }
 
   async function resetHotkeys() {
@@ -320,7 +378,7 @@
     hotkeyBindings = defaults;
     hotkeyDrafts = { ...defaults };
     saveHotkeyBindings(defaults);
-    await syncGlobalClickThroughHotkey(defaults.toggleClickThrough);
+    await syncAllGlobalShortcuts(defaults);
   }
 
   async function handleLocaleChange() {
@@ -448,6 +506,30 @@
     clearStoredBuild();
     pobBuild = null;
     pobError = '';
+  }
+
+  async function checkUpdatesManually() {
+    if (updateChecking) return;
+    updateChecking = true;
+    updateCheckMsg = '';
+    try {
+      const u = await checkForUpdate();
+      if (u) {
+        updateHandle = u;
+        updateDismissed = false;
+        updateCheckMsg = m.update_available({ version: u.version });
+      } else {
+        updateCheckMsg = m.update_up_to_date();
+      }
+    } catch (e) {
+      updateCheckMsg = String(e).replace(/^Error:\s*/, '');
+    } finally {
+      updateChecking = false;
+    }
+  }
+
+  async function openKofi() {
+    try { await openUrl(KOFI_URL); } catch { /* ignore */ }
   }
 
   async function handleInstallUpdate() {
@@ -627,6 +709,32 @@
                 </div>
               {/if}
               <p class="field-help">{m.settings_import_help()}</p>
+
+            {:else if activeSettingsTab === 'about'}
+              <div class="settings-section-title">{m.settings_tab_about()}</div>
+              <div class="about-card">
+                <span class="about-name">ExileCompass</span>
+                <span class="about-version">{m.about_version()} {appVersion || '—'}</span>
+              </div>
+              <div class="settings-actions">
+                <button class="btn btn-primary" onclick={checkUpdatesManually} disabled={updateChecking}>
+                  {updateChecking ? m.update_checking() : m.action_check_updates()}
+                </button>
+                {#if updateHandle}
+                  <button class="btn btn-ghost" onclick={handleInstallUpdate} disabled={updateInstalling}>
+                    {updateInstalling ? `${m.update_installing()} ${updateProgress}%` : m.update_install()}
+                  </button>
+                {/if}
+              </div>
+              {#if updateCheckMsg}
+                <p class="field-help">{updateCheckMsg}</p>
+              {/if}
+
+              <div class="settings-section-title" style="margin-top:8px">{m.about_support_title()}</div>
+              <p class="field-help">{m.about_support_text()}</p>
+              <div class="settings-actions">
+                <button class="btn btn-kofi" onclick={openKofi}>{m.about_kofi()}</button>
+              </div>
             {/if}
           </div>
         </div>
@@ -1020,6 +1128,41 @@
 .settings-actions {
     display: flex;
     gap: 6px;
+  }
+
+  /* ── About tab ───────────────────────────────────────────────── */
+  .about-card {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 10px 12px;
+    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
+    border: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
+    border-radius: 3px;
+  }
+  .about-name {
+    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--c-primary);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 35%, transparent);
+  }
+  .about-version {
+    font-size: 11px;
+    font-feature-settings: 'tnum';
+    color: color-mix(in srgb, var(--c-muted) 85%, #fff 15%);
+  }
+
+  .btn-kofi {
+    background: color-mix(in srgb, #29abe0 18%, transparent);
+    border-color: color-mix(in srgb, #29abe0 50%, transparent);
+    color: #7fd1f0;
+  }
+  .btn-kofi:hover {
+    background: color-mix(in srgb, #29abe0 28%, transparent);
+    border-color: color-mix(in srgb, #29abe0 70%, transparent);
+    color: #aee4f8;
   }
 
   /* ── Main view ───────────────────────────────────────────────── */

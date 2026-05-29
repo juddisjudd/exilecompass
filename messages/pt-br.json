@@ -152,5 +152,22 @@
   "regex_placeholder_output": "adicione padrões abaixo…",
   "regex_placeholder_test": "Cole aqui o texto do item para testar…",
   "regex_copy": "Copiar para a área de transferência",
-  "regex_clear_all": "Limpar tudo"
+  "regex_clear_all": "Limpar tudo",
+  "timer_stop": "Parar",
+  "timer_total": "Total",
+  "timer_mode_manual": "Manual",
+  "timer_mode_campaign": "Campanha",
+  "timer_campaign_idle": "Pressione Iniciar (ou seu atalho) no começo da campanha.",
+  "timer_campaign_hint": "Os atos são divididos automaticamente pelo seu arquivo de log (Configurações → Arquivo de log).",
+  "hotkey_toggle_campaign_timer": "Iniciar/parar cronômetro de campanha",
+  "hotkey_campaign_complete_next": "Concluir próximo objetivo da campanha",
+  "hotkey_campaign_undo_last": "Desfazer último objetivo da campanha",
+  "update_checking": "Verificando…",
+  "update_up_to_date": "Você está na versão mais recente.",
+  "action_check_updates": "Verificar atualizações",
+  "settings_tab_about": "Sobre",
+  "about_version": "Versão",
+  "about_support_title": "Apoiar",
+  "about_support_text": "Se você gosta do ExileCompass, considere apoiar o desenvolvimento.",
+  "about_kofi": "Apoiar no Ko-fi"
 }

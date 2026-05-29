@@ -152,5 +152,22 @@
   "regex_placeholder_output": "下にパターンを追加…",
   "regex_placeholder_test": "テスト用にアイテムのツールチップテキストをここに貼り付け…",
   "regex_copy": "クリップボードにコピー",
-  "regex_clear_all": "すべてクリア"
+  "regex_clear_all": "すべてクリア",
+  "timer_stop": "ストップ",
+  "timer_total": "合計",
+  "timer_mode_manual": "手動",
+  "timer_mode_campaign": "キャンペーン",
+  "timer_campaign_idle": "キャンペーン開始時にスタート（またはホットキー）を押してください。",
+  "timer_campaign_hint": "アクトはログファイルから自動でスプリットされます（設定 → ログファイル）。",
+  "hotkey_toggle_campaign_timer": "キャンペーンタイマーの開始/停止",
+  "hotkey_campaign_complete_next": "次のキャンペーン目標を完了",
+  "hotkey_campaign_undo_last": "直前のキャンペーン目標を取り消し",
+  "update_checking": "確認中…",
+  "update_up_to_date": "最新バージョンです。",
+  "action_check_updates": "アップデートを確認",
+  "settings_tab_about": "情報",
+  "about_version": "バージョン",
+  "about_support_title": "サポート",
+  "about_support_text": "ExileCompass を気に入ったら、開発の支援をご検討ください。",
+  "about_kofi": "Ko-fi で支援"
 }

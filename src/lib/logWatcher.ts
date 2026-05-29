@@ -44,7 +44,7 @@ export async function initWatcherForFile(logPath: string): Promise<LogWatcherSta
 
 // Maps in-game area names (from [SCENE] Set Source) to which reward IDs can
 // appear there. Used to disambiguate passive skill point rewards since multiple
-// sources emit the same "You have received N Passive Skill Points" line.
+// sources emit the same "gained N Passive Skill Points" line.
 const AREA_PASSIVE_MAP: Record<string, string> = {
   'Hunting Grounds':      'sp_crowbell',
   'Ogham Farmlands':      'sp_una_lute',
@@ -82,6 +82,17 @@ function extractScene(line: string): string | null {
 }
 
 /** Process a batch of new log lines and return reward IDs to mark as collected.
+ *
+ *  Real PoE2 reward log lines come in a few shapes (the leading character name
+ *  varies, so we never key on it):
+ *    "<char> has received +5% to [Resistances|Cold Resistance]."
+ *    "<char> gained +30 to [Spirit|Spirit]."
+ *    "<char> gained +20 to maximum Life."
+ *    "<char> has received +1 [Charm] Slot."
+ *    "<char> has received 25% increased [StunThreshold|Stun Threshold]."
+ *    "You gained 2 Passive Skill Points."
+ *    "You gained 2 Weapon Set Passive Skill Points."   (NOT a tracked reward)
+ *
  *  @param lines       Raw log lines from the tail read
  *  @param setupTime   ISO timestamp — discard lines before this
  *  @param collected   IDs already collected (so we don't double-mark)
@@ -98,9 +109,16 @@ export function extractNewRewardIds(
   const mark = (id: string) => {
     if (!collected.has(id) && !toMark.includes(id)) toMark.push(id);
   };
+  // Mark the first not-yet-collected id from an ordered list (for rewards where
+  // several identical grants exist and we can't tell which one this is).
+  const markFirst = (ids: string[]) => {
+    for (const id of ids) {
+      if (!collected.has(id) && !toMark.includes(id)) { mark(id); return; }
+    }
+  };
 
   for (const line of lines) {
-    // Track current area for context
+    // Track current area for passive-point context
     const scene = extractScene(line);
     if (scene) { areaRef.current = scene; continue; }
 
@@ -108,53 +126,78 @@ export function extractNewRewardIds(
     const lineTime = parseLogDate(line);
     if (!lineTime || lineTime < setupTime) continue;
 
-    if (!line.includes('You have received')) continue;
+    // A reward grant always contains "received" or "gained".
+    if (!/\b(received|gained)\b/i.test(line)) continue;
 
-    // ── Resistances (unique — only one of each in the entire game) ──
-    if (/Cold Resistance/i.test(line))      { mark('res_cold');      continue; }
-    if (/Fire Resistance/i.test(line))      { mark('res_fire');      continue; }
-    if (/Lightning Resistance/i.test(line)) { mark('res_lightning'); continue; }
-
-    // ── Spirit (+30 or +40) ──
-    if (/\[Spirit\|/i.test(line) || /to.*Spirit/i.test(line)) {
-      if (/\+40/i.test(line)) {
-        mark('spirit_lythara');
+    // ── Resistances ──────────────────────────────────────────────
+    // +10% = campaign boss reward; +5% to a single element = a Trial choice.
+    const res = line.match(/\+(\d+)%\s+to\s+\[Resistances\|(Cold|Fire|Lightning)\s+Resistance\]/i);
+    if (res) {
+      const amt = parseInt(res[1], 10);
+      const el = res[2].toLowerCase();
+      if (amt >= 10) {
+        mark(el === 'cold' ? 'res_cold' : el === 'fire' ? 'res_fire' : 'res_lightning');
       } else {
-        // +30: mark the first uncollected spirit reward in order
-        for (const id of SPIRIT_ORDER) {
-          if (!collected.has(id) && !toMark.includes(id)) { mark(id); break; }
-        }
+        // Trial of the Sekhemas: each trial offers an attribute OR a resistance.
+        mark(el === 'cold' ? 'choice_trial_tasalio'
+           : el === 'fire' ? 'choice_trial_ngamahu'
+           : 'choice_trial_tawhoa');
       }
       continue;
     }
+    // Seven Pillars "Tabana" grants all elemental resistances at once.
+    if (/to all\s+Elemental\s+Resistances/i.test(line)) { mark('choice_seven_pillars'); continue; }
 
-    // ── Life ──
+    // ── Spirit ───────────────────────────────────────────────────
+    const spirit = line.match(/\+(\d+)\s+to\s+\[Spirit\|Spirit\]/i);
+    if (spirit) {
+      const amt = parseInt(spirit[1], 10);
+      if (amt >= 40) mark('spirit_lythara');
+      else markFirst(SPIRIT_ORDER);
+      continue;
+    }
+
+    // ── Max Life / Max Mana ──────────────────────────────────────
     if (/maximum Life/i.test(line)) {
-      if (/\+20\b/.test(line))  { mark('life_candlemass'); }
-      else if (/%.*Life/i.test(line)) { mark('life_molten'); }
-      else {
-        for (const id of ['life_candlemass', 'life_molten']) {
-          if (!collected.has(id) && !toMark.includes(id)) { mark(id); break; }
-        }
-      }
+      if (/\+20\s+to\s+maximum Life/i.test(line)) mark('life_candlemass');
+      else if (/%.*maximum Life/i.test(line)) mark('life_molten');
+      else markFirst(['life_candlemass', 'life_molten']);
+      continue;
+    }
+    if (/%.*maximum Mana/i.test(line)) { mark('mana_silent'); continue; }
+
+    // ── Charm slot / charges / duration (Valley of the Titans) ───
+    if (/\[Charm\]/i.test(line)) { mark('choice_valley'); continue; }
+
+    // ── Venom Vial (Stun / Ailment threshold or Mana Regen) ──────
+    if (/Stun\s*Threshold|Ailment\s*Threshold|Mana Regeneration/i.test(line)) {
+      mark('choice_venom_vial');
       continue;
     }
 
-    // ── Mana ──
-    if (/maximum Mana/i.test(line)) { mark('mana_silent'); continue; }
+    // ── Abandoned Prison (Life/Mana recovery from flasks) ────────
+    if (/[Rr]ecovery.*[Ff]lask|[Ff]lask.*[Rr]ecovery/i.test(line)) { mark('choice_abandoned'); continue; }
 
-    // ── Passive skill points ──
-    if (/Passive Skill Points?/i.test(line)) {
-      // Try area-based mapping first
+    // ── Trial attribute choices (+5 Str/Dex/Int) ─────────────────
+    // Real tokens look like "+5 to [Strength|Strength]" (also handle plain text
+    // and a possible "[Attributes|Strength]" form).
+    if (/\+5\s+to\s+all\s+Attributes/i.test(line)) { mark('choice_seven_pillars'); continue; }
+    if (/\+5\s+to\s+\[?(?:Attributes\|)?Strength\b/i.test(line))     { mark('choice_trial_ngamahu'); continue; }
+    if (/\+5\s+to\s+\[?(?:Attributes\|)?Dexterity\b/i.test(line))    { mark('choice_trial_tawhoa');  continue; }
+    if (/\+5\s+to\s+\[?(?:Attributes\|)?Intelligence\b/i.test(line)) { mark('choice_trial_tasalio'); continue; }
+
+    // ── Seven Pillars (other distinctive options) ────────────────
+    if (/Global Defences|Presence Area|Cooldown Recovery|increased Experience/i.test(line)) {
+      mark('choice_seven_pillars');
+      continue;
+    }
+
+    // ── Passive skill points (campaign quests) ───────────────────
+    // Exclude Weapon Set / Atlas points — those are separate systems.
+    if (/Passive Skill Points?/i.test(line) && !/Weapon Set/i.test(line) && !/Atlas/i.test(line)) {
       const areaId = AREA_PASSIVE_MAP[areaRef.current];
-      if (areaId && !collected.has(areaId) && !toMark.includes(areaId)) {
-        mark(areaId);
-      } else {
-        // Fall back to sequential — mark next uncollected
-        for (const id of PASSIVE_ORDER) {
-          if (!collected.has(id) && !toMark.includes(id)) { mark(id); break; }
-        }
-      }
+      if (areaId && !collected.has(areaId) && !toMark.includes(areaId)) mark(areaId);
+      else markFirst(PASSIVE_ORDER);
       continue;
     }
   }
@@ -164,14 +207,32 @@ export function extractNewRewardIds(
 
 // ── Polling ────────────────────────────────────────────────────────────────────
 
-/** One poll tick: read new log content, extract reward IDs, update stored offset.
- *  Returns the IDs to mark (may be empty) and the updated watcher state. */
+export interface SceneEvent {
+  scene: string;
+  timeMs: number; // epoch ms from the log timestamp
+}
+
+/** Pull every [SCENE] Set Source transition (with its log timestamp) from a
+ *  batch of lines — used by the campaign timer for automatic act splits. */
+function extractSceneEvents(lines: string[]): SceneEvent[] {
+  const events: SceneEvent[] = [];
+  for (const line of lines) {
+    const scene = extractScene(line);
+    if (!scene) continue;
+    const d = parseLogDate(line);
+    if (d) events.push({ scene, timeMs: d.getTime() });
+  }
+  return events;
+}
+
+/** One poll tick: read new log content, extract reward IDs + scene transitions,
+ *  update the stored offset. */
 export async function pollLog(
   logPath: string,
   state: LogWatcherState,
   collected: Set<string>,
   areaRef: { current: string },
-): Promise<{ ids: string[]; state: LogWatcherState }> {
+): Promise<{ ids: string[]; scenes: SceneEvent[]; state: LogWatcherState }> {
   const result = await invoke<{ lines: string[]; file_size: number }>(
     'read_log_tail', { path: logPath, fromByte: state.offset }
   );
@@ -182,6 +243,7 @@ export async function pollLog(
 
   const setupTime = new Date(state.setupTime);
   const ids = extractNewRewardIds(result.lines, setupTime, collected, areaRef);
+  const scenes = extractSceneEvents(result.lines);
 
   const newState: LogWatcherState = { ...state, offset: newOffset };
   if (wasTruncated) {
@@ -190,5 +252,5 @@ export async function pollLog(
   }
   await saveWatcherState(newState);
 
-  return { ids, state: newState };
+  return { ids, scenes, state: newState };
 }

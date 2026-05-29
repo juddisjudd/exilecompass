@@ -152,5 +152,22 @@
   "regex_placeholder_output": "아래에 패턴 추가…",
   "regex_placeholder_test": "테스트하려면 아이템 툴팁 텍스트를 여기에 붙여넣으세요…",
   "regex_copy": "클립보드에 복사",
-  "regex_clear_all": "모두 지우기"
+  "regex_clear_all": "모두 지우기",
+  "timer_stop": "정지",
+  "timer_total": "합계",
+  "timer_mode_manual": "수동",
+  "timer_mode_campaign": "캠페인",
+  "timer_campaign_idle": "캠페인 시작 시 시작(또는 단축키)을 누르세요.",
+  "timer_campaign_hint": "액트는 로그 파일에서 자동으로 분할됩니다 (설정 → 로그 파일).",
+  "hotkey_toggle_campaign_timer": "캠페인 타이머 시작/정지",
+  "hotkey_campaign_complete_next": "다음 캠페인 목표 완료",
+  "hotkey_campaign_undo_last": "마지막 캠페인 목표 취소",
+  "update_checking": "확인 중…",
+  "update_up_to_date": "최신 버전입니다.",
+  "action_check_updates": "업데이트 확인",
+  "settings_tab_about": "정보",
+  "about_version": "버전",
+  "about_support_title": "후원",
+  "about_support_text": "ExileCompass가 마음에 든다면 개발을 후원해 주세요.",
+  "about_kofi": "Ko-fi에서 후원"
 }

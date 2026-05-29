@@ -5,11 +5,13 @@
   import type { CampaignAct } from '$lib/campaign';
   import { m } from '$lib/paraglide/messages.js';
   import { trAct, trZone, trObjective, trObjectiveReward, trNotes } from '$lib/dataI18n';
+  import { campaignProgress } from '$lib/campaignProgress.svelte';
 
+  // Completion lives in the shared module (so global hotkeys can mark objectives).
+  // The component only owns the expand/collapse UI state.
   interface GuideState {
     expandedActs: Set<number>;
     expandedZones: Set<string>;
-    completedObjectives: Set<string>;
   }
 
   const STATE_KEY = 'CAMPAIGN_GUIDE_STATE_V1';
@@ -17,17 +19,16 @@
   let guideState = $state<GuideState>({
     expandedActs: new SvelteSet<number>(),
     expandedZones: new SvelteSet<string>(),
-    completedObjectives: new SvelteSet<string>()
   });
 
   onMount(() => {
+    campaignProgress.load();
     const saved = window.localStorage.getItem(STATE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         guideState.expandedActs = new SvelteSet<number>(parsed.expandedActs ?? []);
         guideState.expandedZones = new SvelteSet<string>(parsed.expandedZones ?? []);
-        guideState.completedObjectives = new SvelteSet<string>(parsed.completedObjectives ?? []);
       } catch {
         // ignore corrupted state
       }
@@ -38,7 +39,6 @@
     const toSave = {
       expandedActs: Array.from(guideState.expandedActs),
       expandedZones: Array.from(guideState.expandedZones),
-      completedObjectives: Array.from(guideState.completedObjectives)
     };
     window.localStorage.setItem(STATE_KEY, JSON.stringify(toSave));
   }
@@ -62,12 +62,7 @@
   }
 
   function toggleObjective(objId: string) {
-    if (guideState.completedObjectives.has(objId)) {
-      guideState.completedObjectives.delete(objId);
-    } else {
-      guideState.completedObjectives.add(objId);
-    }
-    saveState();
+    campaignProgress.toggle(objId);
   }
 
   function getActProgress(act: CampaignAct): { completed: number; total: number; pct: number } {
@@ -76,7 +71,7 @@
     for (const zone of act.zones) {
       for (const obj of zone.objectives) {
         total++;
-        if (guideState.completedObjectives.has(obj.id)) completed++;
+        if (campaignProgress.has(obj.id)) completed++;
       }
     }
     return { completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
@@ -84,8 +79,7 @@
 
   function resetProgress() {
     if (confirm(m.confirm_reset_campaign_progress())) {
-      guideState.completedObjectives = new SvelteSet<string>();
-      saveState();
+      campaignProgress.resetAll();
     }
   }
 </script>
@@ -141,7 +135,7 @@
               {#if guideState.expandedZones.has(zone.id)}
                 <div class="objectives-container">
                   {#each zone.objectives as obj (obj.id)}
-                    {@const done = guideState.completedObjectives.has(obj.id)}
+                    {@const done = campaignProgress.has(obj.id)}
                     <div class="objective-row" class:done class:optional={obj.optional}>
                       <label class="objective-label">
                         <input

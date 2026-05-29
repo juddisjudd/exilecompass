@@ -152,5 +152,22 @@
   "regex_placeholder_output": "在下方添加模式…",
   "regex_placeholder_test": "在此粘贴物品提示文本进行测试…",
   "regex_copy": "复制到剪贴板",
-  "regex_clear_all": "全部清除"
+  "regex_clear_all": "全部清除",
+  "timer_stop": "停止",
+  "timer_total": "总计",
+  "timer_mode_manual": "手动",
+  "timer_mode_campaign": "战役",
+  "timer_campaign_idle": "在战役开始时按下「开始」（或你的快捷键）。",
+  "timer_campaign_hint": "各幕会根据日志文件自动分段（设置 → 日志文件）。",
+  "hotkey_toggle_campaign_timer": "开始/停止战役计时器",
+  "hotkey_campaign_complete_next": "完成下一个战役目标",
+  "hotkey_campaign_undo_last": "撤销上一个战役目标",
+  "update_checking": "检查中…",
+  "update_up_to_date": "已是最新版本。",
+  "action_check_updates": "检查更新",
+  "settings_tab_about": "关于",
+  "about_version": "版本",
+  "about_support_title": "支持",
+  "about_support_text": "如果你喜欢 ExileCompass，欢迎支持开发。",
+  "about_kofi": "在 Ko-fi 上支持"
 }
