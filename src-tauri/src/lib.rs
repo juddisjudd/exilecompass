@@ -287,26 +287,110 @@ fn get_overlay_status(state: State<'_, OverlayState>) -> serde_json::Value {
     })
 }
 
+// ── Crash logging ─────────────────────────────────────────────────────────────
+//
+// On Linux the app is usually launched without an attached console, so a panic
+// or a failed `Builder::run` leaves the user with nothing to report. Persist the
+// error to a file under the OS data dir (no AppHandle required) so it can be
+// retrieved after the fact.
+
+fn crash_log_dir() -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        std::env::var_os("APPDATA")
+            .map(|d| std::path::PathBuf::from(d).join("ExileCompass").join("logs"))
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let data = std::env::var_os("XDG_DATA_HOME")
+            .map(std::path::PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("HOME")
+                    .map(|h| std::path::PathBuf::from(h).join(".local").join("share"))
+            });
+        data.map(|d| d.join("exilecompass").join("logs"))
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    {
+        None
+    }
+}
+
+fn write_crash_log(contents: &str) {
+    if let Some(dir) = crash_log_dir() {
+        if std::fs::create_dir_all(&dir).is_ok() {
+            let _ = std::fs::write(dir.join("crash.txt"), contents);
+        }
+    }
+    eprintln!("ExileCompass crashed: {contents}");
+}
+
+/// Decide whether the overlay window should be transparent.
+/// Transparency relies on WebKitGTK's GPU compositing, which fails to initialize
+/// on many Linux GPU/driver/Wayland combinations and is the most common reason
+/// the app "won't open". Default it off on Linux; let users opt back in with
+/// `EXILECOMPASS_TRANSPARENT=1` if their compositor handles it.
+fn want_transparent() -> bool {
+    if cfg!(target_os = "linux") {
+        std::env::var_os("EXILECOMPASS_TRANSPARENT").is_some()
+    } else {
+        true
+    }
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // WebKitGTK ≥2.40 defaults to a DMA-BUF EGL renderer that aborts with
-    // "Could not create default EGL display: EGL_BAD_PARAMETER" on many Linux
-    // GPU/driver/compositor combos. Disable it before GTK initializes. Respect
-    // an explicit user override so anyone who wants the DMA-BUF path can keep it.
     #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    {
+        // WebKitGTK ≥2.40 defaults to a DMA-BUF EGL renderer that aborts with
+        // "Could not create default EGL display: EGL_BAD_PARAMETER" on many Linux
+        // GPU/driver/compositor combos. Disable it before GTK initializes. Respect
+        // an explicit user override so anyone who wants the DMA-BUF path can keep it.
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
+        // Disabling GPU compositing entirely fixes the remaining "blank window /
+        // won't start" reports on driver/Wayland setups the DMA-BUF flag alone
+        // doesn't cover. It also defeats window transparency, so only apply it
+        // when we're not trying to render a transparent overlay anyway.
+        if !want_transparent()
+            && std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none()
+        {
+            std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+        }
     }
 
-    tauri::Builder::default()
+    // Persist panic info so headless Linux launches leave something to report.
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        write_crash_log(&info.to_string());
+        default_hook(info);
+    }));
+
+    let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(OverlayState::new())
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            // Window is built here (not in tauri.conf.json) so transparency can be
+            // decided per-platform. Keep these props in sync with the config notes.
+            tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
+                .title("ExileCompass")
+                .inner_size(553.0, 680.0)
+                .decorations(false)
+                .transparent(want_transparent())
+                .always_on_top(true)
+                .resizable(true)
+                .shadow(false)
+                .center()
+                .build()?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             find_game_window,
             attach_to_game,
@@ -322,6 +406,10 @@ pub fn run() {
             store_set,
             store_remove,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .run(tauri::generate_context!());
+
+    if let Err(e) = result {
+        write_crash_log(&format!("error while running tauri application: {e}"));
+        std::process::exit(1);
+    }
 }

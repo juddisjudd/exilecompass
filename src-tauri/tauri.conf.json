@@ -10,23 +10,7 @@
     "frontendDist": "../build"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "ExileCompass",
-        "width": 553,
-        "height": 680,
-        "decorations": false,
-        "transparent": true,
-        "alwaysOnTop": true,
-        "skipTaskbar": false,
-        "resizable": true,
-        "shadow": false,
-        "center": true,
-        "visible": true,
-        "focus": true
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }

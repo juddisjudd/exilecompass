@@ -130,6 +130,26 @@ paste a `pobb.in` link, fetching that build.
 - **Rewards aren't auto-checking** — Confirm the log file is set in
   Settings → Log File (use Auto Detect, or Browse to your `Client.txt`).
 
+### Linux
+
+The overlay runs on top of WebKitGTK, whose GPU rendering path fails to
+initialize on some driver / Wayland / compositor combinations. To stay
+compatible, ExileCompass starts **non-transparent on Linux** and disables the
+problematic GPU paths automatically. A couple of environment variables let you
+adjust this:
+
+| Variable | Effect |
+|----------|--------|
+| `EXILECOMPASS_TRANSPARENT=1` | Render the overlay transparent (the Windows look). Only enable it if your compositor supports it — otherwise the window may fail to open or show a black background. |
+| `WEBKIT_DISABLE_DMABUF_RENDERER` / `WEBKIT_DISABLE_COMPOSITING_MODE` | Set automatically; set either to `0` to force the GPU path back on. |
+
+- **App won't open / blank window** — Launch it from a terminal so you can see
+  the error, and check the crash log at
+  `~/.local/share/exilecompass/logs/crash.txt` (or
+  `$XDG_DATA_HOME/exilecompass/logs/crash.txt`). Include that file when
+  reporting the issue. On Windows the same log is written to
+  `%APPDATA%\ExileCompass\logs\crash.txt`.
+
 Found a bug or have an idea? [Open an issue](https://github.com/juddisjudd/exilecompass/issues).
 
 ---
