@@ -10,6 +10,7 @@
     "build:backend": "cargo build --manifest-path src-tauri/Cargo.toml --release",
     "build:release": "tauri build --no-bundle",
     "release": "tauri build",
+    "release:tag": "node scripts/release.mjs",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
