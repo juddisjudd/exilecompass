@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { m } from '$lib/paraglide/messages.js';
+
   type FilterGroup = { id: number; pattern: string; exclude: boolean };
   type Snippet = { label: string; pattern: string };
   type Category = { label: string; snippets: Snippet[] };
@@ -236,22 +238,22 @@
 <div class="regex-builder">
   <!-- Header -->
   <div class="builder-header">
-    <h3>REGEX Builder</h3>
-    <span class="header-hint">250-char limit</span>
+    <h3>{m.regex_title()}</h3>
+    <span class="header-hint">{m.regex_char_limit()}</span>
   </div>
 
   <!-- Assembled output -->
   <div class="output-section">
     <div class="output-bar">
       <code class="output-text" class:empty={!assembled}>
-        {assembled || 'add patterns below…'}
+        {assembled || m.regex_placeholder_output()}
       </code>
-      <button class="act-btn act-copy" class:copied onclick={copyToClipboard} disabled={!assembled} title="Copy to clipboard">
+      <button class="act-btn act-copy" class:copied onclick={copyToClipboard} disabled={!assembled} title={m.regex_copy()}>
         {#if copied}<span class="copied-check">✓</span>{:else}
           <img src="/ui/fouriconcopy.webp" width="16" height="16" alt="" aria-hidden="true" />
         {/if}
       </button>
-      <button class="act-btn act-clear" onclick={clearAll} disabled={!assembled} title="Clear all">
+      <button class="act-btn act-clear" onclick={clearAll} disabled={!assembled} title={m.regex_clear_all()}>
         <img src="/ui/fouriconclear.webp" width="16" height="16" alt="" aria-hidden="true" />
       </button>
     </div>
@@ -273,8 +275,8 @@
   <!-- Groups -->
   <div class="groups-section">
     <div class="groups-header">
-      <span class="section-label">Groups <span class="group-and-hint">— each quoted block, all must match</span></span>
-      <button class="add-btn" onclick={addGroup}>+ Add</button>
+      <span class="section-label">{m.regex_groups()} <span class="group-and-hint">— {m.regex_groups_hint()}</span></span>
+      <button class="add-btn" onclick={addGroup}>{m.regex_add()}</button>
     </div>
     <div class="groups-list">
       {#each groups as group (group.id)}
@@ -287,7 +289,7 @@
         <input
           class="group-input"
           bind:value={group.pattern}
-          placeholder="pattern…"
+          placeholder={m.regex_placeholder_pattern()}
           spellcheck="false"
           onfocus={() => (activeGroupId = group.id)}
         />
@@ -323,7 +325,7 @@
       class:active={activeCategory === PRESETS_TAB}
       onclick={() => (activeCategory = PRESETS_TAB)}
       type="button"
-    >Presets</button>
+    >{m.regex_presets()}</button>
   </div>
 
   <!-- Snippets / Presets panel -->
@@ -342,24 +344,24 @@
         {snippet.label}
       </button>
       {/each}
-      <span class="snippets-hint">→ active group  ·  use | to OR within a group</span>
+      <span class="snippets-hint">{m.regex_snippet_hint()}</span>
     {/if}
   </div>
 
   <!-- Test area -->
   <div class="test-section">
     <div class="test-label">
-      <span>Test</span>
+      <span>{m.regex_test()}</span>
       {#if testResult !== null}
       <span class="test-result" class:match={testResult} class:no-match={!testResult}>
-        {testResult ? '✓ Match' : '✗ No match'}
+        {testResult ? m.regex_match() : m.regex_no_match()}
       </span>
       {/if}
     </div>
     <textarea
       class="test-input"
       bind:value={testInput}
-      placeholder="Paste item tooltip text here to test…"
+      placeholder={m.regex_placeholder_test()}
       rows="3"
       spellcheck="false"
     ></textarea>

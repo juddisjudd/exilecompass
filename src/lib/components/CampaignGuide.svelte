@@ -4,6 +4,7 @@
   import { CAMPAIGN_DATA } from '$lib/campaign';
   import type { CampaignAct } from '$lib/campaign';
   import { m } from '$lib/paraglide/messages.js';
+  import { trAct, trZone, trObjective, trObjectiveReward, trNotes } from '$lib/dataI18n';
 
   interface GuideState {
     expandedActs: Set<number>;
@@ -107,9 +108,9 @@
         type="button"
       >
         <span class="toggle-icon" class:expanded={guideState.expandedActs.has(act.number)}>▶</span>
-        <span class="act-title">{act.name}</span>
+        <span class="act-title">{trAct(act.number, act.name)}</span>
         {#if act.temporary}
-          <span class="badge-interlude">Interlude</span>
+          <span class="badge-interlude">{m.campaign_interlude_badge()}</span>
         {/if}
         <span class="act-progress" class:complete={isComplete}>
           {progress.completed}/{progress.total}
@@ -134,7 +135,7 @@
                 type="button"
               >
                 <span class="toggle-icon" class:expanded={guideState.expandedZones.has(zone.id)}>▶</span>
-                <span class="zone-title">{zone.name}</span>
+                <span class="zone-title">{trZone(zone.id, zone.name)}</span>
               </button>
 
               {#if guideState.expandedZones.has(zone.id)}
@@ -149,18 +150,18 @@
                           onchange={() => toggleObjective(obj.id)}
                           class="objective-checkbox"
                         />
-                        <span class="objective-text">{obj.text}</span>
+                        <span class="objective-text">{trObjective(obj.id, obj.text)}</span>
                         {#if obj.optional}
                           <span class="badge badge-optional">{m.campaign_optional_badge()}</span>
                         {/if}
                         {#if obj.reward}
-                          <span class="badge badge-reward">{obj.reward}</span>
+                          <span class="badge badge-reward">{trObjectiveReward(obj.id, obj.reward)}</span>
                         {/if}
                       </label>
 
                       {#if obj.notes && obj.notes.length > 0}
                         <div class="objective-notes">
-                          {#each obj.notes as note}
+                          {#each trNotes(obj.id, obj.notes) as note}
                             <div class="note">› {note}</div>
                           {/each}
                         </div>

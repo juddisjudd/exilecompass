@@ -1,9 +1,30 @@
 <script lang="ts">
   import {
     stripPobColors, clearBuild,
-    SLOT_ORDER, SLOT_LABEL, RARITY_COLOR,
+    SLOT_ORDER, RARITY_COLOR,
     type PobBuild, type PobItem,
   } from '$lib/pob';
+  import { m } from '$lib/paraglide/messages.js';
+
+  // Localized slot + rarity labels (keys mirror the canonical slot/rarity ids)
+  const SLOT_MSG: Record<string, () => string> = {
+    weapon1: m.slot_weapon1, offhand: m.slot_offhand, weapon2: m.slot_weapon2,
+    helm: m.slot_helm, body: m.slot_body, gloves: m.slot_gloves, boots: m.slot_boots,
+    amulet: m.slot_amulet, ring1: m.slot_ring1, ring2: m.slot_ring2, belt: m.slot_belt,
+    flask1: m.slot_flask1, flask2: m.slot_flask2, flask3: m.slot_flask3,
+    charm1: m.slot_charm1, charm2: m.slot_charm2, charm3: m.slot_charm3,
+    trinket: m.slot_trinket,
+  };
+  function slotLabel(key: string): string {
+    return SLOT_MSG[key]?.() ?? key;
+  }
+
+  const RARITY_MSG: Record<string, () => string> = {
+    Normal: m.rarity_normal, Magic: m.rarity_magic, Rare: m.rarity_rare, Unique: m.rarity_unique,
+  };
+  function rarityLabel(r: string): string {
+    return RARITY_MSG[r]?.() ?? r;
+  }
 
   interface Props {
     build: PobBuild | null;
@@ -101,9 +122,9 @@
           <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
         </svg>
       </div>
-      <p class="empty-title">No build imported</p>
-      <p class="empty-sub">Import a Path of Building code to see your build here.</p>
-      <button class="btn-import" onclick={onOpenImport}>Import Build</button>
+      <p class="empty-title">{m.build_empty_title()}</p>
+      <p class="empty-sub">{m.build_empty_sub()}</p>
+      <button class="btn-import" onclick={onOpenImport}>{m.action_import_build()}</button>
     </div>
   {:else}
     <!-- Build header -->
@@ -118,9 +139,9 @@
       </div>
       <div class="build-meta">
         {#if build.level > 0}
-          <span class="build-level">Lv {build.level}</span>
+          <span class="build-level">{m.build_level_prefix()} {build.level}</span>
         {/if}
-        <button class="btn-clear" onclick={handleClear}>Clear</button>
+        <button class="btn-clear" onclick={handleClear}>{m.action_clear()}</button>
       </div>
     </div>
 
@@ -129,7 +150,7 @@
       <div class="set-selectors">
         {#if multiItem}
           <label class="set-select">
-            <span class="set-select-label">Items</span>
+            <span class="set-select-label">{m.build_set_items()}</span>
             <select
               value={activeItem}
               onchange={(e) => selectItem(+(e.currentTarget as HTMLSelectElement).value)}
@@ -142,7 +163,7 @@
         {/if}
         {#if multiSkill}
           <label class="set-select">
-            <span class="set-select-label">Skills</span>
+            <span class="set-select-label">{m.build_set_skills()}</span>
             <select
               value={activeSkill}
               onchange={(e) => selectSkill(+(e.currentTarget as HTMLSelectElement).value)}
@@ -160,7 +181,7 @@
     {#if itemSet && itemSet.items.length > 0}
       <div class="section">
         <div class="section-label">
-          Equipment
+          {m.build_section_equipment()}
           {#if multiItem}<span class="section-hint">{itemSet.name}</span>{/if}
         </div>
         <div class="equip-grid">
@@ -171,7 +192,7 @@
               onmousemove={onMove} onmouseleave={onLeave}
               role="none"
             >
-              <span class="slot-tag">{SLOT_LABEL[item.slot] ?? item.slot}</span>
+              <span class="slot-tag">{slotLabel(item.slot)}</span>
               <span class="slot-name" style="color:{rc(item)}">{item.name}</span>
               {#if item.base !== item.name}<span class="slot-base">{item.base}</span>{/if}
             </div>
@@ -184,7 +205,7 @@
     {#if skillSet && skillSet.skillGroups.length > 0}
       <div class="section">
         <div class="section-label">
-          Skill Links
+          {m.build_section_skills()}
           {#if multiSkill}<span class="section-hint">{skillSet.name}</span>{/if}
         </div>
         <div class="skill-groups">
@@ -205,7 +226,7 @@
       <div class="section">
         <button class="notes-toggle" onclick={() => (notesExpanded = !notesExpanded)} type="button">
           <span class="toggle-icon" class:expanded={notesExpanded}>▶</span>
-          <span class="section-label">Build Notes</span>
+          <span class="section-label">{m.build_section_notes()}</span>
         </button>
         {#if notesExpanded}
           <pre class="notes-body">{cleanNotes}</pre>
@@ -225,7 +246,7 @@
         {#if item.base !== item.name}<div class="hc-base">{item.base}</div>{/if}
       </div>
       <div class="hc-badges">
-        <span class="hc-rarity hc-{item.rarity.toLowerCase()}">{item.rarity}</span>
+        <span class="hc-rarity hc-{item.rarity.toLowerCase()}">{rarityLabel(item.rarity)}</span>
         {#if item.quality}<span class="hc-quality">Q{item.quality}%</span>{/if}
       </div>
     </div>
@@ -242,7 +263,7 @@
       <div class="hc-footer">
         {#if reqLine(item)}<span class="hc-req">{reqLine(item)}</span>{/if}
         {#if item.itemLevel}<span class="hc-ilv">iLv {item.itemLevel}</span>{/if}
-        {#if item.corrupted}<span class="hc-corrupted">Corrupted</span>{/if}
+        {#if item.corrupted}<span class="hc-corrupted">{m.item_corrupted()}</span>{/if}
       </div>
     {/if}
   </div>

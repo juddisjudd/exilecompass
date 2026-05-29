@@ -30,4 +30,6 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-dialog = "2"
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 

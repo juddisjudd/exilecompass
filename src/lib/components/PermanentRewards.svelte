@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import REWARDS_DATA from '$lib/data/rewards.json';
+  import { m } from '$lib/paraglide/messages.js';
+  import { trReward, trRewardGroup } from '$lib/dataI18n';
 
   const STATE_KEY = 'PERMANENT_REWARDS_STATE_V2';
 
@@ -38,7 +40,7 @@
   }
 
   function resetAll() {
-    if (confirm('Reset all reward progress?')) {
+    if (confirm(m.confirm_reset_rewards())) {
       collected = new SvelteSet<string>();
       autoDetected = new SvelteSet<string>();
       save();
@@ -73,7 +75,7 @@
   };
 
   function valueLabel(r: Reward): string {
-    if ('label' in r && r.label) return r.label as string;
+    if ('label' in r && r.label) return trReward(r.id, 'label', r.label as string);
     const group = REWARDS_DATA.groups.find(g => g.rewards.some(x => x.id === r.id))!;
     if (group.id === 'resistances' && 'element' in r)
       return `+${r.value}% ${(r.element as string)[0].toUpperCase() + (r.element as string).slice(1)}`;
@@ -90,8 +92,8 @@
 
 <div class="rewards">
   <div class="rewards-header">
-    <h3>Passive Boosts</h3>
-    <button class="btn-reset" onclick={resetAll}>Reset</button>
+    <h3>{m.rewards_passive_boosts()}</h3>
+    <button class="btn-reset" onclick={resetAll}>{m.action_reset()}</button>
   </div>
 
   {#each REWARDS_DATA.groups as group (group.id)}
@@ -100,7 +102,7 @@
     {@const hasNumeric = max > 0}
     <div class="group" style="--g-color: {group.color}">
       <div class="group-header">
-        <span class="group-label">{group.label}</span>
+        <span class="group-label">{trRewardGroup(group.id, group.label)}</span>
         {#if hasNumeric}
           <span class="group-total" class:complete={total === max && max > 0}>
             {total} / {max}
@@ -118,11 +120,11 @@
             onchange={() => toggle(reward.id)}
           />
           <span class="reward-info">
-            <span class="reward-source">{reward.source}</span>
-            <span class="reward-location">{reward.location} · {reward.act}</span>
+            <span class="reward-source">{trReward(reward.id, 'source', reward.source)}</span>
+            <span class="reward-location">{trReward(reward.id, 'location', reward.location)} · {reward.act}</span>
           </span>
           {#if autoDetected.has(reward.id)}
-            <span class="auto-badge" title="Auto-detected from log file">log</span>
+            <span class="auto-badge" title={m.rewards_auto_badge_title()}>{m.rewards_auto_badge()}</span>
           {/if}
           <span class="reward-value" style="color: {valueColor(reward)}; border-color: color-mix(in srgb, {valueColor(reward)} 28%, transparent); background: color-mix(in srgb, {valueColor(reward)} 8%, transparent)">
             {valueLabel(reward)}

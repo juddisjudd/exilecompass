@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { m } from '$lib/paraglide/messages.js';
+
   type TimerState = 'idle' | 'running' | 'paused';
 
   interface Split {
@@ -74,9 +76,9 @@
 
 <div class="timer-root">
   <div class="timer-header">
-    <h3>Speedrun Timer</h3>
+    <h3>{m.timer_title()}</h3>
     {#if timerState !== 'idle' || splits.length > 0}
-      <button class="btn-reset" onclick={reset} title="Reset timer">Reset</button>
+      <button class="btn-reset" onclick={reset} title={m.timer_reset_title()}>{m.action_reset()}</button>
     {/if}
   </div>
 
@@ -95,17 +97,17 @@
           <rect x="3" y="2" width="3.5" height="12" rx="1"/>
           <rect x="9.5" y="2" width="3.5" height="12" rx="1"/>
         </svg>
-        Pause
+        {m.timer_pause()}
       {:else if timerState === 'paused'}
         <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
           <path d="M4 2l10 6-10 6V2z"/>
         </svg>
-        Resume
+        {m.timer_resume()}
       {:else}
         <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
           <path d="M4 2l10 6-10 6V2z"/>
         </svg>
-        Start
+        {m.timer_start()}
       {/if}
     </button>
 
@@ -114,7 +116,7 @@
       onclick={split}
       disabled={timerState !== 'running'}
     >
-      Split
+      {m.timer_split()}
     </button>
   </div>
 

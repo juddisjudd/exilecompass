@@ -14,3 +14,8 @@ project.inlang/cache/
 .claude
 .vscode
 CLAUDE.md
+# Tauri updater signing keys — NEVER commit the private key
+src-tauri/updater-key.txt
+src-tauri/updater-key.txt.pub
+./src-tauri/updater-key.txt
+./src-tauri/updater-key.txt.pub

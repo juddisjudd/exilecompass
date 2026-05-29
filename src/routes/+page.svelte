@@ -49,6 +49,8 @@
   } from '$lib/hotkeys';
   import { invoke } from '@tauri-apps/api/core';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
+  import { checkForUpdate, installUpdate } from '$lib/updater';
+  import type { Update } from '@tauri-apps/plugin-updater';
 
   type AppLocale = (typeof locales)[number];
   type SettingsTabId = 'hotkeys' | 'language' | 'logFile' | 'importBuilds';
@@ -99,6 +101,12 @@
   let pobError = $state('');
   let pobSuccess = $state(false);
   let buildDragOver = $state(false);
+
+  // Auto-updater
+  let updateHandle = $state<Update | null>(null);
+  let updateInstalling = $state(false);
+  let updateProgress = $state(0);
+  let updateDismissed = $state(false);
 
   function getSettingsGroupLabel(group: 'GENERAL' | 'IMPORT') {
     return group === 'GENERAL' ? m.settings_group_general() : m.settings_group_import();
@@ -186,6 +194,11 @@
       } catch { /* file may not exist yet */ }
     };
     const logTimer = setInterval(syncLog, 2000);
+
+    // Check for app updates (non-blocking, silent on failure / when offline)
+    checkForUpdate()
+      .then((u) => { if (u && !cancelled) updateHandle = u; })
+      .catch(() => {});
 
     // Native file drag-and-drop — drop a .build/.json file anywhere to import it
     let unlistenDrop: (() => void) | undefined;
@@ -436,6 +449,19 @@
     pobBuild = null;
     pobError = '';
   }
+
+  async function handleInstallUpdate() {
+    if (!updateHandle || updateInstalling) return;
+    updateInstalling = true;
+    updateProgress = 0;
+    try {
+      await installUpdate(updateHandle, (pct) => (updateProgress = pct));
+      // App relaunches on success; nothing else to do
+    } catch (e) {
+      error = `${m.error_update_failed()} ${String(e)}`;
+      updateInstalling = false;
+    }
+  }
 </script>
 
 <svelte:window onkeydown={handleHotkey} />
@@ -444,6 +470,19 @@
   <!-- Title bar sits above the frame -->
   <TitleBar title={m.app_title()} />
 
+  {#if updateHandle && !updateDismissed}
+    <div class="update-banner">
+      {#if updateInstalling}
+        <span class="update-text">{m.update_installing()} {updateProgress}%</span>
+        <div class="update-progress"><div class="update-progress-fill" style="width:{updateProgress}%"></div></div>
+      {:else}
+        <span class="update-text">{m.update_available({ version: updateHandle.version })}</span>
+        <button class="update-btn" onclick={handleInstallUpdate}>{m.update_install()}</button>
+        <button class="update-dismiss" onclick={() => (updateDismissed = true)} aria-label={m.update_later()}>✕</button>
+      {/if}
+    </div>
+  {/if}
+
   <!-- Frame wraps only the content area below the title bar -->
   <PoeFrame>
   <main class="content">
@@ -451,8 +490,8 @@
       <!-- Settings panel as overlay -->
       <div class="settings-overlay">
         <div class="settings-header-row">
-          <span class="settings-title">Settings</span>
-          <button class="close-settings" onclick={() => (showSettings = false)} aria-label="Close settings">✕</button>
+          <span class="settings-title">{m.settings_title()}</span>
+          <button class="close-settings" onclick={() => (showSettings = false)} aria-label={m.settings_close()}>✕</button>
         </div>
         <div class="settings-body">
           <nav class="settings-nav">
@@ -497,7 +536,7 @@
 
               <!-- Click-through opacity -->
               <div class="ct-opacity-section">
-                <div class="settings-section-title" style="margin-top:4px">Click-Through Opacity</div>
+                <div class="settings-section-title" style="margin-top:4px">{m.settings_clickthrough_opacity_title()}</div>
                 <div class="ct-slider-row">
                   <input
                     type="range"
@@ -512,7 +551,7 @@
                   />
                   <span class="ct-slider-val">{Math.round(ctOpacity * 100)}%</span>
                 </div>
-                <p class="field-help">Overlay opacity while click-through mode is active.</p>
+                <p class="field-help">{m.settings_clickthrough_opacity_help()}</p>
               </div>
 
             {:else if activeSettingsTab === 'language'}
@@ -541,7 +580,7 @@
               {#if logWatcherState}
                 <div class="log-watcher-status">
                   <span class="lws-dot"></span>
-                  <span>Watching · auto-completing rewards from log</span>
+                  <span>{m.log_watching()}</span>
                 </div>
               {/if}
               <p class="field-help">{m.settings_log_file_help()}</p>
@@ -551,12 +590,12 @@
 
             {:else if activeSettingsTab === 'importBuilds'}
               <div class="settings-section-title">{m.settings_import_builds_title()}</div>
-              <label class="field-label" for="pob-input">PoB Code, pobb.in Link, or GGG .build File</label>
+              <label class="field-label" for="pob-input">{m.settings_import_label()}</label>
               <textarea
                 id="pob-input"
                 class="field-input pob-textarea"
                 bind:value={pobInput}
-                placeholder="Paste a PoB export code, a https://pobb.in/… link, or the contents of an official .build file"
+                placeholder={m.settings_import_placeholder()}
                 rows="4"
                 spellcheck="false"
               ></textarea>
@@ -566,13 +605,13 @@
                   onclick={handlePobImport}
                   disabled={!pobInput.trim() || pobImporting}
                 >
-                  {pobImporting ? 'Importing…' : pobSuccess ? '✓ Imported' : 'Import Build'}
+                  {pobImporting ? m.action_importing() : pobSuccess ? `✓ ${m.action_imported()}` : m.action_import_build()}
                 </button>
                 <button class="btn btn-ghost" onclick={chooseBuildFile} disabled={pobImporting}>
-                  Browse .build
+                  {m.action_browse_build()}
                 </button>
                 {#if pobBuild}
-                  <button class="btn btn-ghost" onclick={handlePobClear}>Clear</button>
+                  <button class="btn btn-ghost" onclick={handlePobClear}>{m.action_clear()}</button>
                 {/if}
               </div>
               {#if pobError}
@@ -580,17 +619,14 @@
               {/if}
               {#if pobBuild}
                 <div class="pob-current">
-                  <span class="pob-current-label">Imported:</span>
+                  <span class="pob-current-label">{m.label_imported()}</span>
                   <span class="pob-current-name">
-                    {pobBuild.buildName || pobBuild.ascendClassName || pobBuild.className}{pobBuild.level > 0 ? ` · Lv ${pobBuild.level}` : ''}
+                    {pobBuild.buildName || pobBuild.ascendClassName || pobBuild.className}{pobBuild.level > 0 ? ` · ${m.build_level_prefix()} ${pobBuild.level}` : ''}
                   </span>
                   <span class="pob-current-links">{pobBuild.source === 'ggg' ? 'GGG' : 'PoB'}</span>
                 </div>
               {/if}
-              <p class="field-help">
-                Path of Building: Export → Export Code (or paste a pobb.in link).
-                Official build files: paste the contents of a <code>.build</code> JSON file.
-              </p>
+              <p class="field-help">{m.settings_import_help()}</p>
             {/if}
           </div>
         </div>
@@ -599,9 +635,9 @@
       <!-- Waiting for PoE2 -->
       <div class="waiting-screen">
         <div class="waiting-spinner" aria-hidden="true"></div>
-        <p class="waiting-title">Waiting for Path of Exile 2</p>
-        <p class="waiting-sub">Launch the game and the overlay will attach automatically.</p>
-        <button class="btn btn-ghost" onclick={() => (showSettings = true)}>Settings</button>
+        <p class="waiting-title">{m.waiting_title()}</p>
+        <p class="waiting-sub">{m.waiting_sub()}</p>
+        <button class="btn btn-ghost" onclick={() => (showSettings = true)}>{m.action_settings()}</button>
         {#if error}
           <p class="error-bar" style="margin-top:12px">{error}</p>
         {/if}
@@ -693,7 +729,7 @@
         <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
           <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
         </svg>
-        <span>Drop to import build</span>
+        <span>{m.build_drop()}</span>
       </div>
     </div>
   {/if}
@@ -1300,6 +1336,69 @@
     text-align: right;
     color: #c8a040;
     letter-spacing: 0.04em;
+  }
+
+  /* ── Update banner ──────────────────────────────────────────── */
+  .update-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    flex-shrink: 0;
+    background: color-mix(in srgb, #c8a040 14%, var(--c-bg));
+    border-bottom: 1px solid color-mix(in srgb, #c8a040 40%, transparent);
+  }
+
+  .update-text {
+    flex: 1;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: #e2c98a;
+  }
+
+  .update-btn {
+    padding: 3px 12px;
+    background: color-mix(in srgb, #c8a040 20%, transparent);
+    border: 1px solid color-mix(in srgb, #c8a040 55%, transparent);
+    border-radius: 2px;
+    color: #e2c98a;
+    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .update-btn:hover {
+    background: color-mix(in srgb, #c8a040 30%, transparent);
+    border-color: #c8a040;
+  }
+
+  .update-dismiss {
+    width: 20px;
+    height: 20px;
+    background: transparent;
+    border: none;
+    color: color-mix(in srgb, #e2c98a 60%, transparent);
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .update-dismiss:hover { color: #e2c98a; }
+
+  .update-progress {
+    flex: 1;
+    height: 4px;
+    background: color-mix(in srgb, var(--c-mid) 70%, transparent);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .update-progress-fill {
+    height: 100%;
+    background: #c8a040;
+    transition: width 0.2s;
   }
 
   /* ── Build file drop overlay ────────────────────────────────── */
