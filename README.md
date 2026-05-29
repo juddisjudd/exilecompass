@@ -10,6 +10,8 @@ compact window that floats over the game.
 
 [Download the latest release »](https://github.com/juddisjudd/exilecompass/releases/latest)
 
+[![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads/juddisjudd/exilecompass/latest/total)](https://github.com/juddisjudd/exilecompass/releases) [![GitHub Release](https://img.shields.io/github/v/release/juddisjudd/exilecompass)](https://github.com/juddisjudd/exilecompass/releases)
+
 </div>
 
 ---
