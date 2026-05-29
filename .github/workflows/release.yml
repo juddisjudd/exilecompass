@@ -1,11 +1,14 @@
 name: Release
 
 # Build, sign, and publish a GitHub release whenever a version tag is pushed.
-# Tagging flow:
-#   1. Bump the version in package.json + src-tauri/tauri.conf.json + Cargo.toml
-#   2. git tag v0.1.1 && git push origin v0.1.1
-# The workflow then builds the installers, signs the updater artifacts, creates
-# a release, and uploads `latest.json` so the in-app updater can find it.
+# Tagging flow (use the helper):
+#   bun run release:tag patch        # bumps versions, commits, tags, pushes
+# The workflow then builds the installers on Windows + Linux, signs the updater
+# artifacts, creates the release, and uploads latest.json for the in-app updater.
+#
+# Produces:
+#   ExileCompass_<version>_x64-setup.exe    (Windows, NSIS)
+#   ExileCompass_<version>_amd64.AppImage   (Linux)
 
 on:
   push:
@@ -17,11 +20,33 @@ permissions:
 
 jobs:
   release:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: '--bundles nsis'
+          - platform: ubuntu-22.04
+            args: '--bundles appimage'
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      # Tauri v2 Linux build prerequisites (webkit, appindicator, xdo for the
+      # global-shortcut plugin, rsvg, patchelf for AppImage bundling).
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential curl wget file \
+            libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev patchelf
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -53,5 +78,4 @@ jobs:
           releaseBody: 'See the assets below to download and install this version.'
           releaseDraft: false
           prerelease: false
-          # Produces installers + updater artifacts + latest.json
-          args: ''
+          args: ${{ matrix.args }}
