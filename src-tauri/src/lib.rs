@@ -291,6 +291,15 @@ fn get_overlay_status(state: State<'_, OverlayState>) -> serde_json::Value {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // WebKitGTK ≥2.40 defaults to a DMA-BUF EGL renderer that aborts with
+    // "Could not create default EGL display: EGL_BAD_PARAMETER" on many Linux
+    // GPU/driver/compositor combos. Disable it before GTK initializes. Respect
+    // an explicit user override so anyone who wants the DMA-BUF path can keep it.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
