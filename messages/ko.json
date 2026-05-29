@@ -61,6 +61,7 @@
   "reward_max_mana": "Max mana %",
   "hotkey_toggle_attach": "Overlay yeongyeol / haese",
   "hotkey_toggle_clickthrough": "Click-through mode jeonhwan",
+  "hotkey_toggle_hidden": "Overlay sumgigi/boigi",
   "hotkey_focus_game": "Path of Exile 2 focus",
   "hotkey_refresh_status": "Game 감지 새로고침",
   "hotkey_toggle_settings": "Setting panel jeonhwan",

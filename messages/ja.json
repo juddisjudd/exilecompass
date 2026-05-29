@@ -61,6 +61,7 @@
   "reward_max_mana": "Max mana %",
   "hotkey_toggle_attach": "Overlay no setsuzoku / kaijo",
   "hotkey_toggle_clickthrough": "Kurikku suru mode o kirikae",
+  "hotkey_toggle_hidden": "Overlay o hyoji/hihyoji",
   "hotkey_focus_game": "Path of Exile 2 ni fokusu",
   "hotkey_refresh_status": "Game kenshutsu o koshin",
   "hotkey_toggle_settings": "Settei panel o kirikae",

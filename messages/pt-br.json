@@ -61,6 +61,7 @@
   "reward_max_mana": "Mana maxima %",
   "hotkey_toggle_attach": "Conectar / desconectar overlay",
   "hotkey_toggle_clickthrough": "Alternar modo clique transparente",
+  "hotkey_toggle_hidden": "Ocultar/mostrar overlay",
   "hotkey_focus_game": "Focar Path of Exile 2",
   "hotkey_refresh_status": "Atualizar deteccao do jogo",
   "hotkey_toggle_settings": "Alternar painel de configuracoes",

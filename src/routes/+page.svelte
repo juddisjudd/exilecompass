@@ -38,6 +38,7 @@
     attachToGame,
     detachFromGame,
     toggleClickThrough,
+    toggleHidden,
   } from '$lib/overlay.svelte';
   import {
     HOTKEY_ACTIONS,
@@ -135,6 +136,7 @@
 
   function getHotkeyDescription(actionId: HotkeyActionId) {
     if (actionId === 'toggleClickThrough') return m.hotkey_toggle_clickthrough();
+    if (actionId === 'toggleHidden') return m.hotkey_toggle_hidden();
     if (actionId === 'refreshStatus') return m.hotkey_refresh_status();
     if (actionId === 'toggleCampaignTimer') return m.hotkey_toggle_campaign_timer();
     if (actionId === 'campaignCompleteNext') return m.hotkey_campaign_complete_next();
@@ -271,6 +273,7 @@
   // These work even when the game (not the overlay) is focused.
   const GLOBAL_ACTIONS: Partial<Record<HotkeyActionId, () => void | Promise<void>>> = {
     toggleClickThrough: async () => { await toggleClickThrough(); await refreshStatus(); },
+    toggleHidden: () => toggleHidden(),
     toggleCampaignTimer: () => campaignTimer.toggle(),
     campaignCompleteNext: () => { campaignProgress.completeNext(); },
     campaignUndoLast: () => { campaignProgress.undoLast(); },

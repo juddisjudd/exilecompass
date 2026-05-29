@@ -21,10 +21,15 @@ let _status = $state<OverlayStatus>({
   gameRunning: false,
 });
 
+// Fully-hidden state — distinct from click-through. When hidden the overlay
+// window is removed entirely (no rendering, no input capture).
+let _hidden = $state(false);
+
 export const overlayState = {
   get attached() { return _status.attached; },
   get clickThrough() { return _status.clickThrough; },
   get gameRunning() { return _status.gameRunning; },
+  get hidden() { return _hidden; },
 };
 
 // ── Commands ──────────────────────────────────────────────────────────────────
@@ -60,4 +65,22 @@ export async function setClickThrough(enabled: boolean): Promise<void> {
 
 export async function toggleClickThrough(): Promise<void> {
   await setClickThrough(!_status.clickThrough);
+}
+
+// ── Full visibility (hide/show the whole overlay window) ───────────────────────
+// Unlike click-through (which only dims the window), this removes the window
+// entirely so nothing renders and no clicks are captured.
+
+export async function setHidden(hidden: boolean): Promise<void> {
+  const win = getCurrentWindow();
+  if (hidden) {
+    await win.hide();
+  } else {
+    await win.show();
+  }
+  _hidden = hidden;
+}
+
+export async function toggleHidden(): Promise<void> {
+  await setHidden(!_hidden);
 }

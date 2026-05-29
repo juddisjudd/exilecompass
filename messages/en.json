@@ -61,6 +61,7 @@
   "reward_max_mana": "Max Mana %",
   "hotkey_toggle_attach": "Attach / Detach overlay",
   "hotkey_toggle_clickthrough": "Toggle click-through mode",
+  "hotkey_toggle_hidden": "Hide/show overlay",
   "hotkey_focus_game": "Focus Path of Exile 2",
   "hotkey_refresh_status": "Refresh game detection",
   "hotkey_toggle_settings": "Toggle settings panel",

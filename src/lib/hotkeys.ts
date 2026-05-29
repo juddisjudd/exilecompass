@@ -1,5 +1,6 @@
 export type HotkeyActionId =
   | 'toggleClickThrough'
+  | 'toggleHidden'
   | 'refreshStatus'
   | 'toggleSettings'
   | 'toggleCampaignTimer'
@@ -14,6 +15,7 @@ export interface HotkeyAction {
 
 export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: 'toggleClickThrough', description: 'Toggle click-through mode', defaultCombo: 'Ctrl+Shift+C' },
+  { id: 'toggleHidden', description: 'Hide/show overlay', defaultCombo: 'Ctrl+Shift+H' },
   { id: 'refreshStatus', description: 'Refresh game detection', defaultCombo: 'Ctrl+Shift+R' },
   { id: 'toggleSettings', description: 'Toggle settings panel', defaultCombo: 'Ctrl+Shift+Comma' },
   { id: 'toggleCampaignTimer', description: 'Start/stop campaign timer', defaultCombo: 'Ctrl+Shift+T' },
