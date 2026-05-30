@@ -332,7 +332,10 @@ fn write_crash_log(contents: &str) {
 /// `EXILECOMPASS_TRANSPARENT=1` if their compositor handles it.
 fn want_transparent() -> bool {
     if cfg!(target_os = "linux") {
+        // Software rendering disables compositing, so transparency would paint
+        // black — never request it in that mode.
         std::env::var_os("EXILECOMPASS_TRANSPARENT").is_some()
+            && std::env::var_os("EXILECOMPASS_SOFTWARE_RENDER").is_none()
     } else {
         true
     }
@@ -358,6 +361,17 @@ pub fn run() {
         if !want_transparent()
             && std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none()
         {
+            std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+        }
+        // Last resort for "Could not create default EGL display: EGL_BAD_PARAMETER.
+        // Aborting..." — the hardware EGL/GL stack can't initialize even with
+        // DMA-BUF and compositing disabled (seen on some NVIDIA / Wayland / VM
+        // setups), so WebKitGTK aborts and the window never paints. Force Mesa
+        // software rendering, which brings up an EGL display via llvmpipe instead
+        // of the broken driver. Opt-in (trades GPU for CPU) and implies no
+        // compositing, so transparency is off in this mode.
+        if std::env::var_os("EXILECOMPASS_SOFTWARE_RENDER").is_some() {
+            std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
             std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         }
     }

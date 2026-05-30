@@ -141,7 +141,16 @@ adjust this:
 | Variable | Effect |
 |----------|--------|
 | `EXILECOMPASS_TRANSPARENT=1` | Render the overlay transparent (the Windows look). Only enable it if your compositor supports it — otherwise the window may fail to open or show a black background. |
+| `EXILECOMPASS_SOFTWARE_RENDER=1` | Force Mesa software rendering. Use this if the app aborts on launch with `Could not create default EGL display: EGL_BAD_PARAMETER` (common on some NVIDIA / Wayland / VM setups). Disables transparency. |
 | `WEBKIT_DISABLE_DMABUF_RENDERER` / `WEBKIT_DISABLE_COMPOSITING_MODE` | Set automatically; set either to `0` to force the GPU path back on. |
+
+- **Aborts with `Could not create default EGL display: EGL_BAD_PARAMETER`** —
+  WebKitGTK can't initialize the GPU. Launch with software rendering:
+  ```bash
+  EXILECOMPASS_SOFTWARE_RENDER=1 ./ExileCompass_<version>_amd64.AppImage
+  ```
+  If it still fails on Wayland (especially NVIDIA), also try forcing X11:
+  `GDK_BACKEND=x11 EXILECOMPASS_SOFTWARE_RENDER=1 ./ExileCompass_<version>_amd64.AppImage`
 
 - **App won't open / blank window** — Launch it from a terminal so you can see
   the error, and check the crash log at
