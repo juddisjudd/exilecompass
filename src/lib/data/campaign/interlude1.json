@@ -1,44 +1,33 @@
 {
   "number": 5,
-  "name": "Interlude: Curse of Holten",
+  "name": "Interlude 5.1: Ogham, The Refuge",
   "enabled": true,
   "temporary": true,
   "zones": [
     {
-      "id": "il1_ogham_town",
-      "name": "Ogham (Return)",
-      "objectives": [
-        { "id": "il1_ot_1", "text": "Speak with Renly — the town of Holten is shrouded in endless darkness" },
-        { "id": "il1_ot_2", "text": "Head out to investigate the curse" }
-      ]
-    },
-    {
-      "id": "il1_holten_outskirts",
-      "name": "Holten Outskirts",
-      "objectives": [
-        { "id": "il1_ho_1", "text": "Find and kill Isolde and Heldra" },
-        { "id": "il1_ho_2", "text": "Continue deeper into the cursed region" }
-      ]
-    },
-    {
       "id": "il1_holten",
-      "name": "Holten",
+      "name": "Holten (Docks Town)",
       "objectives": [
-        { "id": "il1_h_1", "text": "Find and kill Siora" },
-        { "id": "il1_h_2", "text": "Find and kill Oswin" },
-        { "id": "il1_h_3", "text": "Locate Thane Wulfric's cult stronghold" }
+        { "id": "il1_h_1", "text": "Travel to Holten, talk to The Hooded One" },
+        {
+          "id": "il1_h_2",
+          "text": "Visit the Soul of the Ferryman on the docks",
+          "optional": true,
+          "reward": "Cheap Greater Runes (~2000g)"
+        }
       ]
     },
     {
-      "id": "il1_cult_stronghold",
-      "name": "Cult Stronghold",
+      "id": "il1_wolvenhold",
+      "name": "Wolvenhold",
       "objectives": [
+        { "id": "il1_w_1", "text": "Progress through Wolvenhold after Holten" },
         {
-          "id": "il1_cs_1",
-          "text": "Find and kill Sigbert and Godwin",
-          "notes": ["Penultimate boss — interlude level does not scale from this kill"]
+          "id": "il1_w_2",
+          "text": "Slay Oswin, the Dread Warden",
+          "reward": "2 Skill Points"
         },
-        { "id": "il1_cs_2", "text": "Find and kill Lady Elswyth and Thane Wulfric (act boss)" }
+        { "id": "il1_w_3", "text": "Complete Interlude 5.1, return to town for the next interlude" }
       ]
     }
   ]

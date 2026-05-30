@@ -1,35 +1,70 @@
 {
   "number": 6,
-  "name": "Interlude: The Stolen Barya",
+  "name": "Interlude 5.2: Khari Bazaar",
   "enabled": true,
   "temporary": true,
   "zones": [
     {
-      "id": "il2_vastiri_return",
-      "name": "Vastiri Desert (Return)",
+      "id": "il2_khari_crossing",
+      "name": "Khari Crossing",
       "objectives": [
-        { "id": "il2_vr_1", "text": "Speak with Asala — the sacred ritual of the Gift of Water has been disrupted" },
-        { "id": "il2_vr_2", "text": "The Sel Khari, guardians of the ritual, have mysteriously vanished — investigate" }
+        { "id": "il2_kc_1", "text": "Travel to Khari Crossing via The Hooded One" },
+        {
+          "id": "il2_kc_2",
+          "text": "Slay Akthi & Anundr (Worm + Scorpion), talk to Risu after",
+          "reward": "2 Skill Points"
+        },
+        {
+          "id": "il2_kc_3",
+          "text": "Visit Torbek",
+          "optional": true,
+          "reward": "Discount rare caster weapons"
+        },
+        { "id": "il2_kc_4", "text": "Enter Skullmaw Stairway" }
       ]
     },
     {
-      "id": "il2_sel_khari_territory",
-      "name": "Sel Khari Territory",
-      "objectives": [
-        { "id": "il2_sk_1", "text": "Search for the missing Sel Khari guardians" },
-        { "id": "il2_sk_2", "text": "Uncover who stole the Barya and disrupted the sacred water ritual" }
-      ]
-    },
-    {
-      "id": "il2_faridun_domain",
-      "name": "Faridun Domain",
+      "id": "il2_skullmaw",
+      "name": "Skullmaw Stairway",
       "objectives": [
         {
-          "id": "il2_fd_1",
-          "text": "Find and kill Stormgore",
-          "notes": ["Penultimate boss — interlude level does not scale from this kill"]
+          "id": "il2_sm_1",
+          "text": "Activate Molten One's Gift",
+          "notes": ["Find the seals; reset the instance if it bugs out"],
+          "reward": "Permanent 5% Maximum Life"
         },
-        { "id": "il2_fd_2", "text": "Find and kill Azmadi, the Faridun Prince (act boss)" }
+        { "id": "il2_sm_2", "text": "Travel to Qimah" }
+      ]
+    },
+    {
+      "id": "il2_qimah",
+      "name": "Qimah",
+      "objectives": [
+        {
+          "id": "il2_q_1",
+          "text": "Use Orbala's Pillar — pick 1 of 7 Boons",
+          "notes": ["Can be swapped anytime by returning to the pillar"],
+          "reward": "Permanent Boon (choice)"
+        },
+        {
+          "id": "il2_q_2",
+          "text": "Qimah Reservoir Sacred Wells",
+          "optional": true,
+          "reward": "Currency (Exalt/Alchemy via Vials)"
+        },
+        { "id": "il2_q_3", "text": "Enter Sel Khari Sanctuary" }
+      ]
+    },
+    {
+      "id": "il2_sanctuary",
+      "name": "Sel Khari Sanctuary",
+      "objectives": [
+        {
+          "id": "il2_ss_1",
+          "text": "Place the Baryas of Rageen & Yoon on the pedestals",
+          "reward": "Rare Ring/Amulet/Jewel"
+        },
+        { "id": "il2_ss_2", "text": "Complete Interlude 5.2, return to town" }
       ]
     }
   ]

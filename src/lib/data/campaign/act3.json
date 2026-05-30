@@ -7,143 +7,153 @@
       "id": "act3_marsh",
       "name": "Sandswept Marsh",
       "objectives": [
-        { "id": "swm_1", "text": "Find the exit to the Ziggurat Encampment (town)" },
+        { "id": "swm_1", "text": "Talk to The Hooded One" },
         {
           "id": "swm_2",
-          "text": "Find and kill Rootredge",
+          "text": "Kill Rootdredge",
           "optional": true,
           "reward": "Level 9 Uncut Skill Gem"
         },
         {
           "id": "swm_3",
-          "text": "Find the Orok campsite and loot the rare basket",
+          "text": "Basket at the Orok Campsite",
           "optional": true,
-          "notes": ["Event name 'Azak Campfire' — kill the two rares"],
           "reward": "Lesser Jeweller's Orb"
         },
         {
           "id": "swm_4",
-          "text": "Find the hanging tree and loot the magic corpse",
+          "text": "Hanging tree corpse",
           "optional": true,
-          "reward": "Random magic ring"
-        }
-      ]
-    },
-    {
-      "id": "act3_town1",
-      "name": "Town #1",
-      "objectives": [
-        { "id": "a3t1_1", "text": "Talk to everyone and exit into the Jungle Ruins" }
-      ]
-    },
-    {
-      "id": "act3_jungle1",
-      "name": "Jungle Ruins #1",
-      "objectives": [
-        {
-          "id": "jng1_1",
-          "text": "Find the exit to Venom Crypts (near waypoint)",
-          "notes": ["Do NOT go through — only take checkpoint and waypoint."]
+          "reward": "Magic Ring"
         },
+        { "id": "swm_5", "text": "Enter the Ziggurat Encampment" }
+      ]
+    },
+    {
+      "id": "act3_ziggurat1",
+      "name": "Ziggurat Encampment (Town)",
+      "objectives": [
+        { "id": "zg1_1", "text": "Talk to Alva, Oswald, and The Hooded One" },
         {
-          "id": "jng1_2",
-          "text": "Find and kill the Mighty Silverfist",
+          "id": "zg1_2",
+          "text": "Talk to Farrow, accept his Act 3 rune quest",
+          "notes": ["0.5 — unlocks Unique Verisium Runeforging (upgrade base type of sub-55 Unique drops)"],
+          "reward": "Unlocks Unique Verisium Runeforging"
+        },
+        { "id": "zg1_3", "text": "Lvl 30 flask upgrade at Rog (increased recovery + charges)" },
+        { "id": "zg1_4", "text": "Enter Jungle Ruins (top exit)" }
+      ]
+    },
+    {
+      "id": "act3_jungle",
+      "name": "Jungle Ruins",
+      "objectives": [
+        {
+          "id": "jng_1",
+          "text": "Kill Mighty Silverfist",
+          "notes": ["Dodge the slam SIDEWAYS (not backwards) — the wave travels in the attack direction"],
           "reward": "2 Skill Points"
         },
         {
-          "id": "jng1_3",
-          "text": "Find the exit to the Infested Barrens",
-          "notes": ["Do NOT go through — only take checkpoint"]
+          "id": "jng_2",
+          "text": "Jungle Grave (ravaged corpse) → Servi",
+          "notes": ["0.5: talk to the explorers at the camps — they reveal the next area on your minimap"],
+          "reward": "Rare Belt (choice)"
         },
-        { "id": "jng1_4", "text": "Go to the Infested Barrens" }
+        {
+          "id": "jng_3",
+          "text": "Field vendor",
+          "optional": true,
+          "reward": "Guaranteed Rare Gloves"
+        },
+        { "id": "jng_4", "text": "Find the waypoint near Venom Crypts, then enter Infested Barrens" }
       ]
     },
     {
       "id": "act3_infested1",
-      "name": "Infested Barrens #1",
+      "name": "Infested Barrens",
       "objectives": [
-        {
-          "id": "inf1_1",
-          "text": "Find the exit to Chimeral Wetlands",
-          "notes": ["Enter zone, take waypoint, backtrack to Infested Barrens"]
-        },
+        { "id": "inf1_1", "text": "Find and talk to Alva, take the waypoint near her" },
         {
           "id": "inf1_2",
-          "text": "Find the exit to Azak Bog",
-          "notes": ["Enter zone, take waypoint, backtrack to Infested Barrens"]
+          "text": "Field vendor",
+          "optional": true,
+          "reward": "Guaranteed Rare Boots"
         },
         {
           "id": "inf1_3",
-          "text": "Find the exit to the Matlan Waterways",
-          "notes": ["Waypoint of Barrens is here"]
+          "text": "Scout exits to Chimeral Wetlands and Azak Bog",
+          "notes": ["Enter each, take the waypoint, then return"]
         },
-        { "id": "inf1_4", "text": "From whichever you find last, take the waypoint and portal back to Jungle Ruins" }
-      ]
-    },
-    {
-      "id": "act3_jungle2",
-      "name": "Jungle Ruins #2",
-      "objectives": [
-        { "id": "jng2_1", "text": "Enter the Venom Crypts" }
+        { "id": "inf1_4", "text": "TP to Venom Crypts (via the Jungle Ruins waypoint)" }
       ]
     },
     {
       "id": "act3_venom",
-      "name": "Venom Crypts",
-      "objectives": [
-        { "id": "vnm_1", "text": "Find the corpse for the Venom Phial, then go back to town" }
-      ]
-    },
-    {
-      "id": "act3_town2",
-      "name": "Town #2",
+      "name": "The Venom Crypts",
       "objectives": [
         {
-          "id": "a3t2_1",
-          "text": "Turn in Vial at Servi for a reward",
-          "notes": ["Reward is permanent and cannot be changed later"],
-          "reward": "Permanent reward (choice)"
-        },
-        { "id": "a3t2_2", "text": "Go to the Azak Bog" }
-      ]
-    },
-    {
-      "id": "act3_azak",
-      "name": "The Azak Bog",
-      "objectives": [
-        {
-          "id": "azk_1",
-          "text": "Find the Flameskin ritual and activate all",
+          "id": "vnm_1",
+          "text": "Sarcophagus event",
           "optional": true,
-          "notes": ["If not found before boss, skip it — but don't miss if found beforehand"],
-          "reward": "25% fire res + rarity for zone"
+          "reward": "Guaranteed Level 3 Support Gem"
         },
+        { "id": "vnm_2", "text": "Find the corpse, loot the Corpse-snake Venom, then TP to town" }
+      ]
+    },
+    {
+      "id": "act3_ziggurat2",
+      "name": "Ziggurat Encampment",
+      "objectives": [
         {
-          "id": "azk_2",
-          "text": "Find and kill Ignagduk",
-          "reward": "Permanent 30 Spirit"
+          "id": "zg2_1",
+          "text": "Talk to Servi — PERMANENT CHOICE",
+          "notes": ["Cannot be changed later: +25% Stun Threshold (popular), +30% Elemental Ailment Threshold, or +25% Mana Regen"],
+          "reward": "Permanent Servi choice"
         },
-        { "id": "azk_3", "text": "Go back to town and then to Chimeral Wetlands" }
+        { "id": "zg2_2", "text": "TP to Chimeral Wetlands" }
       ]
     },
     {
       "id": "act3_chimeral",
-      "name": "The Chimeral Wetlands",
+      "name": "Chimeral Wetlands",
       "objectives": [
         {
           "id": "chm_1",
-          "text": "Find the temple/Trial of Chaos",
-          "notes": ["Enter zone, take waypoint, waypoint back to Wetlands. Do trial any time from now on."]
+          "text": "Field vendor",
+          "optional": true,
+          "reward": "Guaranteed Rare Helm"
         },
         {
           "id": "chm_2",
-          "text": "Find and kill the Chimaera boss",
-          "notes": ["Found by following the left-hand border of the zone"]
+          "text": "Toxic Bloom point of interest",
+          "optional": true,
+          "reward": "Amulet"
         },
         {
           "id": "chm_3",
-          "text": "Enter Jiquani's Machinarium",
-          "notes": ["Behind the Chimaera boss"]
+          "text": "Enter Temple of Chaos → take waypoint → return",
+          "notes": ["Run the Trial of Chaos for your 2nd Ascendancy whenever ready"],
+          "reward": "2nd Ascendancy"
+        },
+        { "id": "chm_4", "text": "Kill Xyclucian, the Chimera, loot the Inscribed Ultimatum" },
+        { "id": "chm_5", "text": "Enter Jiquani's Machinarium (behind the boss)" }
+      ]
+    },
+    {
+      "id": "act3_trial",
+      "name": "Trial of Chaos (2nd Ascendancy)",
+      "objectives": [
+        { "id": "tch_1", "text": "Use the Inscribed Ultimatum at the trial entrance" },
+        {
+          "id": "tch_2",
+          "text": "Pick favorable mods (avoid lightning runes if low Lightning Res)",
+          "notes": ["Soul Core skip: dodge roll between the slam and twist of the placement animation — duplicates the core into all sockets"]
+        },
+        {
+          "id": "tch_3",
+          "text": "Complete the trial",
+          "reward": "2nd Ascendancy"
         }
       ]
     },
@@ -153,69 +163,60 @@
       "objectives": [
         {
           "id": "mch_1",
-          "text": "Find the first small soul core, then open the door",
-          "notes": ["Either left or right of Alva"]
+          "text": "Summon/talk to Alva, loot a Small Soul Core, use it on the Stone Altar",
+          "notes": ["Layout is a squared U-shape, generators at opposite tips"]
         },
+        { "id": "mch_2", "text": "Loot 3 Small Soul Cores to open doors" },
         {
-          "id": "mch_2",
-          "text": "Find two more small soul cores",
-          "notes": ["Four in total, only two needed. Third door is gold/chest, fourth has no use."]
-        },
-        { "id": "mch_3", "text": "Find the exit towards Jiquani's Sanctum" },
-        {
-          "id": "mch_4",
-          "text": "Find and kill Blackjaw",
+          "id": "mch_3",
+          "text": "Open the door, kill Blackjaw, use the Flame Core",
           "reward": "Permanent 10% Fire Resistance"
         },
-        { "id": "mch_5", "text": "Checkpoint port to the exit, then go to Jiquani's Sanctum" }
+        { "id": "mch_4", "text": "Open another door, enter Jiquani's Sanctum" }
       ]
     },
     {
       "id": "act3_sanctum",
       "name": "Jiquani's Sanctum",
       "objectives": [
-        { "id": "snc_1", "text": "Activate the waypoint right after the entry" },
-        { "id": "snc_2", "text": "Talk to Alva" },
-        {
-          "id": "snc_3",
-          "text": "Find two medium soul cores",
-          "notes": ["Soul cores are completely random in the zone."]
-        },
-        {
-          "id": "snc_4",
-          "text": "Activate both generators",
-          "notes": ["Always to the left and right back (relative to Alva)."]
-        },
-        {
-          "id": "snc_5",
-          "text": "Checkpoint back to Alva",
-          "notes": ["Wait until second soul core arrives at Alva (red lines on ground)."]
-        },
-        { "id": "snc_6", "text": "Kill Zicoatl, Warden of the Core and loot the large soul core" },
-        { "id": "snc_7", "text": "Go back to the Infested Barrens waypoint" }
+        { "id": "snc_1", "text": "Summon/talk to Alva" },
+        { "id": "snc_2", "text": "Loot 2 Medium Soul Cores, place them in the Generators" },
+        { "id": "snc_3", "text": "Back to start → click the Large Soul Core → kill Zicoatly → loot the core" },
+        { "id": "snc_4", "text": "TP to Infested Barrens" }
       ]
     },
     {
       "id": "act3_infested2",
-      "name": "Infested Barrens #2",
+      "name": "Infested Barrens (Return)",
       "objectives": [
-        { "id": "inf2_1", "text": "Insert the large soul core and go to Matlan Waterways afterwards" }
+        { "id": "inf2_1", "text": "Use the core on the Stone Altar next to the waypoint" },
+        { "id": "inf2_2", "text": "Enter The Matlan Waterways" }
       ]
     },
     {
       "id": "act3_matlan",
-      "name": "Matlan Waterways",
+      "name": "The Matlan Waterways",
       "objectives": [
-        { "id": "mtl_1", "text": "Activate every single lever to navigate through the zone, then activate the big one at the end" },
-        { "id": "mtl_2", "text": "Port back to town" }
+        {
+          "id": "mtl_1",
+          "text": "Walk over the pressure pads (auto-activate on contact), proceed to the end",
+          "notes": ["0.5: levers became walk-over pads and the final canal is pre-drained — just walk straight through"]
+        },
+        {
+          "id": "mtl_2",
+          "text": "Hut → kill the rare",
+          "optional": true,
+          "reward": "Random loot"
+        },
+        { "id": "mtl_3", "text": "TP back to town" }
       ]
     },
     {
-      "id": "act3_town3",
-      "name": "Town #3",
+      "id": "act3_ziggurat3",
+      "name": "Ziggurat Encampment",
       "objectives": [
-        { "id": "a3t3_1", "text": "Go down the stairs near the well / the Hooded One" },
-        { "id": "a3t3_2", "text": "Talk to Alva, enter the Drowned City" }
+        { "id": "zg3_1", "text": "Downstairs → talk to Alva" },
+        { "id": "zg3_2", "text": "Enter The Drowned City (bottom exit)" }
       ]
     },
     {
@@ -224,25 +225,30 @@
       "objectives": [
         {
           "id": "drn_1",
-          "text": "FOLLOW THE ROADS!",
-          "notes": ["Zone is huge, but roads make it bearable — find everything eventually."]
+          "text": "Scout exits to Apex of Filth and The Molten Vault",
+          "notes": ["Enter each, take the waypoint, then return"]
+        },
+        { "id": "drn_2", "text": "TP to Azak Bog" }
+      ]
+    },
+    {
+      "id": "act3_azak",
+      "name": "Azak Bog",
+      "objectives": [
+        { "id": "azk_1", "text": "Summon/talk to Servi" },
+        {
+          "id": "azk_2",
+          "text": "Flameskin rituals",
+          "optional": true,
+          "notes": ["Boss arena is always top-right; reset-farm magic packs around the fire shrine for XP"],
+          "reward": "Fire Res + Rarity buff"
         },
         {
-          "id": "drn_2",
-          "text": "Find the exit to the Molten Vault",
-          "notes": ["Enter, take waypoint, backtrack. Only first character per league."]
+          "id": "azk_3",
+          "text": "Kill Ignagduk, the Bog Witch, use the Gemrot Skull",
+          "reward": "Permanent 30 Spirit"
         },
-        {
-          "id": "drn_3",
-          "text": "Find the exit to the Apex of Filth",
-          "notes": ["Enter, take waypoint, backtrack. Only first character per league."]
-        },
-        {
-          "id": "drn_4",
-          "text": "Enter the Molten Vault",
-          "notes": ["Only first character per league."]
-        },
-        { "id": "drn_5", "text": "Enter the Apex of Filth" }
+        { "id": "azk_4", "text": "Talk to Servi in town for the Frozen Charm, then TP to The Molten Vault (1st char) or town" }
       ]
     },
     {
@@ -251,70 +257,66 @@
       "objectives": [
         {
           "id": "mlv_1",
-          "text": "Find and kill the boss, then talk to Oswald back in town",
-          "notes": ["Only first character per league"],
+          "text": "Kill Mektul, the Forgemaster (1st char only)",
+          "notes": ["Return the Hammer of Kamasa to Oswald in town to unlock the bench; skip on alts"],
           "reward": "Unlocks Reforging Bench"
         },
-        { "id": "mlv_2", "text": "Enter the Apex of Filth" }
+        { "id": "mlv_2", "text": "TP back to town, talk to Oswald, then TP to Apex of Filth" }
       ]
     },
     {
       "id": "act3_apex",
-      "name": "The Apex of Filth",
+      "name": "Apex of Filth",
       "objectives": [
         {
           "id": "apx_1",
-          "text": "Find and kill the Queen of Filth, then portal back to town",
-          "notes": ["Zone layout is a huge spiral, clockwise or counterclockwise. After 360° of spiral, find boss."]
-        }
-      ]
-    },
-    {
-      "id": "act3_town4",
-      "name": "Town #4",
-      "objectives": [
-        { "id": "a3t4_1", "text": "Go down the stairs near the well / the Hooded One again, and enter the Temple of Kopec" }
-      ]
-    },
-    {
-      "id": "act3_temple",
-      "name": "The Temple of Kopec",
-      "objectives": [
+          "text": "Find 3 Mushrooms → use the Cauldron",
+          "optional": true,
+          "reward": "Superior Flasks"
+        },
         {
-          "id": "tpm_1",
-          "text": "Go up the stairs twice, then kill Ketzuli, High Priest of the Sun",
-          "notes": ["Stairs in corners of triangle zone. Stay in shade to avoid damage."]
-        }
+          "id": "apx_2",
+          "text": "Kill the Queen of Filth, loot the Temple Door Idol",
+          "notes": ["Stay close to her — moving away triggers her rolling slam ultimate"]
+        },
+        { "id": "apx_3", "text": "TP back to town" }
       ]
     },
     {
-      "id": "act3_town5",
-      "name": "Town #5 (Intermediate)",
+      "id": "act3_kopec",
+      "name": "Temple of Kopec",
       "objectives": [
-        { "id": "a3t5_1", "text": "Talk to Alva and ride the elevator up" },
-        { "id": "a3t5_2", "text": "Go through the gateway, then down the stairs again to enter Utzaal" }
+        { "id": "tpm_1", "text": "Downstairs in town → talk to Alva → door behind her → enter Temple of Kopec" },
+        {
+          "id": "tpm_2",
+          "text": "Kill Ketzuli, High Priest of the Sun (upstairs)",
+          "notes": ["Each floor is a triangle — the far corner has a 50% chance of being correct; check it first"]
+        },
+        { "id": "tpm_3", "text": "Talk to Alva, wait for the lore" }
       ]
     },
     {
       "id": "act3_utzaal",
       "name": "Utzaal",
       "objectives": [
-        {
-          "id": "utz_1",
-          "text": "The Sacrificial Heart can randomly drop in this zone",
-          "optional": true,
-          "notes": ["If not found, go to next zone. Don't farm here until it drops."]
-        },
+        { "id": "utz_1", "text": "In town take the Gateway, then downstairs → enter Utzaal" },
         {
           "id": "utz_2",
-          "text": "Search and kill Viper Napuatzi",
-          "notes": ["Always towards right end of zone, facing north."]
+          "text": "Farm the Sacrificial Heart from Vaal Goliaths (canister on shoulder)",
+          "optional": true,
+          "notes": ["Can also drop in Aggorat — only this monster type drops it"]
         },
         {
           "id": "utz_3",
-          "text": "Find the exit to Aggorat and enter Aggorat",
-          "notes": ["Always top right end of zone, facing north."]
-        }
+          "text": "Energise the 6 Ancient Beacons across Utzaal & Aggorat, open the portal to the Vaal Ruins",
+          "notes": ["0.5: Fate of the Vaal is now core campaign content — this is your first encounter; it continues in the Interludes"]
+        },
+        {
+          "id": "utz_4",
+          "text": "Kill Viper Napuatzi",
+          "notes": ["Highly mobile and evasive — bait her first attack cycle to predict her"]
+        },
+        { "id": "utz_5", "text": "Enter Aggorat" }
       ]
     },
     {
@@ -323,31 +325,21 @@
       "objectives": [
         {
           "id": "agg_1",
-          "text": "Follow the voices of the Trial of Atziri (on the big plaza), go through to find the next checkpoint",
-          "notes": ["Having sound on is beneficial!"]
+          "text": "Find the Sacrificial Altar (top right of map)",
+          "notes": ["Town crier chanting points you the right way; edge of the pyramid = boss"]
         },
         {
           "id": "agg_2",
-          "text": "Find the exit towards the Black Chambers",
-          "notes": ["After big plaza, seems to be top left end of zone."]
+          "text": "Place the Sacrificial Heart, stab it with the Dagger",
+          "reward": "2 Skill Points"
         },
         {
           "id": "agg_3",
-          "text": "Find the Sacrificial Table",
-          "notes": ["After big plaza, seems to be top right end of zone."]
-        },
-        {
-          "id": "agg_4",
-          "text": "The Sacrificial Heart can randomly drop in this zone",
+          "text": "League mechanic (Crag Tooth)",
           "optional": true,
-          "notes": ["If not found until now, continue killing until found."]
+          "reward": "Vaal Orb"
         },
-        {
-          "id": "agg_5",
-          "text": "Checkpoint port to the Sacrificial Table, loot the dagger, place the heart, stab the heart",
-          "reward": "2 Skill Points"
-        },
-        { "id": "agg_6", "text": "Checkpoint port to the Black Chambers, enter the Black Chambers" }
+        { "id": "agg_4", "text": "Enter The Black Chambers (top left of map)" }
       ]
     },
     {
@@ -356,18 +348,18 @@
       "objectives": [
         {
           "id": "cmb_1",
-          "text": "Find and defeat Doryiani, Royal Thaumaturge",
-          "notes": ["Always top left or top right, depending on entry angle."]
-        }
+          "text": "Kill Doryani, the Blood Alchemist (Act Boss)",
+          "notes": ["Phase 2 (Doryani's Triumph): rage gives a fortifying buff before engaging"]
+        },
+        { "id": "cmb_2", "text": "Wait for loot (~30s), then TP back to town" }
       ]
     },
     {
-      "id": "act3_town6",
-      "name": "Town #6 (Intermediate)",
+      "id": "act3_ziggurat_end",
+      "name": "Ziggurat Encampment (End of Act)",
       "objectives": [
-        { "id": "a3t6_1", "text": "Go through the Portal to the encampment, speak with Doryani" },
-        { "id": "a3t6_2", "text": "After the cataclysm speak with him again, then speak with the Sin" },
-        { "id": "a3t6_3", "text": "Talk to Alva to get to Act 4 (Kingsmarch)" }
+        { "id": "zge_1", "text": "Talk to Doryani, then again after the cataclysm" },
+        { "id": "zge_2", "text": "Talk to Alva → The Hooded One → Alva to travel to Act 4 (Karui Archipelago)" }
       ]
     }
   ]

@@ -1,31 +1,82 @@
 {
   "number": 7,
-  "name": "Interlude: Doryani's Contingency",
+  "name": "Interlude 5.3: Mount Kriar, The Glade",
   "enabled": true,
   "temporary": true,
   "zones": [
     {
-      "id": "il3_vaal_approach",
-      "name": "Vaal Mountain Approach",
+      "id": "il3_ashen_forest",
+      "name": "Ashen Forest",
       "objectives": [
-        { "id": "il3_va_1", "text": "Speak with Doryani — ancient Vaal descendants may be sealed within the mountains" },
-        { "id": "il3_va_2", "text": "Enter the hidden Vaal crypt" }
+        { "id": "il3_af_1", "text": "Travel to Mount Kriar via The Hooded One, enter Ashen Forest" },
+        {
+          "id": "il3_af_2",
+          "text": "Find the Ancient Monument in Ashen Forest",
+          "reward": "Level 14 Skill Gem"
+        },
+        { "id": "il3_af_3", "text": "Travel to Kriar Village" }
       ]
     },
     {
-      "id": "il3_vaal_crypt",
-      "name": "Vaal Crypt",
+      "id": "il3_kriar_village",
+      "name": "Kriar Village",
       "objectives": [
-        { "id": "il3_vc_1", "text": "Explore the depths of the ancient Vaal crypt" },
-        { "id": "il3_vc_2", "text": "Determine whether any Vaal descendants survived — they may hold the key to defeating the Beast" }
+        {
+          "id": "il3_kv_1",
+          "text": "Slay Lythara, the Wayward Spear",
+          "reward": "Permanent 40 Spirit"
+        },
+        { "id": "il3_kv_2", "text": "Travel to Glacial Tarn, enter Howling Caves" }
       ]
     },
     {
-      "id": "il3_vaal_depths",
-      "name": "Vaal Depths",
+      "id": "il3_howling_caves",
+      "name": "Howling Caves",
       "objectives": [
-        { "id": "il3_vd_1", "text": "Continue through Doryani's contingency plan — navigate the perils of the sealed mountain" },
-        { "id": "il3_vd_2", "text": "Defeat the final boss to conclude the Contingency" }
+        {
+          "id": "il3_hc_1",
+          "text": "Slay The Abominable Yeti (drops Icy Tusks)",
+          "reward": "2 Skill Points"
+        },
+        { "id": "il3_hc_2", "text": "Travel to Kriar Peaks" }
+      ]
+    },
+    {
+      "id": "il3_kriar_peaks",
+      "name": "Kriar Peaks",
+      "objectives": [
+        {
+          "id": "il3_kp_1",
+          "text": "Find Elder Maddox (10–11 o'clock position)",
+          "reward": "Free Unique Item"
+        },
+        {
+          "id": "il3_kp_2",
+          "text": "Travel far right to Doryani's Contingency",
+          "optional": true,
+          "reward": "Titan Rock Catafract (unique chest)"
+        },
+        {
+          "id": "il3_kp_3",
+          "text": "Energise the second set of 6 Ancient Beacons, open the portal",
+          "notes": ["0.5: continues the Act 3 Fate of the Vaal sequence — the second beacon set"]
+        }
+      ]
+    },
+    {
+      "id": "il3_completion",
+      "name": "Completion",
+      "objectives": [
+        {
+          "id": "il3_cmp_1",
+          "text": "Talk to The Hooded One after all 3 interludes",
+          "reward": "2 Skill Points"
+        },
+        {
+          "id": "il3_cmp_2",
+          "text": "Endgame Atlas / Maps unlock at Lvl 58–60",
+          "reward": "Endgame begins"
+        }
       ]
     }
   ]

@@ -11,9 +11,9 @@ act1.json         Acts 1–4 are fully populated
 act2.json
 act3.json
 act4.json
-interlude1.json   Curse of Holten      ┐ Temporary — replaced by
-interlude2.json   The Stolen Barya     ┤ Acts 5 & 6 at 1.0 release.
-interlude3.json   Doryani's Contingency┘ Set enabled: false to hide.
+interlude1.json   5.1 Ogham, The Refuge      ┐ Temporary — replaced by
+interlude2.json   5.2 Khari Bazaar           ┤ Acts 5 & 6 at 1.0 release.
+interlude3.json   5.3 Mount Kriar, The Glade ┘ Set enabled: false to hide.
 act5.json         Placeholder — fill in when content releases
 act6.json         Placeholder — fill in when content releases
 ```

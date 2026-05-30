@@ -7,19 +7,24 @@
       "id": "act2_vastiri",
       "name": "Vastiri Outskirts",
       "objectives": [
-        { "id": "vst_1", "text": "Find and kill Rathbreaker" },
-        {
-          "id": "vst_2",
-          "text": "Portal back to camp, enter caravan",
-          "notes": ["Can also go ESC > Respawn at Checkpoint"]
-        }
+        { "id": "vst_1", "text": "Talk to The Hooded One" },
+        { "id": "vst_2", "text": "Kill Rathbreaker, then TP back to the start of the zone" },
+        { "id": "vst_3", "text": "Talk to Zarka, enter The Ardura Caravan" }
       ]
     },
     {
-      "id": "act2_town1",
-      "name": "Town #1",
+      "id": "act2_caravan1",
+      "name": "The Ardura Caravan (Town)",
       "objectives": [
-        { "id": "tw1_1", "text": "Speak to everyone, use desert map to go to Mawdun Quarry" }
+        { "id": "cv1_1", "text": "Talk to The Hooded One and Sekhema Asala (×2)" },
+        {
+          "id": "cv1_2",
+          "text": "Talk to Farrow, accept his Act 2 rune quest",
+          "notes": ["0.5 — unlocks the 13 Runic Alloy currencies, earned via Remnant encounters"],
+          "reward": "Unlocks Runic Alloys"
+        },
+        { "id": "cv1_3", "text": "Use the Desert Map → Halani Gates → talk to Sekhema Asala, return and talk again" },
+        { "id": "cv1_4", "text": "Travel to Mawdun Quarry" }
       ]
     },
     {
@@ -28,7 +33,13 @@
       "objectives": [
         {
           "id": "mq_1",
-          "text": "Find exit to Mawdun Mine",
+          "text": "Faridun War Cache near the checkpoint",
+          "optional": true,
+          "reward": "Artificer's Orb"
+        },
+        {
+          "id": "mq_2",
+          "text": "Enter Mawdun Mine",
           "notes": ["Follow the checkpoints"]
         }
       ]
@@ -37,17 +48,16 @@
       "id": "act2_mawdun_m",
       "name": "Mawdun Mine",
       "objectives": [
-        { "id": "mm_1", "text": "Find and kill Rudja" },
-        { "id": "mm_2", "text": "Talk to Risu, portal back to town" }
+        { "id": "mm_1", "text": "Kill Rudja" },
+        { "id": "mm_2", "text": "Talk to Risu in the cage, then TP back to town" }
       ]
     },
     {
-      "id": "act2_town2",
-      "name": "Town #2",
+      "id": "act2_caravan2",
+      "name": "The Ardura Caravan",
       "objectives": [
-        { "id": "tw2_1", "text": "Talk to Risu, then use desert map to go to Halani Gates" },
-        { "id": "tw2_2", "text": "Talk to Asala at the gates, go back to caravan, talk to Risu again, then to Asala again" },
-        { "id": "tw2_3", "text": "Use desert map to go to Traitor's Passage" }
+        { "id": "cv2_1", "text": "Talk to Risu and Sekhema Asala" },
+        { "id": "cv2_2", "text": "Travel to Traitor's Passage" }
       ]
     },
     {
@@ -56,21 +66,23 @@
       "objectives": [
         {
           "id": "tr_1",
-          "text": "Find and kill Basala, pick up the Djinn Barya quest item",
-          "notes": ["If you find paper on the walls, you are close"]
+          "text": "Interact with the Ancient Seal door and Runic Seals",
+          "notes": ["0.5: once Risu is freed you no longer need to visit Halani Gates first"]
         },
         {
           "id": "tr_2",
-          "text": "Find the exit to the Halani Gates",
-          "notes": ["Stairs up means you are on the right way"]
+          "text": "Kill Balbala, the Traitor",
+          "optional": true,
+          "notes": ["Most builds skip — get a backup Barya from Deshar vultures instead (easier fight, better XP at Lvl 28)"],
+          "reward": "Djinn Barya"
         },
         {
           "id": "tr_3",
-          "text": "Find and loot the Bell Chest",
+          "text": "Bell Chest in the dead end",
           "optional": true,
-          "notes": ["Dead end with checkpoint, monsters, and dropped gold"],
-          "reward": "Two level 6 Uncut Skill Gems (UNCONFIRMED)"
-        }
+          "reward": "Random loot"
+        },
+        { "id": "tr_4", "text": "Enter The Halani Gates (stairs up)" }
       ]
     },
     {
@@ -79,129 +91,51 @@
       "objectives": [
         {
           "id": "hlg_1",
-          "text": "Find and kill Jamanra the Risen King",
-          "notes": ["Always keep close to canyon. Cross canyon three times to find boss."]
+          "text": "Summon Asala to open the gates",
+          "notes": ["If she lags behind on terra-cotta soldiers, reset checkpoint — she snaps to you"]
         },
-        { "id": "hlg_2", "text": "Go down the stairs and to the bottom right (or left) of the zone, then back to town" }
+        { "id": "hlg_2", "text": "Kill Jamanra (first encounter)" },
+        { "id": "hlg_3", "text": "Stairs up, search the checkpoint, then TP back to town" }
       ]
     },
     {
-      "id": "act2_town3",
-      "name": "Town #3",
+      "id": "act2_caravan3",
+      "name": "The Ardura Caravan",
       "objectives": [
+        { "id": "cv3_1", "text": "Talk to Shambrin, Zarka, and Sekhema Asala" },
         {
-          "id": "tw3_1",
-          "text": "Speak to Zarka and turn in her quest",
-          "reward": "Level 7 Uncut Skill Gem"
+          "id": "cv3_2",
+          "text": "Travel to Trial of the Sekhemas → take waypoint, return",
+          "notes": ["Run it later at Lvl 28"]
         },
-        {
-          "id": "tw3_2",
-          "text": "Use the desert map to go to the Trial of Sekhemas",
-          "notes": ["Take waypoint, then go back to town. Do trial whenever ready."]
-        },
-        { "id": "tw3_3", "text": "Talk to everyone, then use desert map to go to Keth" }
-      ]
-    },
-    {
-      "id": "act2_keth",
-      "name": "Keth",
-      "objectives": [
-        {
-          "id": "kth_1",
-          "text": "Kill Kabala, the Constrictor Queen",
-          "notes": ["Somewhat in the middle of the zone"],
-          "reward": "2 Skill Points"
-        },
-        {
-          "id": "kth_2",
-          "text": "Kill snake monsters until you find the Kabala Clan Relic",
-          "notes": ["Can also drop in the Lost City"]
-        },
-        {
-          "id": "kth_3",
-          "text": "Find exit to the Lost City",
-          "notes": ["Always bottom right of zone, after big bridge. Take checkpoint, do rest if not yet done."]
-        },
-        { "id": "kth_4", "text": "Go to the Lost City" }
-      ]
-    },
-    {
-      "id": "act2_lostcity",
-      "name": "The Lost City",
-      "objectives": [
-        { "id": "lc_1", "text": "Find exit and go to the Buried Shrines" },
-        {
-          "id": "lc_2",
-          "text": "Find the Golden Tomb",
-          "optional": true,
-          "reward": "Uncut Spirit Gem"
-        },
-        {
-          "id": "lc_3",
-          "text": "Find the Ninth Treasure of Keth (big gilded beetle)",
-          "optional": true,
-          "notes": ["Event name 'The Galleria' on map"],
-          "reward": "Random Jewel"
-        }
-      ]
-    },
-    {
-      "id": "act2_buried",
-      "name": "Buried Shrines",
-      "objectives": [
-        { "id": "bs_1", "text": "Find the Heart of Keth" },
-        {
-          "id": "bs_2",
-          "text": "Find and loot the guarded sarcophagus",
-          "optional": true,
-          "reward": "Uncut Support Gem"
-        },
-        {
-          "id": "bs_3",
-          "text": "Find and complete the Elemental Offering Event",
-          "optional": true,
-          "reward": "Random resistance ring (ruby suggested)"
-        }
-      ]
-    },
-    {
-      "id": "act2_heart",
-      "name": "Heart of Keth",
-      "objectives": [
-        { "id": "hk_1", "text": "Kill Azarian the Forsaken Son" },
-        { "id": "hk_2", "text": "Talk to the goddess, loot the cinders, burn the goddess, loot the Essence of Water" }
-      ]
-    },
-    {
-      "id": "act2_town4",
-      "name": "Town #4",
-      "objectives": [
-        {
-          "id": "tw4_1",
-          "text": "Talk to Zarka",
-          "reward": "Uncut Support Gem"
-        },
-        { "id": "tw4_2", "text": "Use desert map to go to Mastodon Badlands" }
+        { "id": "cv3_3", "text": "Travel to Mastodon Badlands" }
       ]
     },
     {
       "id": "act2_mastodon",
       "name": "Mastodon Badlands",
       "objectives": [
-        { "id": "mb_1", "text": "Find the exit to the Bone Pits" },
-        { "id": "mb_2", "text": "Find the Lightless Passage to unlock the Well of Souls" },
+        {
+          "id": "mb_1",
+          "text": "Find the Lightless Caverns, unlock the Well of Souls",
+          "notes": ["Follow the cracks in the ground — they lead to the abyssal lair"]
+        },
+        {
+          "id": "mb_2",
+          "text": "Effigy near the checkpoint",
+          "optional": true,
+          "reward": "Level 2 Uncut Support Gem"
+        },
         {
           "id": "mb_3",
-          "text": "Kill hyena enemies until you find the Sun Clan Relic",
+          "text": "Complete the league mechanic",
           "optional": true,
-          "notes": ["More likely to be found in Bone Pits anyway"]
+          "reward": "Regal Orb"
         },
         {
           "id": "mb_4",
-          "text": "Find and loot the Shrine of Bones",
-          "optional": true,
-          "notes": ["Rare effigy near checkpoint"],
-          "reward": "Uncut Support Gem"
+          "text": "Enter The Bone Pits",
+          "notes": ["Run Mastodon before Keth so Kabala drops a Lvl 7 gem"]
         }
       ]
     },
@@ -209,79 +143,174 @@
       "id": "act2_bonepits",
       "name": "The Bone Pits",
       "objectives": [
-        { "id": "bp_1", "text": "Find and kill the zone boss and loot the horn" },
-        { "id": "bp_2", "text": "Kill hyena enemies until you find the Sun Clan Relic" },
-        { "id": "bp_3", "text": "Portal back to town" }
+        {
+          "id": "bp_1",
+          "text": "Kill hyenas until the Sun Clan Relic drops",
+          "notes": ["Tall hyenas (Goliaths) have higher drop chance; save for the Valley of the Titans altar"]
+        },
+        { "id": "bp_2", "text": "Kill Iktab & Ekbab, loot the Mastodon Tusks" },
+        { "id": "bp_3", "text": "TP back to town" }
       ]
     },
     {
-      "id": "act2_town5",
-      "name": "Town #5",
+      "id": "act2_caravan4",
+      "name": "The Ardura Caravan",
+      "objectives": [
+        { "id": "cv4_1", "text": "Talk to Zarka" },
+        { "id": "cv4_2", "text": "Travel to Keth" }
+      ]
+    },
+    {
+      "id": "act2_keth",
+      "name": "Keth",
+      "objectives": [
+        { "id": "kth_1", "text": "Kill snakes until the Kabala Clan Relic drops" },
+        {
+          "id": "kth_2",
+          "text": "Complete the league mechanic",
+          "optional": true,
+          "reward": "Gem Cutter's Prism"
+        },
+        {
+          "id": "kth_3",
+          "text": "Kill Kabala, Constrictor Queen",
+          "notes": ["Drops a Lvl 7 skill gem because Mastodon was done first"],
+          "reward": "2 Skill Points"
+        },
+        { "id": "kth_4", "text": "Enter The Lost City" }
+      ]
+    },
+    {
+      "id": "act2_lostcity",
+      "name": "The Lost City",
       "objectives": [
         {
-          "id": "tw5_1",
-          "text": "Talk to Zarka",
-          "reward": "Uncut Support Gem"
+          "id": "lc_1",
+          "text": "Kill the Ninth Treasure of Keth",
+          "optional": true,
+          "reward": "Random loot"
         },
-        { "id": "tw5_2", "text": "Use desert map to go to the Valley of Titans" }
+        {
+          "id": "lc_2",
+          "text": "Find the Golden Tomb",
+          "optional": true,
+          "reward": "Level 7 Uncut Spirit Gem"
+        },
+        { "id": "lc_3", "text": "Enter Buried Shrines" }
+      ]
+    },
+    {
+      "id": "act2_buried",
+      "name": "Buried Shrines",
+      "objectives": [
+        {
+          "id": "bs_1",
+          "text": "Guarded sarcophagus",
+          "optional": true,
+          "reward": "Support Gem + Lesser Jeweller's Orb"
+        },
+        {
+          "id": "bs_2",
+          "text": "Choose an Offering (fire/water/lightning)",
+          "optional": true,
+          "reward": "Resistance Ring"
+        },
+        { "id": "bs_3", "text": "Enter The Heart of Keth" }
+      ]
+    },
+    {
+      "id": "act2_heart",
+      "name": "The Heart of Keth",
+      "objectives": [
+        { "id": "hk_1", "text": "Kill Azarian" },
+        { "id": "hk_2", "text": "Talk to the Water Goddess → Everburning Cinders → ignite the Goddess, then TP to town" }
+      ]
+    },
+    {
+      "id": "act2_caravan5",
+      "name": "The Ardura Caravan",
+      "objectives": [
+        { "id": "cv5_1", "text": "Talk to Zarka" },
+        { "id": "cv5_2", "text": "Travel to Valley of the Titans" }
       ]
     },
     {
       "id": "act2_valley",
-      "name": "The Valley of the Titans",
+      "name": "Valley of the Titans",
       "objectives": [
-        { "id": "vl_1", "text": "Find and click the three ancient seals" },
+        { "id": "vl_1", "text": "Find 3 Ancient Seals around the perimeter" },
         {
           "id": "vl_2",
-          "text": "Find the medallion and place the two relics (permanent buff choice)",
-          "notes": ["Waypoint is here. Choose a buff — can be changed later."],
+          "text": "Complete the league mechanic",
+          "optional": true,
+          "reward": "Random Unique"
+        },
+        {
+          "id": "vl_3",
+          "text": "Find the Medallion near the waypoint, place both relics, choose a buff",
+          "notes": ["+30% Charm Charges OR +15% Mana Recovery — changeable later"],
           "reward": "Permanent buff choice"
         },
-        { "id": "vl_3", "text": "Find the exit to the Titan Grotto" },
-        { "id": "vl_4", "text": "Go to the Titan Grotto" }
+        { "id": "vl_4", "text": "Enter The Titan Grotto" }
       ]
     },
     {
       "id": "act2_titan",
-      "name": "Titan Grotto",
+      "name": "The Titan Grotto",
       "objectives": [
-        { "id": "tg_1", "text": "Find and kill the boss, then go back to town" }
+        { "id": "tg_1", "text": "Kill Zalmarath, the Colossus, loot the Flame Ruby" },
+        { "id": "tg_2", "text": "TP back to town" }
       ]
     },
     {
-      "id": "act2_town6",
-      "name": "Town #6",
+      "id": "act2_caravan6",
+      "name": "The Ardura Caravan",
       "objectives": [
-        { "id": "tw6_1", "text": "Talk to Zarka, then Asala" },
-        { "id": "tw6_2", "text": "Use the desert map to travel to Traitor's Passage" },
-        { "id": "tw6_3", "text": "Go to the front of the caravan and sound the horn" },
-        { "id": "tw6_4", "text": "Use the desert map to travel to Deshar" }
+        { "id": "cv6_1", "text": "Talk to Zarka and Sekhema Asala" },
+        { "id": "cv6_2", "text": "Travel to Halani Gates (don't enter), sound the Horn at the top of the caravan" },
+        { "id": "cv6_3", "text": "Talk to Sekhema Asala, then travel to Deshar" }
       ]
     },
     {
       "id": "act2_deshar",
       "name": "Deshar",
       "objectives": [
-        { "id": "dsh_1", "text": "Talk to the abandoned rhoa BECAUSE IT'S THE RIGHT THING TO DO YOU MONSTER." },
+        {
+          "id": "dsh_1",
+          "text": "Loot the Fallen Dekhara near the tower",
+          "notes": ["Letter from Lihl Lima → deliver to Shambrin in town"],
+          "reward": "2 Skill Points"
+        },
         {
           "id": "dsh_2",
-          "text": "Find the final letter on a corpse on the ground",
-          "notes": ["Near a big tower on the ground"],
-          "reward": "2 Skill Points (on quest turn-in)"
+          "text": "Kill the 2 Vultures in the side area",
+          "notes": ["Backup Djinn Barya (Lvl 28) — the easy ascend path, much simpler than Balbala"],
+          "reward": "Djinn Barya (Lvl 28)"
         },
         {
           "id": "dsh_3",
-          "text": "Find the exit to the Path of Mourning",
-          "notes": ["Enter zone, take waypoint, backtrack to Deshar"]
+          "text": "Side dead-end",
+          "optional": true,
+          "reward": "Artificer's Orb"
         },
-        { "id": "dsh_4", "text": "Go to the Path of Mourning" }
+        { "id": "dsh_4", "text": "Enter Path of Mourning" }
       ]
     },
     {
       "id": "act2_mourning",
-      "name": "The Path of Mourning",
+      "name": "Path of Mourning",
       "objectives": [
-        { "id": "pm_1", "text": "Find the exit to the Spires of Deshar" }
+        {
+          "id": "pm_1",
+          "text": "Shifting Vases encounter",
+          "optional": true,
+          "reward": "4 rares + Level 2 Support Gem"
+        },
+        {
+          "id": "pm_2",
+          "text": "Enter The Spires of Deshar",
+          "notes": ["Trust the overworld map for direction — exit is straightforward"]
+        }
       ]
     },
     {
@@ -290,39 +319,63 @@
       "objectives": [
         {
           "id": "sp_1",
-          "text": "Find the Sisters of Garukhan",
+          "text": "Interact with the Sisters of Garukhan shrine",
           "reward": "Permanent 10% Lightning Resistance"
         },
-        { "id": "sp_2", "text": "Find and kill Tor Gul, the Defiler" },
-        { "id": "sp_3", "text": "Portal back to town" }
+        {
+          "id": "sp_2",
+          "text": "Complete the league mechanic",
+          "optional": true,
+          "reward": "Gem Cutter's Prism"
+        },
+        {
+          "id": "sp_3",
+          "text": "Kill Tor Gul",
+          "notes": ["One of the hardest fights in Act 2 — cap lightning res, watch defiler attacks"]
+        },
+        { "id": "sp_4", "text": "TP back to town" }
       ]
     },
     {
-      "id": "act2_town7",
-      "name": "Town #7",
+      "id": "act2_trial",
+      "name": "Trial of the Sekhemas (Ascend at Lvl 28)",
       "objectives": [
         {
-          "id": "tw7_1",
-          "text": "Turn in the final letter at Shambrin",
-          "reward": "2 Skill Points"
+          "id": "tri_1",
+          "text": "Enter the trial, manually select the Lvl 28 Djinn Barya",
+          "notes": ["NOT the default Lvl 22 Balbala Barya — pick the Lvl 28 one from the Deshar vultures", "0.5: a Reforging Bench is now at the entrance; max Runic Ward is added to your starting Honour"]
         },
-        { "id": "tw7_2", "text": "Talk to everyone, then use desert map to go to the Dreadnought" }
+        { "id": "tri_2", "text": "Set relic affinity to keep inventory clean" },
+        {
+          "id": "tri_3",
+          "text": "Prefer Ritual > Chalice > Hourglass > Gauntlet rooms",
+          "notes": ["Hourglass: kill rares to chunk timer. Chalice: points to rare locations"]
+        },
+        {
+          "id": "tri_4",
+          "text": "Complete the trial",
+          "reward": "1st Ascendancy"
+        }
       ]
     },
     {
       "id": "act2_dreadnought",
       "name": "The Dreadnought",
       "objectives": [
-        { "id": "drd_1", "text": "Find the exit to the Dreadnought Vanguard, then find and kill Jamara, the Abomination" },
-        { "id": "drd_2", "text": "Portal back to town" }
+        {
+          "id": "drd_1",
+          "text": "Travel to The Dreadnought, kill Jamanra, the Risen King (Act Boss)",
+          "notes": ["0.5: the second dreadnought area was removed — Jamanra is fought directly here", "Already starts armor-broken; ~55k phys stuns him before the lightning fence phase"]
+        },
+        { "id": "drd_2", "text": "TP back to town" }
       ]
     },
     {
-      "id": "act2_town8",
-      "name": "Town #8",
+      "id": "act2_caravan_end",
+      "name": "The Ardura Caravan (End of Act)",
       "objectives": [
-        { "id": "tw8_1", "text": "Leave the Caravan, talk to the Hooded One, go back to the Caravan" },
-        { "id": "tw8_2", "text": "Talk to Asala to go to Act 3" }
+        { "id": "cve_1", "text": "Exit the caravan (top left), talk to The Hooded One, wait for the animation" },
+        { "id": "cve_2", "text": "Return, talk to Sekhema Asala → \"Travel to the Sandswept Marsh\" for Act 3" }
       ]
     }
   ]

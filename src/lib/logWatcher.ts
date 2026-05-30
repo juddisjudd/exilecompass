@@ -51,11 +51,10 @@ const AREA_PASSIVE_MAP: Record<string, string> = {
   'Keth':                 'sp_kabala',
   'Jungle Ruins':         'sp_silverfist',
   'Aggorat':              'sp_heart',
-  'Isle of Kin':          'sp_blind_beast',
   "Journey's End":        'sp_tujen',
   'Trial of the Ancestors': 'sp_hinekora',
-  'Holten':               'sp_int1_oswin',
-  'The Stolen Barya':     'sp_int2_quest',
+  'Wolvenhold':           'sp_int1_oswin',
+  'Khari Crossing':       'sp_int2_quest',
 };
 
 // Ordered list for sequential fallback when area is unknown
@@ -63,7 +62,7 @@ const PASSIVE_ORDER = [
   'sp_crowbell', 'sp_una_lute',
   'sp_kabala',   'sp_shambrin',
   'sp_silverfist','sp_heart',
-  'sp_blind_beast','sp_tujen', 'sp_hinekora',
+  'sp_tujen', 'sp_hinekora',
   'sp_int1_oswin','sp_int2_quest',
   'sp_int3_yeti', 'sp_int3_hooded',
 ];
