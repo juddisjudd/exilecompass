@@ -10,6 +10,13 @@
 
   let { title = 'ExileCompass', extra, controlsLeft }: Props = $props();
 
+  // Wordmark: render the "Exile" half white, keep "Compass" gold. Falls back to
+  // the plain gold title for any name that doesn't end in "Compass".
+  const wordmark = $derived.by(() => {
+    const m = title.match(/^(.*?)(compass)$/i);
+    return m ? { lead: m[1], rest: m[2] } : { lead: '', rest: title };
+  });
+
   const win = getCurrentWindow();
 
   async function close() { await win.close(); }
@@ -17,7 +24,7 @@
 
 <header class="titlebar" data-tauri-drag-region>
   <div class="titlebar-left">
-    <span class="app-title">{title}</span>
+    <span class="app-title">{#if wordmark.lead}<span class="title-lead">{wordmark.lead}</span>{/if}{wordmark.rest}</span>
   </div>
 
   {#if extra}
@@ -88,6 +95,11 @@
     text-shadow:
       0 0 14px rgba(210,185,110,0.55),
       0 1px 4px rgba(0,0,0,0.95);
+  }
+
+  /* "Exile" half of the wordmark in white; "Compass" keeps the gold above */
+  .title-lead {
+    color: #ffffff;
   }
 
   .titlebar-center {

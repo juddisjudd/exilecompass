@@ -95,6 +95,34 @@
     return type === 'spirit' ? 'gem-spirit' : type === 'support' ? 'gem-support' : 'gem-skill';
   }
 
+  const GEM_TYPE_MSG: Record<string, () => string> = {
+    skill: m.gem_type_skill, spirit: m.gem_type_spirit, support: m.gem_type_support,
+  };
+  function gemTypeLabel(type: string): string {
+    return GEM_TYPE_MSG[type]?.() ?? type;
+  }
+
+  // Gem hovercard (reuses cardX/cardY — only one card is ever shown at a time)
+  let hoveredGem = $state<{ name: string; type: string } | null>(null);
+  const GEM_CARD_W = 168;
+
+  function updateGemPos(e: MouseEvent) {
+    const winW = window.innerWidth, winH = window.innerHeight;
+    const h = 46;
+    let x = e.clientX + 14, y = e.clientY + 16;
+    if (x + GEM_CARD_W > winW - 4) x = e.clientX - GEM_CARD_W - 14;
+    if (y + h > winH - 4) y = e.clientY - h - 14;
+    if (x < 4) x = 4;
+    if (y < 4) y = 4;
+    cardX = x; cardY = y;
+  }
+  function onGemEnter(e: MouseEvent, gem: { name: string; type: string }) {
+    hoveredGem = gem;
+    updateGemPos(e);
+  }
+  function onGemMove(e: MouseEvent) { if (hoveredGem) updateGemPos(e); }
+  function onGemLeave() { hoveredGem = null; }
+
   // Items present in this set, ordered by the canonical slot order
   const orderedItems = $derived.by(() => {
     if (!itemSet) return [];
@@ -207,13 +235,31 @@
         <div class="section-label">
           {m.build_section_skills()}
           {#if multiSkill}<span class="section-hint">{skillSet.name}</span>{/if}
+          <span class="gem-legend">
+            <span class="legend-item legend-skill">{m.gem_type_skill()}</span>
+            <span class="legend-item legend-spirit">{m.gem_type_spirit()}</span>
+            <span class="legend-item legend-support">{m.gem_type_support()}</span>
+          </span>
         </div>
         <div class="skill-groups">
           {#each skillSet.skillGroups as group (group.mainSkill)}
             <div class="skill-group">
-              <span class="gem gem-skill gem-main">{group.mainSkill}</span>
+              <button
+                class="gem-node main {gemTypeClass(group.mainType)}"
+                onmouseenter={(e) => onGemEnter(e, { name: group.mainSkill, type: group.mainType })}
+                onmousemove={onGemMove} onmouseleave={onGemLeave}
+                aria-label="{group.mainSkill} ({gemTypeLabel(group.mainType)})"
+                type="button"
+              ></button>
               {#each group.supports as sup (sup.name)}
-                <span class="gem {gemTypeClass(sup.type)}">{sup.name}</span>
+                <span class="gem-link" aria-hidden="true"></span>
+                <button
+                  class="gem-node {gemTypeClass(sup.type)}"
+                  onmouseenter={(e) => onGemEnter(e, { name: sup.name, type: sup.type })}
+                  onmousemove={onGemMove} onmouseleave={onGemLeave}
+                  aria-label="{sup.name} ({gemTypeLabel(sup.type)})"
+                  type="button"
+                ></button>
               {/each}
             </div>
           {/each}
@@ -266,6 +312,14 @@
         {#if item.corrupted}<span class="hc-corrupted">{m.item_corrupted()}</span>{/if}
       </div>
     {/if}
+  </div>
+{/if}
+
+<!-- Gem hovercard -->
+{#if hoveredGem}
+  <div class="gem-hovercard {gemTypeClass(hoveredGem.type)}" style="left:{cardX}px; top:{cardY}px; width:{GEM_CARD_W}px">
+    <span class="ghc-name">{hoveredGem.name}</span>
+    <span class="ghc-type">{gemTypeLabel(hoveredGem.type)}</span>
   </div>
 {/if}
 
@@ -348,7 +402,7 @@
   .equip-grid { display: grid; grid-template-columns: 1fr 1fr; background: color-mix(in srgb, var(--c-bg) 96%, var(--c-mid)); }
   .slot-cell { display: flex; flex-direction: column; gap: 1px; padding: 5px 10px; border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 8%, transparent); border-right: 1px solid color-mix(in srgb, var(--c-accent) 8%, transparent); min-width: 0; user-select: none; transition: background 0.1s; }
   .slot-cell:nth-child(even) { border-right: none; }
-  .slot-cell.has-item { cursor: default; }
+  .slot-cell.has-item { cursor: pointer; }
   .slot-cell.has-item:hover { background: color-mix(in srgb, var(--c-accent) 5%, transparent); }
   .slot-tag  { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: color-mix(in srgb, var(--c-muted) 55%, transparent); }
   .slot-name { font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
@@ -376,13 +430,36 @@
 
   /* ── Skill groups ──────────────────────────────────────── */
   .skill-groups { display: flex; flex-direction: column; gap: 1px; background: color-mix(in srgb, var(--c-bg) 96%, var(--c-mid)); }
-  .skill-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 10px; border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 8%, transparent); }
+  .skill-group { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 7px 10px; border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 8%, transparent); }
   .skill-group:last-child { border-bottom: none; }
-  .gem { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 2px; font-size: 10px; font-weight: 500; white-space: nowrap; border: 1px solid; }
-  .gem-main { font-weight: 700; font-size: 11px; }
-  .gem-skill  { color: #86efac; border-color: color-mix(in srgb, #86efac 30%, transparent); background: color-mix(in srgb, #86efac 8%, transparent); }
-  .gem-support { color: color-mix(in srgb, #93c5fd 90%, #fff 10%); border-color: color-mix(in srgb, #93c5fd 28%, transparent); background: color-mix(in srgb, #93c5fd 7%, transparent); }
-  .gem-spirit  { color: color-mix(in srgb, #c4b5fd 90%, #fff 10%); border-color: color-mix(in srgb, #c4b5fd 28%, transparent); background: color-mix(in srgb, #c4b5fd 7%, transparent); }
+
+  /* Each gem is a colored node; the active gem (main) is larger. Hover a node
+     for its name + type. The connector chains supports onto their parent. */
+  .gem-node { appearance: none; flex-shrink: 0; width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 2px solid currentColor; background: color-mix(in srgb, currentColor 26%, transparent); box-shadow: 0 0 0 1px rgba(0,0,0,0.45); cursor: pointer; transition: transform 0.1s ease, box-shadow 0.12s ease; }
+  .gem-node.main { width: 18px; height: 18px; background: color-mix(in srgb, currentColor 45%, transparent); box-shadow: 0 0 7px color-mix(in srgb, currentColor 40%, transparent), 0 0 0 1px rgba(0,0,0,0.45); }
+  .gem-node:hover { transform: scale(1.18); box-shadow: 0 0 10px color-mix(in srgb, currentColor 60%, transparent), 0 0 0 1px rgba(0,0,0,0.55); }
+  .gem-node:focus-visible { outline: 2px solid color-mix(in srgb, currentColor 70%, #fff 30%); outline-offset: 2px; }
+  .gem-link { flex-shrink: 0; width: 10px; height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--c-accent) 42%, transparent); }
+
+  /* Gem-type legend in the section header */
+  .gem-legend { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .legend-item { display: inline-flex; align-items: center; gap: 3px; font-size: 8px; font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+  .legend-item::before { content: ''; width: 7px; height: 7px; border-radius: 50%; border: 1px solid; flex-shrink: 0; }
+  .legend-skill   { color: color-mix(in srgb, #86efac 85%, #fff 15%); }
+  .legend-skill::before   { background: color-mix(in srgb, #86efac 18%, transparent); border-color: color-mix(in srgb, #86efac 55%, transparent); }
+  .legend-spirit  { color: color-mix(in srgb, #c4b5fd 85%, #fff 15%); }
+  .legend-spirit::before  { background: color-mix(in srgb, #c4b5fd 18%, transparent); border-color: color-mix(in srgb, #c4b5fd 55%, transparent); }
+  .legend-support { color: color-mix(in srgb, #93c5fd 85%, #fff 15%); }
+  .legend-support::before { background: color-mix(in srgb, #93c5fd 18%, transparent); border-color: color-mix(in srgb, #93c5fd 55%, transparent); }
+  /* Gem-type hue — drives node fill/border (currentColor) and the hovercard accent */
+  .gem-skill   { color: #86efac; }
+  .gem-support { color: #93c5fd; }
+  .gem-spirit  { color: #c4b5fd; }
+
+  /* Gem hovercard */
+  .gem-hovercard { position: fixed; z-index: 9999; pointer-events: none; padding: 7px 10px; background: #0a0a0c; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-left: 2px solid currentColor; border-radius: 3px; box-shadow: 0 8px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 2px; }
+  .ghc-name { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; color: color-mix(in srgb, var(--c-accent) 88%, #fff 12%); }
+  .ghc-type { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: currentColor; }
 
   /* ── Notes ─────────────────────────────────────────────── */
   .notes-toggle { display: flex; align-items: center; gap: 6px; width: 100%; background: transparent; border: none; cursor: pointer; text-align: left; padding: 0; }

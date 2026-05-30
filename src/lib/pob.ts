@@ -9,6 +9,9 @@ export interface PobGem {
 
 export interface PobSkillGroup {
   mainSkill: string;
+  /** Type of the active (first) gem — skill gems and spirit gems (heralds,
+   *  auras, …) can both head a link, and need to be told apart visually. */
+  mainType: PobGem['type'];
   supports: PobGem[];
 }
 
@@ -142,6 +145,9 @@ async function resolveCode(input: string): Promise<string> {
 
 // ── Gem / skill parsing ───────────────────────────────────────────────────────
 
+// Name-based fallback. Only used when no metadata id is available — note the
+// 'support' substring check misfires on skill names like "Supporting Fire", so
+// prefer gemTypeFromId() whenever a gem metadata id is present.
 function gemType(name: string): PobGem['type'] {
   const lower = name.toLowerCase();
   if (SPIRIT_KEYWORDS.some(k => lower.includes(k))) return 'spirit';
@@ -149,17 +155,33 @@ function gemType(name: string): PobGem['type'] {
   return 'skill';
 }
 
+// Classify from a gem metadata id, e.g. "Metadata/Items/Gems/SupportGemBrutality"
+// or "Metadata/Items/Gem/SkillGemHeraldOfIce". The SkillGem/SupportGem prefix is
+// authoritative for support vs active; spirit gems (heralds/auras/…) share the
+// SkillGem prefix, so they're separated out by keyword on the readable name.
+function gemTypeFromId(id: string): PobGem['type'] {
+  const seg = id.split('/').pop() ?? id;
+  if (/^SupportGem/i.test(seg)) return 'support';
+  if (/^SkillGem/i.test(seg)) {
+    const name = humanizeGemId(id).toLowerCase();
+    return SPIRIT_KEYWORDS.some(k => name.includes(k)) ? 'spirit' : 'skill';
+  }
+  return gemType(humanizeGemId(id));
+}
+
 function extractSkillGroups(root: Element): PobSkillGroup[] {
   const groups: PobSkillGroup[] = [];
   for (const skillEl of root.querySelectorAll('Skill')) {
     const gems = Array.from(skillEl.querySelectorAll('Gem'))
-      .map(g => g.getAttribute('nameSpec') ?? '')
-      .filter(Boolean);
+      .map(g => ({ name: g.getAttribute('nameSpec') ?? '', id: g.getAttribute('gemId') ?? '' }))
+      .filter(g => g.name);
     if (!gems.length) continue;
-    const mainSkill = gems[0];
-    if (groups.some(g => g.mainSkill === mainSkill)) continue;
-    const supports: PobGem[] = gems.slice(1).map(n => ({ name: n, type: gemType(n) }));
-    groups.push({ mainSkill, supports });
+    const main = gems[0];
+    if (groups.some(g => g.mainSkill === main.name)) continue;
+    const classify = (g: { name: string; id: string }): PobGem['type'] =>
+      g.id ? gemTypeFromId(g.id) : gemType(g.name);
+    const supports: PobGem[] = gems.slice(1).map(g => ({ name: g.name, type: classify(g) }));
+    groups.push({ mainSkill: main.name, mainType: classify(main), supports });
   }
   return groups;
 }
@@ -384,9 +406,11 @@ function parseGggBuild(json: GggBuild): PobBuild {
   const skillGroups: PobSkillGroup[] = (json.skills ?? []).map(s => {
     const supports: PobGem[] = (s.support_skills ?? []).map(sup => {
       const supId = typeof sup === 'string' ? sup : sup.id;
-      return { name: humanizeGemId(supId), type: 'support' as const };
+      // Classify by metadata id — a slot is usually a support gem, but a spirit
+      // gem (herald/aura) socketed into a skill should surface as such.
+      return { name: humanizeGemId(supId), type: gemTypeFromId(supId) };
     });
-    return { mainSkill: humanizeGemId(s.id), supports };
+    return { mainSkill: humanizeGemId(s.id), mainType: gemTypeFromId(s.id), supports };
   });
 
   // The real GGG export uses an `items` array; the docs example used
@@ -489,6 +513,18 @@ export function stripPobColors(text: string): string {
   return text.replace(/\^x[0-9a-fA-F]{6}/g, '').replace(/\^[0-9]/g, '');
 }
 
+// Older stored builds predate PobSkillGroup.mainType — infer it from the name
+// so the UI never reads an undefined type.
+function backfillSkillTypes(data: Record<string, unknown>): PobBuild {
+  const build = data as unknown as PobBuild;
+  for (const set of build.skillSets ?? []) {
+    for (const group of set.skillGroups ?? []) {
+      if (!group.mainType) group.mainType = gemType(group.mainSkill);
+    }
+  }
+  return build;
+}
+
 export function loadStoredBuild(): PobBuild | null {
   try {
     const raw = window.localStorage.getItem(POB_STORAGE_KEY);
@@ -499,7 +535,7 @@ export function loadStoredBuild(): PobBuild | null {
     if (Array.isArray(data.skillSets) && Array.isArray(data.itemSets)) {
       if (typeof data.activeSkillSet !== 'number') data.activeSkillSet = 0;
       if (typeof data.activeItemSet  !== 'number') data.activeItemSet  = 0;
-      return data as unknown as PobBuild;
+      return backfillSkillTypes(data);
     }
 
     // Migrate older "loadouts" format (paired skill+item) → split dimensions
@@ -512,7 +548,7 @@ export function loadStoredBuild(): PobBuild | null {
       data.activeItemSet  = idx;
       delete data.loadouts;
       delete data.activeLoadoutIndex;
-      return data as unknown as PobBuild;
+      return backfillSkillTypes(data);
     }
 
     // Migrate oldest v1 format (flat skillGroups/items) → single sets
@@ -524,7 +560,7 @@ export function loadStoredBuild(): PobBuild | null {
     data.activeItemSet  = 0;
     delete data.skillGroups;
     delete data.items;
-    return data as unknown as PobBuild;
+    return backfillSkillTypes(data);
   } catch {
     return null;
   }
