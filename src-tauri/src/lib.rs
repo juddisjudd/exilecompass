@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use overlay_core::{find_poe2_window, focus_window, is_window_alive, WindowInfo};
-use tauri::{AppHandle, Manager, State, WebviewWindow};
+use overlay_core::{find_poe2_window, focus_window, is_window_alive, KeyChord, WindowInfo};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
 struct OverlayState {
     game_hwnd: Mutex<Option<isize>>,
@@ -61,6 +61,61 @@ fn store_remove(app: AppHandle, key: String) -> Result<(), String> {
     let mut map = read_settings(&app);
     map.remove(&key);
     write_settings(&app, &map)
+}
+
+// ── Window bounds restore ─────────────────────────────────────────────────────
+//
+// The overlay window position/size is saved by the frontend (debounced) under
+// this key in settings.json. We restore it here in Rust, before the window is
+// shown, so there's no visible jump from the centered default to the saved spot.
+
+const WINDOW_BOUNDS_KEY: &str = "EXILECOMPASS_WINDOW_BOUNDS_V1";
+
+#[derive(serde::Deserialize)]
+struct WindowBounds {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+
+/// Apply the last saved window bounds, if any look sane and land on a monitor.
+/// Silently leaves the window centered (its build default) when there's nothing
+/// valid to restore — e.g. first run, or a saved spot that's now fully off-screen
+/// because a monitor was unplugged.
+fn restore_window_bounds(app: &AppHandle, window: &WebviewWindow) {
+    let Some(raw) = read_settings(app).remove(WINDOW_BOUNDS_KEY) else {
+        return;
+    };
+    let Ok(b) = serde_json::from_str::<WindowBounds>(&raw) else {
+        return;
+    };
+    // Reject degenerate sizes (a collapsed/zeroed save would lose the window).
+    if b.width < 200 || b.height < 200 {
+        return;
+    }
+
+    // Only restore the position if the window would be at least partially visible
+    // on some connected monitor; otherwise keep the centered default.
+    let on_monitor = window
+        .available_monitors()
+        .map(|monitors| {
+            monitors.iter().any(|m| {
+                let pos = m.position();
+                let size = m.size();
+                let (mx, my) = (pos.x, pos.y);
+                let (mw, mh) = (size.width as i32, size.height as i32);
+                let (bw, bh) = (b.width as i32, b.height as i32);
+                // Axis-aligned overlap between the saved rect and this monitor.
+                b.x < mx + mw && b.x + bw > mx && b.y < my + mh && b.y + bh > my
+            })
+        })
+        .unwrap_or(false);
+
+    let _ = window.set_size(tauri::PhysicalSize::new(b.width, b.height));
+    if on_monitor {
+        let _ = window.set_position(tauri::PhysicalPosition::new(b.x, b.y));
+    }
 }
 
 // ── Log file detection ────────────────────────────────────────────────────────
@@ -239,6 +294,8 @@ fn find_game_window() -> Option<WindowInfo> {
 fn attach_to_game(state: State<'_, OverlayState>) -> Result<WindowInfo, String> {
     let info = find_poe2_window().ok_or("Path of Exile 2 window not found")?;
     *state.game_hwnd.lock().unwrap() = Some(info.hwnd);
+    // Auto-hide triggers only fire while this window is foreground.
+    overlay_core::set_hook_foreground_target(info.hwnd);
     Ok(info)
 }
 
@@ -246,6 +303,35 @@ fn attach_to_game(state: State<'_, OverlayState>) -> Result<WindowInfo, String> 
 #[tauri::command]
 fn detach_from_game(state: State<'_, OverlayState>) {
     *state.game_hwnd.lock().unwrap() = None;
+    // No game tracked → disable triggers so stray keypresses can't hide the overlay.
+    overlay_core::set_hook_foreground_target(0);
+}
+
+// ── Auto-hide triggers ────────────────────────────────────────────────────────
+
+/// A trigger chord sent from the frontend (key already resolved to a Windows VK).
+#[derive(serde::Deserialize)]
+struct TriggerChord {
+    vk: u32,
+    ctrl: bool,
+    shift: bool,
+    alt: bool,
+}
+
+/// Replace the set of game keybinds that auto-hide the overlay. The low-level
+/// keyboard hook observes these without consuming the keystroke.
+#[tauri::command]
+fn set_overlay_triggers(chords: Vec<TriggerChord>) {
+    let chords = chords
+        .into_iter()
+        .map(|c| KeyChord {
+            vk: c.vk,
+            ctrl: c.ctrl,
+            shift: c.shift,
+            alt: c.alt,
+        })
+        .collect();
+    overlay_core::set_trigger_chords(chords);
 }
 
 /// Toggle click-through / interactive mode for the overlay.
@@ -393,7 +479,7 @@ pub fn run() {
         .setup(|app| {
             // Window is built here (not in tauri.conf.json) so transparency can be
             // decided per-platform. Keep these props in sync with the config notes.
-            tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
+            let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                 .title("ExileCompass")
                 .inner_size(553.0, 680.0)
                 .decorations(false)
@@ -403,6 +489,17 @@ pub fn run() {
                 .shadow(false)
                 .center()
                 .build()?;
+
+            // Restore the last saved position/size over the centered default,
+            // before the window paints, so there's no visible jump.
+            restore_window_bounds(&app.handle(), &window);
+
+            // Install the global keyboard hook for auto-hide triggers. It emits
+            // an event the frontend listens for; it never consumes the keystroke.
+            let handle = app.handle().clone();
+            overlay_core::start_keyboard_hook(move || {
+                let _ = handle.emit("overlay-trigger", ());
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -410,6 +507,7 @@ pub fn run() {
             attach_to_game,
             detach_from_game,
             set_click_through,
+            set_overlay_triggers,
             focus_game,
             get_overlay_status,
             detect_log_file,

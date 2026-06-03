@@ -95,16 +95,20 @@
   {#each CAMPAIGN_DATA as act (act.number)}
     {@const progress = getActProgress(act)}
     {@const isComplete = progress.completed === progress.total && progress.total > 0}
-    <div class="act-group" class:complete={isComplete}>
+    {@const expanded = guideState.expandedActs.has(act.number)}
+    <div class="act-group" class:complete={isComplete} class:complete-collapsed={isComplete && !expanded}>
       <button
         class="act-header"
         onclick={() => toggleAct(act.number)}
         type="button"
       >
-        <span class="toggle-icon" class:expanded={guideState.expandedActs.has(act.number)}>▶</span>
+        <span class="toggle-icon" class:expanded>▶</span>
         <span class="act-title">{trAct(act.number, act.name)}</span>
         {#if act.temporary}
           <span class="badge-interlude">{m.campaign_interlude_badge()}</span>
+        {/if}
+        {#if isComplete}
+          <span class="badge-complete">✓ {m.campaign_complete_badge()}</span>
         {/if}
         <span class="act-progress" class:complete={isComplete}>
           {progress.completed}/{progress.total}
@@ -119,7 +123,7 @@
         ></div>
       </div>
 
-      {#if guideState.expandedActs.has(act.number)}
+      {#if expanded}
         <div class="zones-container">
           {#each act.zones as zone (zone.id)}
             <div class="zone-group">
@@ -234,6 +238,16 @@
     border-color: color-mix(in srgb, #4ade80 28%, transparent);
   }
 
+  /* Finished act, collapsed — recede it so the eye skips to unfinished work.
+     Full opacity returns once expanded so its contents stay readable. */
+  .act-group.complete-collapsed {
+    opacity: 0.55;
+    transition: opacity 0.2s;
+  }
+  .act-group.complete-collapsed:hover {
+    opacity: 0.85;
+  }
+
   .act-header {
     display: flex;
     align-items: center;
@@ -294,6 +308,19 @@
     background: color-mix(in srgb, #a78bfa 10%, transparent);
     color: #c4b5fd;
     border: 1px solid color-mix(in srgb, #a78bfa 28%, transparent);
+    flex-shrink: 0;
+  }
+
+  .badge-complete {
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 2px;
+    background: color-mix(in srgb, #4ade80 12%, transparent);
+    color: #86efac;
+    border: 1px solid color-mix(in srgb, #4ade80 34%, transparent);
     flex-shrink: 0;
   }
 

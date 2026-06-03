@@ -1,4 +1,4 @@
-use crate::{Rect, WindowInfo};
+use crate::{KeyChord, Rect, WindowInfo};
 
 #[cfg(target_os = "windows")]
 mod windows;
@@ -36,4 +36,21 @@ pub fn focus_window(hwnd: isize) -> bool {
 /// on Windows this sets WS_EX_NOACTIVATE so the overlay never steals focus from the game.
 pub fn apply_overlay_styles(hwnd: isize) {
     imp::apply_overlay_styles(hwnd);
+}
+
+/// Install a global low-level keyboard hook that fires `on_trigger` when a
+/// configured chord is pressed while the target window is foreground. On
+/// non-Windows platforms this is a no-op.
+pub fn start_keyboard_hook<F: Fn() + Send + Sync + 'static>(on_trigger: F) {
+    imp::start_keyboard_hook(on_trigger);
+}
+
+/// Set which window (raw handle) must be foreground for triggers to fire; 0 disables.
+pub fn set_hook_foreground_target(hwnd: isize) {
+    imp::set_hook_foreground_target(hwnd);
+}
+
+/// Replace the active set of auto-hide trigger chords.
+pub fn set_trigger_chords(chords: Vec<KeyChord>) {
+    imp::set_trigger_chords(chords);
 }

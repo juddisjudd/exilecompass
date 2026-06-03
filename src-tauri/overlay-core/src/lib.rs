@@ -2,7 +2,18 @@ mod platform;
 
 pub use platform::{
     apply_overlay_styles, find_window_by_title, focus_window, get_window_rect, is_window_alive,
+    set_hook_foreground_target, set_trigger_chords, start_keyboard_hook,
 };
+
+/// A keyboard chord (a key plus modifier state) used for auto-hide triggers.
+/// `vk` is a Windows virtual-key code; modifiers are matched exactly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyChord {
+    pub vk: u32,
+    pub ctrl: bool,
+    pub shift: bool,
+    pub alt: bool,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WindowInfo {

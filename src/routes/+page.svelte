@@ -39,7 +39,18 @@
     detachFromGame,
     toggleClickThrough,
     toggleHidden,
+    setHidden,
   } from '$lib/overlay.svelte';
+  import {
+    configToChords,
+    getDefaultTriggerConfig,
+    loadTriggerConfig,
+    saveTriggerConfig,
+    comboToChord,
+    type TriggerConfig,
+    type TriggerMode,
+  } from '$lib/triggers';
+  import { listen } from '@tauri-apps/api/event';
   import {
     HOTKEY_ACTIONS,
     getDefaultHotkeyBindings,
@@ -52,6 +63,7 @@
   } from '$lib/hotkeys';
   import { invoke } from '@tauri-apps/api/core';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
+  import { getCurrentWindow } from '@tauri-apps/api/window';
   import { getVersion } from '@tauri-apps/api/app';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { checkForUpdate, installUpdate } from '$lib/updater';
@@ -65,6 +77,7 @@
 
   const LOG_FILE_STORAGE_KEY   = 'EXILECOMPASS_LOG_FILE_PATH_V1';
   const CT_OPACITY_KEY         = 'EXILECOMPASS_CT_OPACITY_V1';
+  const WINDOW_BOUNDS_KEY      = 'EXILECOMPASS_WINDOW_BOUNDS_V1';
   const SETTINGS_GROUPS = ['GENERAL', 'IMPORT', 'ABOUT'] as const;
   const SETTINGS_TABS: Array<{ group: 'GENERAL' | 'IMPORT' | 'ABOUT'; id: SettingsTabId }> = [
     { group: 'GENERAL', id: 'hotkeys' },
@@ -87,6 +100,11 @@
   let autoDetecting = $state(false);
   let hotkeyBindings = $state<HotkeyBindings>(getDefaultHotkeyBindings());
   let hotkeyDrafts = $state<HotkeyBindings>(getDefaultHotkeyBindings());
+
+  // Auto-hide triggers (game keybinds that hide the overlay while playing)
+  let triggerConfig = $state<TriggerConfig>(getDefaultTriggerConfig());
+  let triggerDraft = $state('');
+  let triggerError = $state('');
 
   // Click-through opacity (0.1 – 0.9, default 40%)
   let ctOpacity = $state(0.4);
@@ -150,6 +168,8 @@
 
     hotkeyBindings = loadHotkeyBindings();
     hotkeyDrafts = { ...hotkeyBindings };
+    triggerConfig = loadTriggerConfig();
+    void pushTriggers();
     selectedLocale = getLocale() as AppLocale;
     pobBuild = loadStoredBuild();
     const savedOpacity = window.localStorage.getItem(CT_OPACITY_KEY);
@@ -225,6 +245,43 @@
       .then((u) => { if (u && !cancelled) updateHandle = u; })
       .catch(() => {});
 
+    // Persist window position/size (debounced) so it reopens where it was left.
+    // Restore happens in Rust before the window paints; here we only save.
+    let unlistenMoved: (() => void) | undefined;
+    let unlistenResized: (() => void) | undefined;
+    let boundsSaveTimer: ReturnType<typeof setTimeout> | undefined;
+    (async () => {
+      const win = getCurrentWindow();
+      const saveBounds = () => {
+        if (boundsSaveTimer) clearTimeout(boundsSaveTimer);
+        boundsSaveTimer = setTimeout(async () => {
+          try {
+            const pos = await win.outerPosition();
+            const size = await win.outerSize();
+            await persistSet(
+              WINDOW_BOUNDS_KEY,
+              JSON.stringify({ x: pos.x, y: pos.y, width: size.width, height: size.height }),
+            );
+          } catch { /* best effort */ }
+        }, 400);
+      };
+      unlistenMoved = await win.onMoved(saveBounds);
+      unlistenResized = await win.onResized(saveBounds);
+    })();
+
+    // Auto-hide triggers — backend keyboard hook emits `overlay-trigger` when a
+    // configured game keybind is pressed while PoE2 is focused.
+    let unlistenTrigger: (() => void) | undefined;
+    (async () => {
+      unlistenTrigger = await listen('overlay-trigger', () => {
+        if (triggerConfig.mode === 'toggle') {
+          void toggleHidden();
+        } else {
+          void setHidden(true);
+        }
+      });
+    })();
+
     // Native file drag-and-drop — drop a .build/.json file anywhere to import it
     let unlistenDrop: (() => void) | undefined;
     (async () => {
@@ -248,6 +305,10 @@
       if (pollTimer) clearInterval(pollTimer);
       clearInterval(logTimer);
       unlistenDrop?.();
+      unlistenTrigger?.();
+      unlistenMoved?.();
+      unlistenResized?.();
+      if (boundsSaveTimer) clearTimeout(boundsSaveTimer);
       for (const accel of registeredGlobals.values()) {
         unregisterGlobalShortcut(accel).catch(() => {});
       }
@@ -382,6 +443,41 @@
     hotkeyDrafts = { ...defaults };
     saveHotkeyBindings(defaults);
     await syncAllGlobalShortcuts(defaults);
+  }
+
+  async function pushTriggers() {
+    try {
+      await invoke('set_overlay_triggers', { chords: configToChords(triggerConfig) });
+    } catch { /* best effort — triggers just won't fire */ }
+  }
+
+  function addTrigger() {
+    const normalized = normalizeHotkeyCombo(triggerDraft);
+    if (!normalized || !comboToChord(normalized)) {
+      triggerError = m.error_invalid_trigger();
+      return;
+    }
+    if (triggerConfig.keys.includes(normalized)) {
+      triggerError = `${m.error_duplicate_trigger()} ${normalized}`;
+      return;
+    }
+    triggerError = '';
+    triggerConfig = { ...triggerConfig, keys: [...triggerConfig.keys, normalized] };
+    triggerDraft = '';
+    saveTriggerConfig(triggerConfig);
+    void pushTriggers();
+  }
+
+  function removeTrigger(combo: string) {
+    triggerConfig = { ...triggerConfig, keys: triggerConfig.keys.filter((k) => k !== combo) };
+    triggerError = '';
+    saveTriggerConfig(triggerConfig);
+    void pushTriggers();
+  }
+
+  function setTriggerMode(mode: TriggerMode) {
+    triggerConfig = { ...triggerConfig, mode };
+    saveTriggerConfig(triggerConfig);
   }
 
   async function handleLocaleChange() {
@@ -637,6 +733,56 @@
                   <span class="ct-slider-val">{Math.round(ctOpacity * 100)}%</span>
                 </div>
                 <p class="field-help">{m.settings_clickthrough_opacity_help()}</p>
+              </div>
+
+              <!-- Auto-hide triggers -->
+              <div class="trigger-section">
+                <div class="settings-section-title" style="margin-top:4px">{m.settings_triggers_title()}</div>
+
+                {#if triggerConfig.keys.length === 0}
+                  <p class="field-help">{m.settings_triggers_empty()}</p>
+                {:else}
+                  <ul class="trigger-list">
+                    {#each triggerConfig.keys as key (key)}
+                      <li class="trigger-chip">
+                        <span class="trigger-chip-key">{key}</span>
+                        <button
+                          class="trigger-chip-remove"
+                          type="button"
+                          onclick={() => removeTrigger(key)}
+                          aria-label={`${m.trigger_remove_label()} ${key}`}
+                        >✕</button>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+
+                <div class="trigger-add-row">
+                  <input
+                    class="hotkey-input trigger-add-input"
+                    bind:value={triggerDraft}
+                    placeholder={m.trigger_add_placeholder()}
+                    onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTrigger(); } }}
+                    aria-label={m.action_add_trigger()}
+                  />
+                  <button class="btn btn-primary" type="button" onclick={addTrigger}>{m.action_add_trigger()}</button>
+                </div>
+                {#if triggerError}
+                  <p class="inline-error">{triggerError}</p>
+                {/if}
+
+                <label class="field-label" for="trigger-mode-select" style="margin-top:4px">{m.trigger_mode_label()}</label>
+                <select
+                  id="trigger-mode-select"
+                  class="field-select"
+                  value={triggerConfig.mode}
+                  onchange={(e) => setTriggerMode((e.currentTarget as HTMLSelectElement).value as TriggerMode)}
+                >
+                  <option value="hideOnly">{m.trigger_mode_hide_only()}</option>
+                  <option value="toggle">{m.trigger_mode_toggle()}</option>
+                </select>
+
+                <p class="field-help">{m.settings_triggers_help()}</p>
               </div>
 
             {:else if activeSettingsTab === 'language'}
@@ -1482,6 +1628,67 @@
     text-align: right;
     color: #c8a040;
     letter-spacing: 0.04em;
+  }
+
+  /* ── Auto-hide triggers ─────────────────────────────────────── */
+  .trigger-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .trigger-list {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .trigger-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 4px 2px 8px;
+    border-radius: 2px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
+  }
+
+  .trigger-chip-key {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    color: var(--c-primary);
+    letter-spacing: 0.02em;
+  }
+
+  .trigger-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border: none;
+    border-radius: 2px;
+    background: transparent;
+    color: color-mix(in srgb, var(--c-muted) 90%, #fff 10%);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.12s, background 0.12s;
+  }
+  .trigger-chip-remove:hover {
+    color: #f38d78;
+    background: color-mix(in srgb, #f38d78 10%, transparent);
+  }
+
+  .trigger-add-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .trigger-add-input {
+    flex: 1;
   }
 
   /* ── Update banner ──────────────────────────────────────────── */
