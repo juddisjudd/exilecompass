@@ -104,6 +104,7 @@
   "timer_split": "Сплит",
   "timer_reset_title": "Сбросить таймер",
   "build_empty_title": "Сборка не импортирована",
+  "build_render_error": "Ne udalos otobrazit etu sborku.",
   "build_empty_sub": "Импортируйте код Path of Building, чтобы увидеть сборку здесь.",
   "build_section_equipment": "Снаряжение",
   "build_section_skills": "Связки умений",

@@ -124,6 +124,7 @@
   "hotkey_campaign_undo_last": "Undo last campaign objective",
 
   "build_empty_title": "No build imported",
+  "build_render_error": "This build couldn't be displayed.",
   "build_empty_sub": "Import a Path of Building code to see your build here.",
   "build_section_equipment": "Equipment",
   "build_section_skills": "Skill Links",

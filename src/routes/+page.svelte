@@ -389,6 +389,29 @@
     try { await attachToGame(); } catch (e) { error = String(e); }
   }
 
+  /**
+   * Run a native dialog (file picker) with the overlay temporarily not
+   * always-on-top, then restore input focus to the webview.
+   *
+   * The overlay window is `alwaysOnTop`, which on Windows leaves a native file
+   * dialog trapped *behind* it and — once it closes — leaves the WebView without
+   * input focus. Mouse clicks (e.g. the settings ✕) then silently do nothing and
+   * the app looks frozen, forcing a restart. Dropping always-on-top for the
+   * dialog's lifetime and refocusing afterwards keeps the window responsive.
+   */
+  async function withNativeDialog<T>(run: () => Promise<T>): Promise<T> {
+    const win = getCurrentWindow();
+    try { await win.setAlwaysOnTop(false); } catch { /* best effort */ }
+    try {
+      return await run();
+    } finally {
+      try {
+        await win.setAlwaysOnTop(true);
+        await win.setFocus();
+      } catch { /* best effort */ }
+    }
+  }
+
   function isTypingTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
     const tag = target.tagName;
@@ -521,14 +544,14 @@
   async function chooseLogFile() {
     logFileError = '';
     try {
-      const selection = await open({
+      const selection = await withNativeDialog(() => open({
         directory: false,
         multiple: false,
         filters: [
           { name: m.dialog_log_files(), extensions: ['log', 'txt'] },
           { name: m.dialog_all_files(), extensions: ['*'] },
         ],
-      });
+      }));
       if (!selection || Array.isArray(selection)) return;
       await setLogFile(selection as string);
     } catch (e) {
@@ -574,14 +597,14 @@
   async function chooseBuildFile() {
     pobError = '';
     try {
-      const selection = await open({
+      const selection = await withNativeDialog(() => open({
         directory: false,
         multiple: false,
         filters: [
           { name: 'Build Files', extensions: ['build', 'json'] },
           { name: m.dialog_all_files(), extensions: ['*'] },
         ],
-      });
+      }));
       if (!selection || Array.isArray(selection)) return;
       const text = await invoke<string>('read_text_file', { path: selection });
       await runBuildImport(text);
@@ -598,6 +621,10 @@
       if (pobBuild) mainView = 'build';
     } catch (e) {
       pobError = String(e).replace(/^Error:\s*/, '');
+    } finally {
+      // A native OS drag-drop can leave the WebView without input focus; restore
+      // it so clicks keep registering after the import.
+      try { await getCurrentWindow().setFocus(); } catch { /* best effort */ }
     }
   }
 
@@ -954,21 +981,34 @@
           {:else if mainView === 'timer'}
             <SpeedrunTimer />
           {:else}
-            <BuildOverview
-              build={pobBuild}
-              onClear={handlePobClear}
-              onOpenImport={() => { showSettings = true; activeSettingsTab = 'importBuilds'; }}
-              onSkillSetChange={(idx) => {
-                if (!pobBuild) return;
-                pobBuild = { ...pobBuild, activeSkillSet: idx };
-                saveBuild(pobBuild);
-              }}
-              onItemSetChange={(idx) => {
-                if (!pobBuild) return;
-                pobBuild = { ...pobBuild, activeItemSet: idx };
-                saveBuild(pobBuild);
-              }}
-            />
+            <!-- An error boundary keeps a malformed imported build from throwing
+                 during render and locking the whole overlay (no clicks register).
+                 On failure we drop the bad build and offer a clean reset. -->
+            <svelte:boundary>
+              <BuildOverview
+                build={pobBuild}
+                onClear={handlePobClear}
+                onOpenImport={() => { showSettings = true; activeSettingsTab = 'importBuilds'; }}
+                onSkillSetChange={(idx) => {
+                  if (!pobBuild) return;
+                  pobBuild = { ...pobBuild, activeSkillSet: idx };
+                  saveBuild(pobBuild);
+                }}
+                onItemSetChange={(idx) => {
+                  if (!pobBuild) return;
+                  pobBuild = { ...pobBuild, activeItemSet: idx };
+                  saveBuild(pobBuild);
+                }}
+              />
+              {#snippet failed(_error, reset)}
+                <div class="build-error">
+                  <p class="build-error-msg">{m.build_render_error()}</p>
+                  <button class="btn btn-ghost" onclick={() => { handlePobClear(); reset(); }}>
+                    {m.action_clear()}
+                  </button>
+                </div>
+              {/snippet}
+            </svelte:boundary>
           {/if}
         </div>
 
@@ -1752,6 +1792,22 @@
     height: 100%;
     background: #c8a040;
     transition: width 0.2s;
+  }
+
+  /* ── Build render-error fallback ────────────────────────────── */
+  .build-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 16px;
+    text-align: center;
+  }
+  .build-error-msg {
+    font-size: 12px;
+    line-height: 1.5;
+    color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
+    max-width: 260px;
   }
 
   /* ── Build file drop overlay ────────────────────────────────── */

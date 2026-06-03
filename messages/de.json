@@ -104,6 +104,7 @@
   "timer_split": "Split",
   "timer_reset_title": "Timer zurücksetzen",
   "build_empty_title": "Kein Build importiert",
+  "build_render_error": "Dieser Build konnte nicht angezeigt werden.",
   "build_empty_sub": "Importiere einen Path-of-Building-Code, um deinen Build hier zu sehen.",
   "build_section_equipment": "Ausrüstung",
   "build_section_skills": "Skill-Verknüpfungen",

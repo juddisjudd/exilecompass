@@ -104,6 +104,7 @@
   "timer_split": "스플릿",
   "timer_reset_title": "타이머 초기화",
   "build_empty_title": "가져온 빌드 없음",
+  "build_render_error": "i bildeu reul pyosihal su eopseoyo.",
   "build_empty_sub": "Path of Building 코드를 가져오면 여기에 빌드가 표시됩니다.",
   "build_section_equipment": "장비",
   "build_section_skills": "스킬 링크",

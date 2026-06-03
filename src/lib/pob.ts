@@ -376,8 +376,17 @@ function humanizeGemId(id: string): string {
     .trim() || seg;
 }
 
+// Real GGG exports suffix single-instance slots with a redundant index
+// ("Helm1", "BodyArmour1", "Ring1"), while genuinely multi-slot gear carries a
+// meaningful one ("Ring2", "Flask2"). Match the id as-is first so the indexed
+// variants win, then fall back to the digit-stripped base — so "Helm1" → "Helm"
+// (→ helm) but "Ring2" stays "Ring2" (→ ring2).
+function normalizeGggSlot(inventoryId: string): string | undefined {
+  return GGG_SLOT_MAP[inventoryId] ?? GGG_SLOT_MAP[inventoryId.replace(/\d+$/, '')];
+}
+
 function gggSlotToItem(slot: GggSlot): PobItem | null {
-  const slotKey = GGG_SLOT_MAP[slot.inventory_id];
+  const slotKey = normalizeGggSlot(slot.inventory_id);
   if (!slotKey) return null;
 
   const lines = stripGggMarkup(slot.additional_text ?? '')
@@ -403,22 +412,35 @@ function gggSlotToItem(slot: GggSlot): PobItem | null {
 }
 
 function parseGggBuild(json: GggBuild): PobBuild {
-  const skillGroups: PobSkillGroup[] = (json.skills ?? []).map(s => {
+  // Dedupe skill groups by their main skill — exports can repeat a default
+  // skill (e.g. "Player Default Crossbow"), and a duplicate key would crash the
+  // keyed {#each} in the build view.
+  const skillGroups: PobSkillGroup[] = [];
+  for (const s of json.skills ?? []) {
+    const mainSkill = humanizeGemId(s.id);
+    if (skillGroups.some(g => g.mainSkill === mainSkill)) continue;
     const supports: PobGem[] = (s.support_skills ?? []).map(sup => {
       const supId = typeof sup === 'string' ? sup : sup.id;
       // Classify by metadata id — a slot is usually a support gem, but a spirit
       // gem (herald/aura) socketed into a skill should surface as such.
       return { name: humanizeGemId(supId), type: gemTypeFromId(supId) };
     });
-    return { mainSkill: humanizeGemId(s.id), mainType: gemTypeFromId(s.id), supports };
-  });
+    skillGroups.push({ mainSkill, mainType: gemTypeFromId(s.id), supports });
+  }
 
   // The real GGG export uses an `items` array; the docs example used
-  // `inventory_slots`. Accept either.
+  // `inventory_slots`. Accept either. Keep the first item per canonical slot —
+  // exports can list two entries for one slot (e.g. "Flask1" twice).
   const rawSlots = json.items ?? json.inventory_slots ?? [];
-  const items: PobItem[] = rawSlots
-    .map(gggSlotToItem)
-    .filter((x): x is PobItem => x !== null);
+  const items: PobItem[] = [];
+  const seenSlots = new Set<string>();
+  for (const slot of rawSlots) {
+    const item = gggSlotToItem(slot);
+    if (item && !seenSlots.has(item.slot)) {
+      seenSlots.add(item.slot);
+      items.push(item);
+    }
+  }
 
   const ascendancy = json.ascendancy ?? '';
   const className  = ascendancy ? ascendancy.replace(/\d+$/, '') : 'Unknown';

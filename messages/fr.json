@@ -104,6 +104,7 @@
   "timer_split": "Split",
   "timer_reset_title": "Réinitialiser le chrono",
   "build_empty_title": "Aucun build importé",
+  "build_render_error": "Impossible d'afficher ce build.",
   "build_empty_sub": "Importez un code Path of Building pour voir votre build ici.",
   "build_section_equipment": "Équipement",
   "build_section_skills": "Liens de compétences",

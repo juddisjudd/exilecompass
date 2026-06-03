@@ -104,6 +104,7 @@
   "timer_split": "スプリット",
   "timer_reset_title": "タイマーをリセット",
   "build_empty_title": "ビルドが未インポート",
+  "build_render_error": "Kono build wo hyoji dekimasen deshita.",
   "build_empty_sub": "Path of Building コードをインポートすると、ここにビルドが表示されます。",
   "build_section_equipment": "装備",
   "build_section_skills": "スキルリンク",

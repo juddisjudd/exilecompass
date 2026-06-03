@@ -104,6 +104,7 @@
   "timer_split": "分段",
   "timer_reset_title": "重置计时器",
   "build_empty_title": "未导入构建",
+  "build_render_error": "Wufa xianshi ci goujian.",
   "build_empty_sub": "导入 Path of Building 代码即可在此查看构建。",
   "build_section_equipment": "装备",
   "build_section_skills": "技能连接",

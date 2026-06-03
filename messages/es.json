@@ -104,6 +104,7 @@
   "timer_split": "Parcial",
   "timer_reset_title": "Reiniciar cronómetro",
   "build_empty_title": "Ningún build importado",
+  "build_render_error": "No se pudo mostrar este build.",
   "build_empty_sub": "Importa un código de Path of Building para ver tu build aquí.",
   "build_section_equipment": "Equipo",
   "build_section_skills": "Enlaces de habilidad",

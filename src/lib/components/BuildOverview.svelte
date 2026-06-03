@@ -242,7 +242,7 @@
           </span>
         </div>
         <div class="skill-groups">
-          {#each skillSet.skillGroups as group (group.mainSkill)}
+          {#each skillSet.skillGroups as group, gi (gi)}
             <div class="skill-group">
               <button
                 class="gem-node main {gemTypeClass(group.mainType)}"
@@ -251,7 +251,7 @@
                 aria-label="{group.mainSkill} ({gemTypeLabel(group.mainType)})"
                 type="button"
               ></button>
-              {#each group.supports as sup (sup.name)}
+              {#each group.supports as sup, si (si)}
                 <span class="gem-link" aria-hidden="true"></span>
                 <button
                   class="gem-node {gemTypeClass(sup.type)}"
@@ -300,7 +300,7 @@
     {#if item.mods.length > 0}
       <div class="hc-sep"></div>
       <div class="hc-mods">
-        {#each item.mods as mod (mod)}<div class="hc-mod">{mod}</div>{/each}
+        {#each item.mods as mod, mi (mi)}<div class="hc-mod">{mod}</div>{/each}
       </div>
     {/if}
 
