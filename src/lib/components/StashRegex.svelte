@@ -978,8 +978,8 @@
     border-color: color-mix(in srgb, var(--c-primary) 45%, transparent);
   }
   .group-hint {
-    font-size: 9px;
-    color: color-mix(in srgb, var(--c-muted) 65%, transparent);
+    font-size: 10px;
+    color: color-mix(in srgb, #fff 80%, var(--c-accent));
     margin-left: auto;
   }
   .active-conditions {
