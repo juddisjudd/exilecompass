@@ -502,6 +502,23 @@ fn want_transparent() -> bool {
     }
 }
 
+/// On Linux, default to software rendering for reliability.
+/// The UI workload is light, while GPU/EGL initialization failures are common
+/// across distro / driver / compositor combinations and frequently lead to a
+/// blank white window with no obvious crash.
+///
+/// Users can explicitly opt back into hardware rendering with
+/// `EXILECOMPASS_HARDWARE_RENDER=1`.
+#[cfg(target_os = "linux")]
+#[allow(dead_code)]
+fn want_software_render() -> bool {
+    cfg!(target_os = "linux")
+        && std::env::var_os("EXILECOMPASS_SOFTWARE_RENDER").is_some()
+        || (cfg!(target_os = "linux")
+            && std::env::var_os("EXILECOMPASS_SOFTWARE_RENDER").is_none()
+            && std::env::var_os("EXILECOMPASS_HARDWARE_RENDER").is_none())
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -515,23 +532,20 @@ pub fn run() {
         if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
-        // Disabling GPU compositing entirely fixes the remaining "blank window /
-        // won't start" reports on driver/Wayland setups the DMA-BUF flag alone
-        // doesn't cover. It also defeats window transparency, so only apply it
-        // when we're not trying to render a transparent overlay anyway.
-        if !want_transparent()
+        // Disabling GPU compositing entirely fixes the remaining blank-window
+        // reports the DMA-BUF flag alone doesn't cover. Keep this on whenever we
+        // are not attempting a transparent overlay OR when software render is in
+        // use.
+        if (!want_transparent() || want_software_render())
             && std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none()
         {
             std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         }
-        // Last resort for "Could not create default EGL display: EGL_BAD_PARAMETER.
-        // Aborting..." — the hardware EGL/GL stack can't initialize even with
-        // DMA-BUF and compositing disabled (seen on some NVIDIA / Wayland / VM
-        // setups), so WebKitGTK aborts and the window never paints. Force Mesa
-        // software rendering, which brings up an EGL display via llvmpipe instead
-        // of the broken driver. Opt-in (trades GPU for CPU) and implies no
-        // compositing, so transparency is off in this mode.
-        if std::env::var_os("EXILECOMPASS_SOFTWARE_RENDER").is_some() {
+
+        // Force Mesa software rendering by default (unless explicitly opted out)
+        // to avoid distro-specific EGL/GL init failures that otherwise surface as
+        // a white/blank window.
+        if want_software_render() {
             std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
             std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         }

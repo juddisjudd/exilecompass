@@ -134,18 +134,19 @@ paste a `pobb.in` link, fetching that build.
 
 The overlay runs on top of WebKitGTK, whose GPU rendering path fails to
 initialize on some driver / Wayland / compositor combinations. To stay
-compatible, ExileCompass starts **non-transparent on Linux** and disables the
-problematic GPU paths automatically. A couple of environment variables let you
-adjust this:
+compatible, ExileCompass starts **non-transparent on Linux** and now defaults to
+**software rendering** (`llvmpipe`) to avoid blank white windows on unstable
+GPU/EGL stacks. A few environment variables let you adjust this:
 
 | Variable | Effect |
 |----------|--------|
-| `EXILECOMPASS_TRANSPARENT=1` | Render the overlay transparent (the Windows look). Only enable it if your compositor supports it — otherwise the window may fail to open or show a black background. |
-| `EXILECOMPASS_SOFTWARE_RENDER=1` | Force Mesa software rendering. Use this if the app aborts on launch with `Could not create default EGL display: EGL_BAD_PARAMETER` (common on some NVIDIA / Wayland / VM setups). Disables transparency. |
+| `EXILECOMPASS_HARDWARE_RENDER=1` | Opt out of the default software-render path and try hardware GPU rendering. Use only if the default works poorly on your setup. |
+| `EXILECOMPASS_TRANSPARENT=1` | Render the overlay transparent (the Windows look). Only enable it if your compositor supports it — otherwise the window may fail to open, render black, or appear blank. |
+| `EXILECOMPASS_SOFTWARE_RENDER=1` | Force Mesa software rendering explicitly. This is now the default unless `EXILECOMPASS_HARDWARE_RENDER=1` is set. Disables transparency. |
 | `WEBKIT_DISABLE_DMABUF_RENDERER` / `WEBKIT_DISABLE_COMPOSITING_MODE` | Set automatically; set either to `0` to force the GPU path back on. |
 
 - **Aborts with `Could not create default EGL display: EGL_BAD_PARAMETER`** —
-  WebKitGTK can't initialize the GPU. Launch with software rendering:
+  WebKitGTK can't initialize the GPU. Keep software rendering on (default):
   ```bash
   EXILECOMPASS_SOFTWARE_RENDER=1 ./ExileCompass_<version>_amd64.AppImage
   ```
