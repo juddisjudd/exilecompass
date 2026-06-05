@@ -949,7 +949,7 @@ dependencies = [
 
 [[package]]
 name = "exilecompass"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "overlay-core",
  "raw-window-handle",
