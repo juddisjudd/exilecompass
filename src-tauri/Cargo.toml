@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "exilecompass"
-version = "0.1.12"
+version = "0.1.13"
 description = "ExileCompass - Path of Exile 2 overlay"
 authors = ["juddisjudd"]
 edition = "2021"
