@@ -2,7 +2,7 @@
   import {
     stripPobColors, clearBuild,
     SLOT_ORDER, RARITY_COLOR,
-    type PobBuild, type PobItem,
+    type PobBuild, type PobItem, type BuildFileEntry,
   } from '$lib/pob';
   import { m } from '$lib/paraglide/messages.js';
 
@@ -32,9 +32,17 @@
     onOpenImport: () => void;
     onSkillSetChange?: (index: number) => void;
     onItemSetChange?: (index: number) => void;
+    // Build folder library — list of `.build` files the user can switch between
+    buildFiles?: BuildFileEntry[];
+    activeBuildPath?: string;
+    onLoadBuild?: (path: string) => void;
+    onRefreshBuilds?: () => void;
   }
 
-  let { build, onClear, onOpenImport, onSkillSetChange, onItemSetChange }: Props = $props();
+  let {
+    build, onClear, onOpenImport, onSkillSetChange, onItemSetChange,
+    buildFiles = [], activeBuildPath = '', onLoadBuild, onRefreshBuilds,
+  }: Props = $props();
 
   // Active indices — initialised from the stored build defaults
   let activeSkill = $state(0);
@@ -143,6 +151,31 @@
 </script>
 
 <div class="build-overview">
+  <!-- Build library — pick a build from the configured folder (Settings) -->
+  {#if buildFiles.length > 0}
+    <div class="build-library">
+      <span class="set-select-label">{m.build_library_label()}</span>
+      <select
+        value={activeBuildPath}
+        onchange={(e) => onLoadBuild?.((e.currentTarget as HTMLSelectElement).value)}
+      >
+        {#if !buildFiles.some(f => f.path === activeBuildPath)}
+          <option value="" disabled>{m.build_library_placeholder()}</option>
+        {/if}
+        {#each buildFiles as f (f.path)}
+          <option value={f.path}>{f.name}</option>
+        {/each}
+      </select>
+      <button
+        class="library-refresh"
+        onclick={() => onRefreshBuilds?.()}
+        title={m.action_refresh()}
+        aria-label={m.action_refresh()}
+        type="button"
+      >⟳</button>
+    </div>
+  {/if}
+
   {#if !build}
     <div class="empty-state">
       <div class="empty-icon">
@@ -391,6 +424,58 @@
   .set-select option {
     background: #14130f;
     color: #e2c98a;
+  }
+
+  /* ── Build library picker ──────────────────────────────── */
+  .build-library {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .build-library select {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 6px;
+    background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
+    border: 1px solid color-mix(in srgb, #c8a040 32%, transparent);
+    border-radius: 2px;
+    color: #e2c98a;
+    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.12s;
+  }
+  .build-library select:hover,
+  .build-library select:focus {
+    border-color: color-mix(in srgb, #c8a040 55%, transparent);
+  }
+  .build-library option {
+    background: #14130f;
+    color: #e2c98a;
+  }
+  .library-refresh {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid color-mix(in srgb, #c8a040 32%, transparent);
+    border-radius: 2px;
+    color: #e2c98a;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s;
+  }
+  .library-refresh:hover {
+    border-color: color-mix(in srgb, #c8a040 55%, transparent);
+    color: var(--c-primary);
   }
 
   /* ── Section ───────────────────────────────────────────── */

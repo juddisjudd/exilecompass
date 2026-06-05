@@ -18,7 +18,12 @@
     loadStoredBuild,
     saveBuild,
     clearBuild as clearStoredBuild,
+    listBuildFiles,
+    detectBuildFolder,
+    BUILD_FOLDER_KEY,
+    BUILD_ACTIVE_PATH_KEY,
     type PobBuild,
+    type BuildFileEntry,
   } from '$lib/pob';
   import {
     initWatcherForFile,
@@ -127,6 +132,12 @@
   let pobSuccess = $state(false);
   let buildDragOver = $state(false);
 
+  // Build folder library — a folder of GGG `.build` files the user can pick from
+  let buildFolder = $state('');
+  let buildFiles = $state<BuildFileEntry[]>([]);
+  let buildFilesError = $state('');
+  let activeBuildPath = $state('');
+
   // Auto-updater
   let updateHandle = $state<Update | null>(null);
   let updateInstalling = $state(false);
@@ -184,6 +195,15 @@
       await campaignTimer.load();
       logFilePath = (await persistGet(LOG_FILE_STORAGE_KEY)) ?? '';
       logWatcherState = await loadWatcherState();
+    })();
+
+    // Build folder library — restore the saved folder + last-loaded file, then
+    // scan to populate the picker. The active build itself is restored above via
+    // loadStoredBuild(); nothing here re-activates a build on startup.
+    (async () => {
+      buildFolder = (await persistGet(BUILD_FOLDER_KEY)) ?? '';
+      activeBuildPath = (await persistGet(BUILD_ACTIVE_PATH_KEY)) ?? '';
+      if (buildFolder) await refreshBuildFiles();
     })();
 
     void syncAllGlobalShortcuts(hotkeyBindings);
@@ -365,10 +385,23 @@
     if (await isGlobalShortcutRegistered(accelerator)) {
       try { await unregisterGlobalShortcut(accelerator); } catch { /* ignore */ }
     }
-    await registerGlobalShortcut(accelerator, (event) => {
-      if (event.state !== 'Pressed') return;
-      void handler();
-    });
+    try {
+      await registerGlobalShortcut(accelerator, (event) => {
+        if (event.state !== 'Pressed') return;
+        void handler();
+      });
+    } catch {
+      // The accelerator can still be registered in the backend even when the
+      // JS-side `isGlobalShortcutRegistered` check above returns false — e.g.
+      // after a dev HMR reload that resets frontend state but not the Rust
+      // plugin. That makes a fresh register throw "HotKey already registered".
+      // Force-clear it and retry once.
+      try { await unregisterGlobalShortcut(accelerator); } catch { /* ignore */ }
+      await registerGlobalShortcut(accelerator, (event) => {
+        if (event.state !== 'Pressed') return;
+        void handler();
+      });
+    }
     registeredGlobals.set(action, accelerator);
   }
 
@@ -634,6 +667,69 @@
     pobError = '';
   }
 
+  // ── Build folder library ──────────────────────────────────────────────────
+  async function refreshBuildFiles() {
+    if (!buildFolder) { buildFiles = []; return; }
+    buildFilesError = '';
+    try {
+      buildFiles = await listBuildFiles(buildFolder);
+    } catch (e) {
+      buildFiles = [];
+      buildFilesError = `${m.error_build_folder_read()} ${String(e)}`;
+    }
+  }
+
+  async function chooseBuildFolder() {
+    buildFilesError = '';
+    try {
+      const selection = await withNativeDialog(() => open({ directory: true, multiple: false }));
+      if (!selection || Array.isArray(selection)) return;
+      buildFolder = selection as string;
+      await persistSet(BUILD_FOLDER_KEY, buildFolder);
+      await refreshBuildFiles();
+    } catch (e) {
+      buildFilesError = `${m.error_failed_open_file_picker()} ${String(e)}`;
+    }
+  }
+
+  async function autoDetectBuildFolder() {
+    buildFilesError = '';
+    try {
+      const detected = await detectBuildFolder();
+      if (detected) {
+        buildFolder = detected;
+        await persistSet(BUILD_FOLDER_KEY, buildFolder);
+        await refreshBuildFiles();
+      } else {
+        buildFilesError = m.error_build_folder_not_found();
+      }
+    } catch (e) {
+      buildFilesError = String(e);
+    }
+  }
+
+  function clearBuildFolder() {
+    buildFolder = '';
+    buildFiles = [];
+    buildFilesError = '';
+    void persistRemove(BUILD_FOLDER_KEY);
+  }
+
+  /** Load a `.build` file chosen from the folder picker as the active build. */
+  async function loadBuildFromFolder(path: string) {
+    try {
+      const text = await invoke<string>('read_text_file', { path });
+      await runBuildImport(text);
+      if (pobBuild) {
+        activeBuildPath = path;
+        await persistSet(BUILD_ACTIVE_PATH_KEY, path);
+        mainView = 'build';
+      }
+    } catch (e) {
+      pobError = String(e).replace(/^Error:\s*/, '');
+    }
+  }
+
   async function checkUpdatesManually() {
     if (updateChecking) return;
     updateChecking = true;
@@ -847,7 +943,27 @@
               {/if}
 
             {:else if activeSettingsTab === 'importBuilds'}
-              <div class="settings-section-title">{m.settings_import_builds_title()}</div>
+              <div class="settings-section-title">{m.settings_build_folder_title()}</div>
+              <p class="field-help">
+                {m.label_build_folder()}
+                <span class="folder-path">{buildFolder || m.label_build_folder_none()}</span>
+              </p>
+              <div class="settings-actions">
+                <button class="btn btn-primary" onclick={autoDetectBuildFolder}>{m.action_autodetect_folder()}</button>
+                <button class="btn btn-ghost" onclick={chooseBuildFolder}>{m.action_choose_folder()}</button>
+                {#if buildFolder}
+                  <button class="btn btn-ghost" onclick={clearBuildFolder}>{m.action_clear()}</button>
+                {/if}
+              </div>
+              {#if buildFolder}
+                <p class="field-help">{m.label_builds_found({ count: buildFiles.length })}</p>
+              {/if}
+              {#if buildFilesError}
+                <p class="inline-error">{buildFilesError}</p>
+              {/if}
+              <p class="field-help">{m.settings_build_folder_help()}</p>
+
+              <div class="settings-section-title" style="margin-top:8px">{m.settings_import_builds_title()}</div>
               <label class="field-label" for="pob-input">{m.settings_import_label()}</label>
               <textarea
                 id="pob-input"
@@ -987,6 +1103,10 @@
             <svelte:boundary>
               <BuildOverview
                 build={pobBuild}
+                buildFiles={buildFiles}
+                activeBuildPath={activeBuildPath}
+                onLoadBuild={loadBuildFromFolder}
+                onRefreshBuilds={refreshBuildFiles}
                 onClear={handlePobClear}
                 onOpenImport={() => { showSettings = true; activeSettingsTab = 'importBuilds'; }}
                 onSkillSetChange={(idx) => {
@@ -1317,6 +1437,7 @@
 .settings-actions {
     display: flex;
     gap: 6px;
+    flex-wrap: wrap;
   }
 
   /* ── About tab ───────────────────────────────────────────────── */
@@ -1495,6 +1616,8 @@
     padding: 0 20px;
     border: none;
     border-radius: 0;
+    flex-shrink: 0;
+    white-space: nowrap;
     font-family: 'Inter Tight', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
@@ -1550,6 +1673,11 @@
     min-height: 70px;
     font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
     font-size: 10px;
+  }
+
+  .folder-path {
+    color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
+    word-break: break-all;
   }
 
   .pob-current {

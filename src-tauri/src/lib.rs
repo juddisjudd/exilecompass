@@ -253,6 +253,81 @@ fn read_text_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
+// ── Build folder library ──────────────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+struct BuildFileEntry {
+    name: String,
+    path: String,
+    /// Last-modified time in milliseconds since the Unix epoch (for sorting).
+    modified: u64,
+}
+
+/// List the `.build` files in a folder (e.g. the GGG BuildPlanner directory),
+/// newest first. Used by the Build tab's build-library picker.
+#[tauri::command]
+fn list_build_files(dir: String) -> Result<Vec<BuildFileEntry>, String> {
+    use std::time::UNIX_EPOCH;
+
+    let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
+    let mut builds = Vec::new();
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        // `.build` only, case-insensitive.
+        let is_build = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.eq_ignore_ascii_case("build"))
+            .unwrap_or(false);
+        if !is_build {
+            continue;
+        }
+
+        let name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        let modified = entry
+            .metadata()
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+
+        builds.push(BuildFileEntry {
+            name,
+            path: path.to_string_lossy().into_owned(),
+            modified,
+        });
+    }
+
+    builds.sort_by(|a, b| b.modified.cmp(&a.modified));
+    Ok(builds)
+}
+
+/// Return the default GGG BuildPlanner folder
+/// (`<Documents>/My Games/Path of Exile 2/BuildPlanner`) if it exists.
+#[tauri::command]
+fn detect_build_folder(app: AppHandle) -> Option<String> {
+    let docs = app.path().document_dir().ok()?;
+    let folder = docs
+        .join("My Games")
+        .join("Path of Exile 2")
+        .join("BuildPlanner");
+    if folder.is_dir() {
+        Some(folder.to_string_lossy().into_owned())
+    } else {
+        None
+    }
+}
+
 // ── pobb.in fetch (bypasses browser CORS) ────────────────────────────────────
 
 /// Fetch the raw PoB export code for a given pobb.in build ID.
@@ -513,6 +588,8 @@ pub fn run() {
             detect_log_file,
             read_log_tail,
             read_text_file,
+            list_build_files,
+            detect_build_folder,
             fetch_pobb_code,
             store_get,
             store_set,

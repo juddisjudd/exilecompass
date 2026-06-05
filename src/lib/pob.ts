@@ -595,3 +595,30 @@ export function saveBuild(build: PobBuild): void {
 export function clearBuild(): void {
   window.localStorage.removeItem(POB_STORAGE_KEY);
 }
+
+// ── Build folder library ────────────────────────────────────────────────────
+//
+// Point the app at a folder of GGG `.build` files (the in-game BuildPlanner
+// directory) and pick which one to load from the Build tab. Folder path and the
+// last-loaded file are disk-backed (see persist.ts) so they survive restarts.
+
+export const BUILD_FOLDER_KEY = 'EXILECOMPASS_BUILD_FOLDER_V1';
+export const BUILD_ACTIVE_PATH_KEY = 'EXILECOMPASS_BUILD_ACTIVE_PATH_V1';
+
+/** One `.build` file discovered in the configured folder. */
+export interface BuildFileEntry {
+  name: string;
+  path: string;
+  /** Last-modified time (ms since epoch) — entries arrive newest first. */
+  modified: number;
+}
+
+/** List the `.build` files in a folder, newest first. */
+export function listBuildFiles(dir: string): Promise<BuildFileEntry[]> {
+  return invoke<BuildFileEntry[]>('list_build_files', { dir });
+}
+
+/** The default GGG BuildPlanner folder if it exists on this machine. */
+export function detectBuildFolder(): Promise<string | null> {
+  return invoke<string | null>('detect_build_folder');
+}
