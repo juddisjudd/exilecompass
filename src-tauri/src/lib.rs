@@ -445,6 +445,14 @@ fn get_overlay_status(state: State<'_, OverlayState>) -> serde_json::Value {
         "attached": hwnd.is_some() && game_alive,
         "clickThrough": click_through,
         "gameRunning": find_poe2_window().is_some(),
+        // Only Windows can enumerate and attach to the PoE2 window. Elsewhere the
+        // overlay runs standalone: the frontend skips the "waiting for game" gate
+        // and the auto-attach polling, showing the tools immediately.
+        "standalone": cfg!(not(target_os = "windows")),
+        // Whether the window was created transparent. When false (Linux default),
+        // the frontend fills the backdrop opaque + squares the corners so the area
+        // outside the rounded shell doesn't show the webview's white surface.
+        "transparent": want_transparent(),
     })
 }
 

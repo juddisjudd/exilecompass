@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { CAMPAIGN_DATA } from '$lib/campaign';
-  import type { CampaignAct } from '$lib/campaign';
   import { m } from '$lib/paraglide/messages.js';
   import { trAct, trZone, trObjective, trObjectiveReward, trNotes } from '$lib/dataI18n';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
@@ -65,16 +64,34 @@
     campaignProgress.toggle(objId);
   }
 
-  function getActProgress(act: CampaignAct): { completed: number; total: number; pct: number } {
+  // Completion state for a section (zone or whole act):
+  //   'complete' — every objective, including optional, is checked → green
+  //   'required' — all required done but optional items remain → yellow
+  //                (the state the "complete next required" hotkey leaves you in)
+  //   'none'     — required work still outstanding (or no objectives)
+  type SectionStatus = 'none' | 'required' | 'complete';
+
+  function summarize(
+    objectives: { id: string; optional?: boolean }[],
+  ): { completed: number; total: number; pct: number; status: SectionStatus } {
     let completed = 0;
     let total = 0;
-    for (const zone of act.zones) {
-      for (const obj of zone.objectives) {
-        total++;
-        if (campaignProgress.has(obj.id)) completed++;
+    let reqTotal = 0;
+    let reqDone = 0;
+    for (const obj of objectives) {
+      total++;
+      const done = campaignProgress.has(obj.id);
+      if (done) completed++;
+      if (!obj.optional) {
+        reqTotal++;
+        if (done) reqDone++;
       }
     }
-    return { completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
+    let status: SectionStatus = 'none';
+    if (total > 0 && reqDone === reqTotal) {
+      status = completed === total ? 'complete' : 'required';
+    }
+    return { completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0, status };
   }
 
   function resetProgress() {
@@ -93,10 +110,16 @@
   </div>
 
   {#each CAMPAIGN_DATA as act (act.number)}
-    {@const progress = getActProgress(act)}
-    {@const isComplete = progress.completed === progress.total && progress.total > 0}
+    {@const progress = summarize(act.zones.flatMap((z) => z.objectives))}
+    {@const isComplete = progress.status === 'complete'}
+    {@const isRequired = progress.status === 'required'}
     {@const expanded = guideState.expandedActs.has(act.number)}
-    <div class="act-group" class:complete={isComplete} class:complete-collapsed={isComplete && !expanded}>
+    <div
+      class="act-group"
+      class:complete={isComplete}
+      class:required={isRequired}
+      class:complete-collapsed={isComplete && !expanded}
+    >
       <button
         class="act-header"
         onclick={() => toggleAct(act.number)}
@@ -110,7 +133,7 @@
         {#if isComplete}
           <span class="badge-complete">✓ {m.campaign_complete_badge()}</span>
         {/if}
-        <span class="act-progress" class:complete={isComplete}>
+        <span class="act-progress" class:complete={isComplete} class:required={isRequired}>
           {progress.completed}/{progress.total}
         </span>
       </button>
@@ -119,6 +142,7 @@
         <div
           class="progress-bar-fill"
           class:complete={isComplete}
+          class:required={isRequired}
           style="width: {progress.pct}%"
         ></div>
       </div>
@@ -126,7 +150,12 @@
       {#if expanded}
         <div class="zones-container">
           {#each act.zones as zone (zone.id)}
-            <div class="zone-group">
+            {@const zoneStatus = summarize(zone.objectives).status}
+            <div
+              class="zone-group"
+              class:complete={zoneStatus === 'complete'}
+              class:required={zoneStatus === 'required'}
+            >
               <button
                 class="zone-header"
                 onclick={() => toggleZone(zone.id)}
@@ -134,6 +163,9 @@
               >
                 <span class="toggle-icon" class:expanded={guideState.expandedZones.has(zone.id)}>▶</span>
                 <span class="zone-title">{trZone(zone.id, zone.name)}</span>
+                {#if zoneStatus === 'complete'}
+                  <span class="zone-check" aria-hidden="true">✓</span>
+                {/if}
               </button>
 
               {#if guideState.expandedZones.has(zone.id)}
@@ -238,6 +270,11 @@
     border-color: color-mix(in srgb, #4ade80 28%, transparent);
   }
 
+  /* All required objectives done, optional ones still pending → yellow. */
+  .act-group.required {
+    border-color: color-mix(in srgb, #fbbf24 26%, transparent);
+  }
+
   /* Finished act, collapsed — recede it so the eye skips to unfinished work.
      Full opacity returns once expanded so its contents stay readable. */
   .act-group.complete-collapsed {
@@ -275,6 +312,11 @@
   .complete .act-header {
     color: color-mix(in srgb, #4ade80 80%, var(--c-primary) 20%);
     text-shadow: 0 0 10px color-mix(in srgb, #4ade80 30%, transparent);
+  }
+
+  .required .act-header {
+    color: color-mix(in srgb, #fbbf24 80%, var(--c-primary) 20%);
+    text-shadow: 0 0 10px color-mix(in srgb, #fbbf24 26%, transparent);
   }
 
   .toggle-icon {
@@ -339,6 +381,10 @@
     color: #4ade80;
   }
 
+  .act-progress.required {
+    color: #fbbf24;
+  }
+
   /* Progress bar */
   .progress-bar-track {
     height: 2px;
@@ -355,6 +401,10 @@
     background: linear-gradient(90deg, #4ade80, #86efac);
   }
 
+  .progress-bar-fill.required {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  }
+
   /* Zones */
   .zones-container {
     display: flex;
@@ -369,6 +419,32 @@
     border-radius: 2px;
     background: color-mix(in srgb, var(--c-bg) 96%, transparent);
     overflow: hidden;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  /* Zone fully complete (incl. optional) → green; required-only done → yellow.
+     A faint background tint keeps yellow distinct from the default gold accent. */
+  .zone-group.complete {
+    border-color: color-mix(in srgb, #4ade80 30%, transparent);
+    background: color-mix(in srgb, #4ade80 6%, var(--c-bg));
+  }
+  .zone-group.complete .zone-header {
+    color: color-mix(in srgb, #4ade80 82%, #fff 18%);
+  }
+
+  .zone-group.required {
+    border-color: color-mix(in srgb, #fbbf24 32%, transparent);
+    background: color-mix(in srgb, #fbbf24 6%, var(--c-bg));
+  }
+  .zone-group.required .zone-header {
+    color: color-mix(in srgb, #fbbf24 85%, #fff 15%);
+  }
+
+  .zone-check {
+    flex-shrink: 0;
+    color: #4ade80;
+    font-size: 11px;
+    line-height: 1;
   }
 
   .zone-header {

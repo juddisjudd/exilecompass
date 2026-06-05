@@ -11,6 +11,12 @@ export interface OverlayStatus {
   attached: boolean;
   clickThrough: boolean;
   gameRunning: boolean;
+  /** True on platforms that can't attach to the game window (non-Windows). The
+   *  UI runs as a standalone companion: no "waiting for game" gate. */
+  standalone: boolean;
+  /** Whether the window was created transparent. False on Linux by default, so
+   *  the UI fills the backdrop opaque and squares the corners (no white edges). */
+  transparent: boolean;
 }
 
 // ── Reactive state (Svelte 5 runes) ───────────────────────────────────────────
@@ -19,6 +25,10 @@ let _status = $state<OverlayStatus>({
   attached: false,
   clickThrough: false,
   gameRunning: false,
+  standalone: false,
+  // Default true so Windows never flashes an opaque backdrop before the first
+  // status read; Linux flips it to false on the first poll.
+  transparent: true,
 });
 
 // Fully-hidden state — distinct from click-through. When hidden the overlay
@@ -29,6 +39,8 @@ export const overlayState = {
   get attached() { return _status.attached; },
   get clickThrough() { return _status.clickThrough; },
   get gameRunning() { return _status.gameRunning; },
+  get standalone() { return _status.standalone; },
+  get transparent() { return _status.transparent; },
   get hidden() { return _hidden; },
 };
 

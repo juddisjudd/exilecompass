@@ -64,12 +64,15 @@ Grab the latest build from the [**Releases**](https://github.com/juddisjudd/exil
 | Platform | Download |
 |----------|----------|
 | **Windows** | `ExileCompass_<version>_x64-setup.exe` — run the installer |
-| **Linux** | `ExileCompass_<version>_amd64.AppImage` — mark executable and run |
+| **Linux (AppImage)** | `ExileCompass_<version>_amd64.AppImage` — `chmod +x` it and run |
+| **Linux (Debian/Ubuntu)** | `ExileCompass_<version>_amd64.deb` — `sudo apt install ./ExileCompass_<version>_amd64.deb` |
+| **Arch / CachyOS (AUR)** | `paru -S exilecompass-bin` (or `yay -S exilecompass-bin`) |
 
-The app checks for updates on launch and can install them in one click.
+The app checks for updates on launch and can install them in one click. (The AUR
+package updates through your AUR helper instead.)
 
-> **Note:** Windows is the primary, fully-supported platform. The Linux AppImage
-> runs and all the standalone tools (campaign, rewards, regex, timer, build
+> **Note:** Windows is the primary, fully-supported platform. The Linux builds
+> run and all the standalone tools (campaign, rewards, regex, timer, build
 > import) work, but automatic detection/attachment to the game window is
 > currently Windows-only.
 
@@ -97,8 +100,12 @@ The app checks for updates on launch and can install them in one click.
 | Action | Shortcut |
 |--------|----------|
 | Toggle click-through mode | `Ctrl + Shift + C` |
+| Hide / show overlay | `Ctrl + Shift + H` |
 | Refresh game detection | `Ctrl + Shift + R` |
-| Open/close settings | `Ctrl + Shift + ,` |
+| Open / close settings | `Ctrl + Shift + ,` |
+| Start / stop campaign timer | `Ctrl + Shift + T` |
+| Complete next campaign objective | `Ctrl + Shift + X` |
+| Undo last campaign objective | `Ctrl + Shift + Z` |
 
 All hotkeys can be rebound in **Settings → Hotkeys**. (Click-through works as a
 global shortcut, even when the overlay isn't focused.)
@@ -132,29 +139,41 @@ paste a `pobb.in` link, fetching that build.
 
 ### Linux
 
-The overlay runs on top of WebKitGTK, whose GPU rendering path fails to
-initialize on some driver / Wayland / compositor combinations. To stay
-compatible, ExileCompass starts **non-transparent on Linux** and now defaults to
-**software rendering** (`llvmpipe`) to avoid blank white windows on unstable
-GPU/EGL stacks. The Linux window is also revealed after the frontend's first
-paint (with a timeout fallback) to avoid a white first frame. A few environment
-variables let you adjust this:
+The overlay runs on top of WebKitGTK. Recent WebKitGTK versions default to a
+DMA-BUF / GPU rendering path that fails to initialize on many driver, Wayland,
+and virtual-machine setups, leaving a blank white window. ExileCompass works
+around this out of the box by starting **non-transparent on Linux**, **disabling
+the DMA-BUF renderer and GPU compositing**, and showing the window immediately
+(no blank first frame). Hardware rendering is used by default — it works on most
+real machines.
+
+If you still get a **blank/white window** — most common in virtual machines or
+with headless / broken GPU drivers — force software rendering:
+
+```bash
+EXILECOMPASS_SOFTWARE_RENDER=1 ./ExileCompass_<version>_amd64.AppImage
+```
+
+Environment variables you can set:
 
 | Variable | Effect |
 |----------|--------|
-| `GDK_BACKEND` | Set automatically to `x11,wayland` for better VM/compositor compatibility (prefers X11 first). Override manually if you need pure Wayland. |
-| `EXILECOMPASS_HARDWARE_RENDER=1` | Opt out of the default software-render path and try hardware GPU rendering. Use only if the default works poorly on your setup. |
-| `EXILECOMPASS_TRANSPARENT=1` | Render the overlay transparent (the Windows look). Only enable it if your compositor supports it — otherwise the window may fail to open, render black, or appear blank. |
-| `EXILECOMPASS_SOFTWARE_RENDER=1` | Force Mesa software rendering explicitly. This is now the default unless `EXILECOMPASS_HARDWARE_RENDER=1` is set. Disables transparency. |
-| `WEBKIT_DISABLE_DMABUF_RENDERER` / `WEBKIT_DISABLE_COMPOSITING_MODE` | Set automatically; set either to `0` to force the GPU path back on. |
+| `EXILECOMPASS_SOFTWARE_RENDER=1` | Force Mesa software rendering (`llvmpipe`). Fixes blank windows in VMs and on broken GPU/EGL stacks. Disables transparency. |
+| `EXILECOMPASS_TRANSPARENT=1` | Render the overlay transparent (the Windows look). Only works if your compositor supports it and software rendering is off — otherwise the window may render black or blank. |
+| `WEBKIT_DISABLE_DMABUF_RENDERER` / `WEBKIT_DISABLE_COMPOSITING_MODE` | Both default to `1`. Set either to `0` to re-enable the GPU path. |
+| `GDK_BACKEND` | Not set by ExileCompass — GTK auto-selects. Set to `x11` or `wayland` to force a backend (try `x11` on Wayland/NVIDIA if rendering misbehaves). |
 
-- **Aborts with `Could not create default EGL display: EGL_BAD_PARAMETER`** —
-  WebKitGTK can't initialize the GPU. Keep software rendering on (default):
+- **Blank window with `EGL_BAD_PARAMETER`, `ZINK: vkCreateInstance failed`, or
+  `failed to create dri2 screen`** — the GPU/Vulkan stack isn't usable (typical
+  inside a VM). Force software rendering:
   ```bash
   EXILECOMPASS_SOFTWARE_RENDER=1 ./ExileCompass_<version>_amd64.AppImage
   ```
-  If it still fails on Wayland (especially NVIDIA), also try forcing X11:
-  `GDK_BACKEND=x11 EXILECOMPASS_SOFTWARE_RENDER=1 ./ExileCompass_<version>_amd64.AppImage`
+  If those Mesa errors persist, also pin the software driver:
+  ```bash
+  GALLIUM_DRIVER=llvmpipe EXILECOMPASS_SOFTWARE_RENDER=1 ./ExileCompass_<version>_amd64.AppImage
+  ```
+- **Wayland / NVIDIA issues** — try forcing X11: `GDK_BACKEND=x11 ./ExileCompass_<version>_amd64.AppImage`
 
 - **App won't open / blank window** — Launch it from a terminal so you can see
   the error, and check the crash log at

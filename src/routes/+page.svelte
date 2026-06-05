@@ -119,6 +119,13 @@
     document.body.style.opacity = overlayState.clickThrough ? String(ctOpacity) : '1';
   });
 
+  // On opaque windows (Linux default) the area outside the rounded shell would
+  // show the webview's white surface. Flag the document so CSS can fill that
+  // backdrop dark and square the corners, giving a clean rectangular window.
+  $effect(() => {
+    document.documentElement.classList.toggle('ec-opaque', !overlayState.transparent);
+  });
+
   // PoB build state
   let pobBuild = $state<PobBuild | null>(null);
 
@@ -230,6 +237,10 @@
 
         // Clear any stale error each time we successfully read status.
         error = '';
+
+        // Standalone platforms (non-Windows) can't attach to the game window;
+        // the UI shows its tools directly, so there's nothing to attach/detach.
+        if (status.standalone) return;
 
         if (status.gameRunning && !status.attached) {
           try {
@@ -1045,8 +1056,8 @@
           </div>
         </div>
       </div>
-    {:else if !overlayState.gameRunning}
-      <!-- Waiting for PoE2 -->
+    {:else if !overlayState.gameRunning && !overlayState.standalone}
+      <!-- Waiting for PoE2 (Windows only — standalone platforms skip this) -->
       <div class="waiting-screen">
         <div class="waiting-spinner" aria-hidden="true"></div>
         <p class="waiting-title">{m.waiting_title()}</p>
@@ -1181,6 +1192,14 @@
     overflow: hidden;
   }
 
+  /* Opaque window (Linux default): the window isn't see-through, so fill the
+     backdrop with the shell colour instead of leaving the white webview surface
+     showing in the corners. */
+  :global(html.ec-opaque),
+  :global(html.ec-opaque body) {
+    background: #080808;
+  }
+
   :global(body) {
     font-family: 'Inter Tight', 'Inter', 'Segoe UI', sans-serif;
     font-size: 13px;
@@ -1228,6 +1247,13 @@
     overflow: hidden;
 
     padding: 0;
+  }
+
+  /* On an opaque window the rounded corners can't reveal the desktop, so square
+     them off — the window reads as a clean rectangle rather than a rounded shell
+     with mismatched corners. */
+  :global(html.ec-opaque) .app-shell {
+    border-radius: 0;
   }
 
   /* PoE2 options/settings button — sits at the right end of the tab row */

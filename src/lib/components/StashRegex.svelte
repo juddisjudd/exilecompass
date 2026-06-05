@@ -831,6 +831,9 @@
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 12px;
     align-items: start;
+    /* Breathing room below the "Filter mods…" box so the first section labels
+       (Item Rarity, Properties) don't touch it. */
+    margin-top: 12px;
   }
   .opt-group {
     display: flex;
