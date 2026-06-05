@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 #[cfg(target_os = "linux")]
 use std::time::Duration;
+#[cfg(target_os = "linux")]
+use tokio::time::sleep;
 
 use overlay_core::{find_poe2_window, focus_window, is_window_alive, KeyChord, WindowInfo};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
@@ -611,7 +613,7 @@ pub fn run() {
                 // bootstrap fallback panel instead of "nothing happened".
                 let handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
-                    tauri::async_runtime::sleep(Duration::from_millis(1800)).await;
+                    sleep(Duration::from_millis(1800)).await;
                     if let Some(w) = handle.get_webview_window("main") {
                         if !w.is_visible().unwrap_or(true) {
                             let _ = w.show();
