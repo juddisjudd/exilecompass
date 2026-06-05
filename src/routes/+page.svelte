@@ -1134,6 +1134,7 @@
                 onRefreshBuilds={refreshBuildFiles}
                 onClear={handlePobClear}
                 onOpenImport={() => { showSettings = true; activeSettingsTab = 'importBuilds'; }}
+                onOpenStash={() => { mainView = 'stash'; }}
                 onSkillSetChange={(idx) => {
                   if (!pobBuild) return;
                   pobBuild = { ...pobBuild, activeSkillSet: idx };

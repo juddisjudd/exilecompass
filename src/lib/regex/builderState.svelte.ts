@@ -12,6 +12,7 @@ import {
   type TabletAffix,
 } from './loaders';
 import { relicRegex } from './relicData';
+import { vendorOptionToCondition, type VendorOption } from './vendorOptions';
 import { generateVendorRegex } from './generators/vendor';
 import { generateWaystoneRegex } from './generators/waystone';
 import { generateTabletRegex } from './generators/tablet';
@@ -222,6 +223,31 @@ export function resetAll(): void {
   _settings = defaultSettings();
   _activeGroup = { vendor: 0, waystone: 0, tablet: 0, relic: 0 };
   _importNote = '';
+}
+
+/**
+ * Load a recommended set of vendor options (e.g. from a build's equipped item)
+ * into the vendor builder, one AND-group per option so a result must carry every
+ * affix. Switches the active category to `vendor` and returns the generated
+ * search string (for copying) plus how many options were loaded.
+ */
+export function loadVendorRecommendation(
+  options: VendorOption[],
+  note = '',
+): { count: number; regex: string } {
+  if (options.length === 0) return { count: 0, regex: '' };
+
+  _category = 'vendor';
+  const fresh = defaultSettings();
+  fresh.vendor.groups = options.map((o, i) => ({
+    id: i,
+    conditions: [vendorOptionToCondition(o)],
+  }));
+  _settings.vendor = fresh.vendor;
+  _activeGroup.vendor = 0;
+  _importNote = note;
+
+  return { count: options.length, regex: generateVendorRegex(_settings) };
 }
 
 export function doImport(raw: string): void {

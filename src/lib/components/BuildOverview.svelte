@@ -4,6 +4,8 @@
     SLOT_ORDER, RARITY_COLOR,
     type PobBuild, type PobItem, type BuildFileEntry,
   } from '$lib/pob';
+  import { recommendVendorOptionsForItem } from '$lib/regex/buildRecommend';
+  import { loadVendorRecommendation } from '$lib/regex/builderState.svelte';
   import { m } from '$lib/paraglide/messages.js';
 
   // Localized slot + rarity labels (keys mirror the canonical slot/rarity ids)
@@ -37,11 +39,15 @@
     activeBuildPath?: string;
     onLoadBuild?: (path: string) => void;
     onRefreshBuilds?: () => void;
+    // Requested when a per-item "find upgrades" search has been loaded into the
+    // regex builder — the parent switches to the Stash tab.
+    onOpenStash?: () => void;
   }
 
   let {
     build, onClear, onOpenImport, onSkillSetChange, onItemSetChange,
     buildFiles = [], activeBuildPath = '', onLoadBuild, onRefreshBuilds,
+    onOpenStash,
   }: Props = $props();
 
   // Active indices — initialised from the stored build defaults
@@ -147,6 +153,33 @@
     if (!r) return '';
     return [r.level&&`Lv ${r.level}`,r.str&&`Str ${r.str}`,r.dex&&`Dex ${r.dex}`,r.int&&`Int ${r.int}`]
       .filter(Boolean).join(' · ');
+  }
+
+  // ── Build-aware regex: turn an item's mods into a stash/vendor search ────────
+  let searchToast = $state('');
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function flash(msg: string) {
+    searchToast = msg;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (searchToast = ''), 2600);
+  }
+
+  async function findUpgrades(item: PobItem) {
+    const { count, regex } = loadVendorRecommendation(
+      recommendVendorOptionsForItem(item),
+      m.build_recommended_search({ slot: slotLabel(item.slot) }),
+    );
+    if (count === 0) {
+      flash(m.build_no_searchable_mods());
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(regex);
+    } catch {
+      // Clipboard blocked — the search is still loaded in the Stash tab.
+    }
+    onOpenStash?.();
   }
 </script>
 
@@ -256,6 +289,18 @@
               <span class="slot-tag">{slotLabel(item.slot)}</span>
               <span class="slot-name" style="color:{rc(item)}">{item.name}</span>
               {#if item.base !== item.name}<span class="slot-base">{item.base}</span>{/if}
+              <button
+                class="slot-search"
+                type="button"
+                title={m.build_find_upgrades_title()}
+                aria-label={m.build_find_upgrades_aria({ slot: slotLabel(item.slot) })}
+                onclick={(e) => { e.stopPropagation(); findUpgrades(item); }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="2" />
+                  <path d="M20 20l-3.6-3.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+              </button>
             </div>
           {/each}
         </div>
@@ -354,6 +399,11 @@
     <span class="ghc-name">{hoveredGem.name}</span>
     <span class="ghc-type">{gemTypeLabel(hoveredGem.type)}</span>
   </div>
+{/if}
+
+<!-- Transient confirmation for the "find upgrades" action -->
+{#if searchToast}
+  <div class="search-toast" role="status">{searchToast}</div>
 {/if}
 
 <style>
@@ -485,10 +535,21 @@
 
   /* ── Equipment grid ────────────────────────────────────── */
   .equip-grid { display: grid; grid-template-columns: 1fr 1fr; background: color-mix(in srgb, var(--c-bg) 96%, var(--c-mid)); }
-  .slot-cell { display: flex; flex-direction: column; gap: 1px; padding: 5px 10px; border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 8%, transparent); border-right: 1px solid color-mix(in srgb, var(--c-accent) 8%, transparent); min-width: 0; user-select: none; transition: background 0.1s; }
+  .slot-cell { position: relative; display: flex; flex-direction: column; gap: 1px; padding: 5px 10px; border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 8%, transparent); border-right: 1px solid color-mix(in srgb, var(--c-accent) 8%, transparent); min-width: 0; user-select: none; transition: background 0.1s; }
   .slot-cell:nth-child(even) { border-right: none; }
   .slot-cell.has-item { cursor: pointer; }
   .slot-cell.has-item:hover { background: color-mix(in srgb, var(--c-accent) 5%, transparent); }
+
+  /* Per-item "find upgrades" action — reveals on cell hover/focus so it doesn't
+     clutter the grid. Builds a stash search from the item's mods. */
+  .slot-search { position: absolute; top: 4px; right: 6px; width: 18px; height: 18px; padding: 0; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid)); border: 1px solid color-mix(in srgb, var(--c-primary) 30%, transparent); border-radius: 3px; color: color-mix(in srgb, var(--c-primary) 75%, var(--c-accent)); cursor: pointer; opacity: 0; transition: opacity 0.12s, border-color 0.12s, color 0.12s, background 0.12s; }
+  .slot-search svg { width: 12px; height: 12px; }
+  .slot-cell:hover .slot-search,
+  .slot-search:focus-visible { opacity: 1; }
+  .slot-search:hover { color: var(--c-primary); border-color: color-mix(in srgb, var(--c-primary) 60%, transparent); background: color-mix(in srgb, var(--c-primary) 12%, transparent); }
+
+  /* Confirmation toast for the find-upgrades action */
+  .search-toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 9999; padding: 7px 14px; background: #0a0a0c; border: 1px solid color-mix(in srgb, var(--c-primary) 40%, transparent); border-radius: 4px; color: color-mix(in srgb, var(--c-primary) 90%, #fff 10%); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; box-shadow: 0 8px 24px rgba(0,0,0,0.7); pointer-events: none; }
   .slot-tag  { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: color-mix(in srgb, var(--c-muted) 55%, transparent); }
   .slot-name { font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
   .slot-base { font-size: 9px; color: color-mix(in srgb, var(--c-muted) 65%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
