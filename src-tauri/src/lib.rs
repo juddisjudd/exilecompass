@@ -1,9 +1,5 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
-#[cfg(target_os = "linux")]
-use std::time::Duration;
-#[cfg(target_os = "linux")]
-use tokio::time::sleep;
 
 use overlay_core::{find_poe2_window, focus_window, is_window_alive, KeyChord, WindowInfo};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
@@ -515,21 +511,15 @@ fn want_transparent() -> bool {
     }
 }
 
-/// On Linux, default to software rendering for reliability.
-/// The UI workload is light, while GPU/EGL initialization failures are common
-/// across distro / driver / compositor combinations and frequently lead to a
-/// blank white window with no obvious crash.
+/// Whether to force Mesa software rendering (`LIBGL_ALWAYS_SOFTWARE=1`).
 ///
-/// Users can explicitly opt back into hardware rendering with
-/// `EXILECOMPASS_HARDWARE_RENDER=1`.
+/// This is OFF by default. Forcing llvmpipe was found to *cause* blank/white
+/// windows on some stacks (notably when combined with disabled compositing),
+/// and our known-good sibling project never forces it. Leave the GL stack alone
+/// and only opt in when a user explicitly sets `EXILECOMPASS_SOFTWARE_RENDER=1`.
 #[cfg(target_os = "linux")]
-#[allow(dead_code)]
 fn want_software_render() -> bool {
-    cfg!(target_os = "linux")
-        && std::env::var_os("EXILECOMPASS_SOFTWARE_RENDER").is_some()
-        || (cfg!(target_os = "linux")
-            && std::env::var_os("EXILECOMPASS_SOFTWARE_RENDER").is_none()
-            && std::env::var_os("EXILECOMPASS_HARDWARE_RENDER").is_none())
+    std::env::var_os("EXILECOMPASS_SOFTWARE_RENDER").is_some()
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -538,36 +528,31 @@ fn want_software_render() -> bool {
 pub fn run() {
     #[cfg(target_os = "linux")]
     {
-        // Prefer X11 first for compatibility (especially VMs / Wayland+EGL
-        // stacks that produce blank windows), but keep Wayland available.
-        // Users can still override this explicitly.
-        if std::env::var_os("GDK_BACKEND").is_none() {
-            std::env::set_var("GDK_BACKEND", "x11,wayland");
-        }
+        // NOTE: This mirrors the minimal WebKitGTK recipe used by our known-good
+        // sibling Tauri app. Earlier, heavier workarounds here (forcing
+        // GDK_BACKEND=x11,wayland and LIBGL_ALWAYS_SOFTWARE=1) were themselves a
+        // cause of blank/white windows — especially inside VMs — so they are gone.
+        // Each remaining flag respects an explicit user override.
 
         // WebKitGTK ≥2.40 defaults to a DMA-BUF EGL renderer that aborts with
         // "Could not create default EGL display: EGL_BAD_PARAMETER" on many Linux
-        // GPU/driver/compositor combos. Disable it before GTK initializes. Respect
-        // an explicit user override so anyone who wants the DMA-BUF path can keep it.
+        // GPU/driver/compositor combos. Disable it before GTK initializes.
         if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
-        // Disabling GPU compositing entirely fixes the remaining blank-window
-        // reports the DMA-BUF flag alone doesn't cover. Keep this on whenever we
-        // are not attempting a transparent overlay OR when software render is in
-        // use.
+        // Disabling GPU compositing covers the remaining blank-window reports the
+        // DMA-BUF flag alone doesn't. Skip it only when the user is opting into a
+        // transparent overlay (which needs compositing) without software render.
         if (!want_transparent() || want_software_render())
             && std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none()
         {
             std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         }
 
-        // Force Mesa software rendering by default (unless explicitly opted out)
-        // to avoid distro-specific EGL/GL init failures that otherwise surface as
-        // a white/blank window.
+        // Software rendering is OFF unless explicitly requested. See
+        // want_software_render() for why forcing it by default was harmful.
         if want_software_render() {
             std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
-            std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         }
     }
 
@@ -608,19 +593,16 @@ pub fn run() {
 
             #[cfg(target_os = "linux")]
             {
-                // Safety fallback: if the frontend never sends window_show_main
-                // (e.g. script error), show the window anyway so the user sees the
-                // bootstrap fallback panel instead of "nothing happened".
-                let handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    sleep(Duration::from_millis(1800)).await;
-                    if let Some(w) = handle.get_webview_window("main") {
-                        if !w.is_visible().unwrap_or(true) {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
-                    }
-                });
+                // Show immediately rather than waiting for the frontend's
+                // window_show_main signal. A WebKitGTK webview built in a hidden
+                // window can have its render loop throttled so requestAnimationFrame
+                // never fires (see tauri-apps/tauri#11856) — the reveal signal then
+                // never arrives and the window is stuck blank. Our known-good
+                // sibling app shows immediately on Linux for exactly this reason and
+                // accepts a brief startup flash. The frontend's later
+                // window_show_main call is harmless (show() is idempotent).
+                let _ = window.show();
+                let _ = window.set_focus();
             }
 
             // Install the global keyboard hook for auto-hide triggers. It emits
