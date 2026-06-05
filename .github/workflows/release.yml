@@ -8,7 +8,8 @@ name: Release
 #
 # Produces:
 #   ExileCompass_<version>_x64-setup.exe    (Windows, NSIS)
-#   ExileCompass_<version>_amd64.AppImage   (Linux)
+#   ExileCompass_<version>_amd64.AppImage   (Linux, portable + auto-updater)
+#   ExileCompass_<version>_amd64.deb        (Linux, native Debian/Ubuntu install)
 
 on:
   push:
@@ -27,7 +28,7 @@ jobs:
           - platform: windows-latest
             args: '--bundles nsis'
           - platform: ubuntu-22.04
-            args: '--bundles appimage'
+            args: '--bundles appimage,deb'
 
     runs-on: ${{ matrix.platform }}
 
