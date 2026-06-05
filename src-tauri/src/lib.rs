@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
+#[cfg(target_os = "linux")]
+use std::time::Duration;
 
 use overlay_core::{find_poe2_window, focus_window, is_window_alive, KeyChord, WindowInfo};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
@@ -448,6 +450,15 @@ fn get_overlay_status(state: State<'_, OverlayState>) -> serde_json::Value {
     })
 }
 
+/// Show and focus the main window once the frontend has painted its first frame.
+#[tauri::command]
+fn window_show_main(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 // ── Crash logging ─────────────────────────────────────────────────────────────
 //
 // On Linux the app is usually launched without an attached console, so a panic
@@ -525,6 +536,13 @@ fn want_software_render() -> bool {
 pub fn run() {
     #[cfg(target_os = "linux")]
     {
+        // Prefer X11 first for compatibility (especially VMs / Wayland+EGL
+        // stacks that produce blank windows), but keep Wayland available.
+        // Users can still override this explicitly.
+        if std::env::var_os("GDK_BACKEND").is_none() {
+            std::env::set_var("GDK_BACKEND", "x11,wayland");
+        }
+
         // WebKitGTK ≥2.40 defaults to a DMA-BUF EGL renderer that aborts with
         // "Could not create default EGL display: EGL_BAD_PARAMETER" on many Linux
         // GPU/driver/compositor combos. Disable it before GTK initializes. Respect
@@ -571,6 +589,9 @@ pub fn run() {
             let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                 .title("ExileCompass")
                 .inner_size(553.0, 680.0)
+                // Start hidden on Linux so we can reveal after the first frontend
+                // paint (avoids white/blank first frame on some WebKitGTK stacks).
+                .visible(!cfg!(target_os = "linux"))
                 .decorations(false)
                 .transparent(want_transparent())
                 .always_on_top(true)
@@ -582,6 +603,23 @@ pub fn run() {
             // Restore the last saved position/size over the centered default,
             // before the window paints, so there's no visible jump.
             restore_window_bounds(&app.handle(), &window);
+
+            #[cfg(target_os = "linux")]
+            {
+                // Safety fallback: if the frontend never sends window_show_main
+                // (e.g. script error), show the window anyway so the user sees the
+                // bootstrap fallback panel instead of "nothing happened".
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tauri::async_runtime::sleep(Duration::from_millis(1800)).await;
+                    if let Some(w) = handle.get_webview_window("main") {
+                        if !w.is_visible().unwrap_or(true) {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                    }
+                });
+            }
 
             // Install the global keyboard hook for auto-hide triggers. It emits
             // an event the frontend listens for; it never consumes the keystroke.
@@ -605,6 +643,7 @@ pub fn run() {
             list_build_files,
             detect_build_folder,
             fetch_pobb_code,
+            window_show_main,
             store_get,
             store_set,
             store_remove,

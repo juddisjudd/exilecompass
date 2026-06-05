@@ -136,10 +136,13 @@ The overlay runs on top of WebKitGTK, whose GPU rendering path fails to
 initialize on some driver / Wayland / compositor combinations. To stay
 compatible, ExileCompass starts **non-transparent on Linux** and now defaults to
 **software rendering** (`llvmpipe`) to avoid blank white windows on unstable
-GPU/EGL stacks. A few environment variables let you adjust this:
+GPU/EGL stacks. The Linux window is also revealed after the frontend's first
+paint (with a timeout fallback) to avoid a white first frame. A few environment
+variables let you adjust this:
 
 | Variable | Effect |
 |----------|--------|
+| `GDK_BACKEND` | Set automatically to `x11,wayland` for better VM/compositor compatibility (prefers X11 first). Override manually if you need pure Wayland. |
 | `EXILECOMPASS_HARDWARE_RENDER=1` | Opt out of the default software-render path and try hardware GPU rendering. Use only if the default works poorly on your setup. |
 | `EXILECOMPASS_TRANSPARENT=1` | Render the overlay transparent (the Windows look). Only enable it if your compositor supports it — otherwise the window may fail to open, render black, or appear blank. |
 | `EXILECOMPASS_SOFTWARE_RENDER=1` | Force Mesa software rendering explicitly. This is now the default unless `EXILECOMPASS_HARDWARE_RENDER=1` is set. Disables transparency. |

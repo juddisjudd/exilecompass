@@ -11,6 +11,12 @@ export default defineConfig(async () => ({
     paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/lib/paraglide" })
   ],
 
+  // Target older JS engines used by some Linux WebKitGTK runtimes.
+  // This reduces "blank window" failures caused by bundle parse/runtime issues.
+  build: {
+    target: "es2019"
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

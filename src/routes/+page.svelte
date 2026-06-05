@@ -177,6 +177,20 @@
     let cancelled = false;
     let pollTimer: ReturnType<typeof setInterval> | undefined;
 
+    // Linux WebKitGTK can paint a blank first frame if the window is shown too
+    // early. Ask Rust to reveal the window after first paint, with a timeout
+    // fallback for hidden-window rAF throttling.
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      let shown = false;
+      const showWindow = () => {
+        if (shown) return;
+        shown = true;
+        invoke('window_show_main').catch(() => {});
+      };
+      requestAnimationFrame(() => requestAnimationFrame(showWindow));
+      setTimeout(showWindow, 350);
+    }
+
     hotkeyBindings = loadHotkeyBindings();
     hotkeyDrafts = { ...hotkeyBindings };
     triggerConfig = loadTriggerConfig();
