@@ -44,6 +44,20 @@
     { id: 'relic', label: () => m.regex_cat_relic() },
   ];
 
+  // A distinct accent color per group, cycled so each group (in the bar, its
+  // palette badges, and its selected rows) is recognizable beyond just its number.
+  const GROUP_COLORS = [
+    '#f2c14e', // gold
+    '#6cc4f5', // sky
+    '#7fd88a', // green
+    '#d98cf0', // violet
+    '#f3917a', // coral
+    '#5fd0c2', // teal
+    '#f0a3c8', // pink
+    '#c4b86a', // olive
+  ];
+  const groupColor = (i: number) => GROUP_COLORS[((i % GROUP_COLORS.length) + GROUP_COLORS.length) % GROUP_COLORS.length];
+
   const assembled = $derived(builder.result);
   const charCount = $derived(assembled.length);
   const charOver = $derived(charCount >= 250);
@@ -219,7 +233,7 @@
       <span class="section-label">{m.regex_groups()}</span>
       <div class="group-chips">
         {#each builder.groups as g, gi (g.id)}
-          <div class="group-chip" class:active={builder.activeGroup === gi}>
+          <div class="group-chip" class:active={builder.activeGroup === gi} style="--g: {groupColor(gi)}">
             <button class="group-chip-sel" onclick={() => (builder.activeGroup = gi)} type="button">
               {gi + 1}{#if g.conditions.length}<span class="group-chip-count">{g.conditions.length}</span>{/if}
             </button>
@@ -231,7 +245,7 @@
       <span class="group-hint">{m.regex_groups_hint2()}</span>
     </div>
     {#if builder.groups[builder.activeGroup]?.conditions.length}
-      <div class="active-conditions">
+      <div class="active-conditions" style="--g: {groupColor(builder.activeGroup)}">
         {#each builder.groups[builder.activeGroup].conditions as c, ci (c.id)}
           <span class="cond-chip">
             <span class="cond-label">{affixLabel(c.name)}</span>
@@ -320,7 +334,7 @@
   {@const gi = conditionGroupOf(opt.id)}
   {@const sel = gi >= 0}
   {@const cond = sel ? findCondition(opt.id) : undefined}
-  <div class="affix-row" class:active={sel}>
+  <div class="affix-row" class:active={sel} style={sel ? `--g: ${groupColor(gi)}` : undefined}>
     {#if showRange && hasRange(opt) && cond}
       <input
         class="affix-val"
@@ -335,7 +349,7 @@
     <button class="affix-name" type="button" onclick={() => toggleCondition(opt)}>
       {affixLabel(opt.name)}
     </button>
-    {#if sel}<span class="grp-badge">{gi + 1}</span>{/if}
+    {#if sel}<span class="grp-badge" style="--g: {groupColor(gi)}">{gi + 1}</span>{/if}
   </div>
 {/snippet}
 
@@ -923,13 +937,13 @@
   .group-chip {
     display: inline-flex;
     align-items: stretch;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent);
+    border: 1px solid color-mix(in srgb, var(--g, var(--c-accent)) 40%, transparent);
     border-radius: 3px;
     overflow: hidden;
   }
   .group-chip.active {
-    border-color: color-mix(in srgb, var(--c-on) 70%, transparent);
-    background: color-mix(in srgb, var(--c-on) 14%, transparent);
+    border-color: var(--g, var(--c-on));
+    background: color-mix(in srgb, var(--g, var(--c-on)) 16%, transparent);
   }
   .group-chip-sel {
     display: inline-flex;
@@ -938,21 +952,21 @@
     padding: 2px 8px;
     background: transparent;
     border: none;
-    color: color-mix(in srgb, var(--c-accent) 90%, #fff 12%);
+    color: var(--g, color-mix(in srgb, var(--c-accent) 90%, #fff 12%));
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
   }
   .group-chip.active .group-chip-sel {
-    color: var(--c-on);
+    color: var(--g, var(--c-on));
   }
   .group-chip-count {
     font-size: 9px;
     font-variant-numeric: tabular-nums;
     padding: 0 4px;
     border-radius: 6px;
-    background: color-mix(in srgb, var(--c-accent) 22%, transparent);
-    color: var(--c-primary);
+    background: color-mix(in srgb, var(--g, var(--c-accent)) 28%, transparent);
+    color: #fff;
   }
   .group-chip-x {
     padding: 0 5px;
@@ -999,11 +1013,11 @@
     gap: 4px;
     max-width: 160px;
     padding: 2px 4px 2px 7px;
-    background: color-mix(in srgb, var(--c-on) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--c-on) 40%, transparent);
+    background: color-mix(in srgb, var(--g, var(--c-on)) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--g, var(--c-on)) 45%, transparent);
     border-radius: 10px;
     font-size: 10px;
-    color: var(--c-on);
+    color: var(--g, var(--c-on));
   }
   .cond-label {
     overflow: hidden;
@@ -1030,8 +1044,8 @@
     font-variant-numeric: tabular-nums;
     padding: 1px 4px;
     border-radius: 7px;
-    background: color-mix(in srgb, var(--c-on) 22%, transparent);
-    color: var(--c-on);
+    background: color-mix(in srgb, var(--g, var(--c-on)) 26%, transparent);
+    color: var(--g, var(--c-on));
   }
 
   /* Affix list */
@@ -1053,7 +1067,8 @@
     border-radius: 2px;
   }
   .affix-row.active {
-    background: color-mix(in srgb, var(--c-on) 12%, transparent);
+    background: color-mix(in srgb, var(--g, var(--c-on)) 14%, transparent);
+    box-shadow: inset 2px 0 0 var(--g, var(--c-on));
   }
   .affix-row.excluded {
     background: color-mix(in srgb, #f38d78 12%, transparent);
