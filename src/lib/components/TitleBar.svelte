@@ -85,8 +85,17 @@
   }
 
   .app-title {
+    /* Centred over the whole bar (not flex-centred) so the left ornament
+       clearance and the right close button don't shift it off-centre.
+       pointer-events: none lets a drag on the title still move the window. */
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+
     font-family: 'Inter Tight', 'Inter', sans-serif;
-    font-size: 11px;
+    font-size: 12.5px;
     font-weight: 600;
     letter-spacing: 0.18em;
     /* Warm parchment — matches PoE2 panel title colour */

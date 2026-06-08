@@ -52,6 +52,8 @@
   "campaign_edit_mode_enter": "Edit mode jinip",
   "campaign_edit_mode_exit": "Edit mode jongryo",
   "campaign_reset_progress_title": "Jinhaeng sangtae reset",
+  "campaign_mark_act_complete": "악트 완료로 표시",
+  "campaign_clear_act": "악트 진행 상황 초기화",
   "campaign_optional_badge": "OPTIONAL",
   "confirm_reset_campaign_progress": "Campaign jinhaeng sangtaereul jeonbu reset halkkayo?",
   "rewards_title": "Permanent reward",
@@ -221,7 +223,7 @@
   "regex_fav_load": "Load",
   "regex_exclude_text": "Exclude keywords",
   "regex_exclude_placeholder": "words to hide, e.g. block ward (space-separated)",
-  "regex_groups_hint2": "same group = OR · separate = AND",
+  "regex_groups_help": "같은 그룹 안에서는 하나만 일치하면 됩니다(OR). 다른 그룹끼리는 모두 일치해야 합니다(AND).",
   "regex_group_add": "Add group",
   "regex_group_remove": "Remove"
 }

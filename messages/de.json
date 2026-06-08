@@ -52,6 +52,8 @@
   "campaign_edit_mode_enter": "Bearbeitungsmodus aktivieren",
   "campaign_edit_mode_exit": "Bearbeitungsmodus verlassen",
   "campaign_reset_progress_title": "Fortschritt zuruecksetzen",
+  "campaign_mark_act_complete": "Akt als abgeschlossen markieren",
+  "campaign_clear_act": "Akt-Fortschritt loeschen",
   "campaign_optional_badge": "OPTIONAL",
   "confirm_reset_campaign_progress": "Den gesamten Kampagnenfortschritt zuruecksetzen?",
   "rewards_title": "Dauerhafte Belohnungen",
@@ -221,7 +223,7 @@
   "regex_fav_load": "Load",
   "regex_exclude_text": "Exclude keywords",
   "regex_exclude_placeholder": "words to hide, e.g. block ward (space-separated)",
-  "regex_groups_hint2": "same group = OR · separate = AND",
+  "regex_groups_help": "Innerhalb einer Gruppe genuegt eine Bedingung (ODER). Ueber mehrere Gruppen hinweg muessen alle zutreffen (UND).",
   "regex_group_add": "Add group",
   "regex_group_remove": "Remove"
 }

@@ -1091,17 +1091,32 @@
             type="button"
           >{m.nav_stash()}</button>
           <button
-            class="view-tab"
-            class:active={mainView === 'timer'}
-            onclick={() => (mainView = 'timer')}
-            type="button"
-          >{m.nav_timer()}</button>
-          <button
-            class="view-tab"
+            class="view-tab view-tab-icon"
             class:active={mainView === 'build'}
             onclick={() => (mainView = 'build')}
+            title={m.nav_build()}
+            aria-label={m.nav_build()}
             type="button"
-          >{m.nav_build()}</button>
+          >
+            <svg viewBox="0 0 64 64" width="16" height="16" fill="currentColor" aria-hidden="true">
+              <path d="M61.287 53.542c-2.649-2.041-9.702-7.678-16.271-14.452c-4.366-4.505-6.223-9.015-9.533-12.429c-2.998-3.092-5.725-4.894-5.725-4.894l-.768.792l-5.188-5.35l2.004-2.067a.912.912 0 0 0 0-1.262l-.414-.427c.002-.002 5.898-7.936 13.353-5.742c.866.257 1.638.694 1.857.471c.298-.306-.837-1.482-1.502-2.162c-9.431-9.65-19.834 1.104-19.839 1.109l-.367-.379a.846.846 0 0 0-1.222 0l-9.239 9.528a.912.912 0 0 0 0 1.262s1.131 1.979-1.835 2.335c-1.194.145-1.942.414-2.366.769a431.18 431.18 0 0 0-1.979 2.009a.912.912 0 0 0 0 1.262l6.914 7.132a.847.847 0 0 0 1.223 0s1.906-1.99 1.947-2.042c.343-.438.605-1.208.743-2.44c.348-3.06 2.264-1.892 2.264-1.892a.846.846 0 0 0 1.224 0l2.004-2.067l5.186 5.349l-.768.793s1.748 2.813 4.746 5.905c3.309 3.413 7.683 5.328 12.05 9.833c6.567 6.774 12.032 14.047 14.014 16.78c.748 1.029.867.934 1.78-.009l2.849-2.938l2.847-2.937c.915-.946 1.009-1.068.011-1.84" />
+              <path d="M34.008 22.689a53.27 53.27 0 0 1 2.497 2.408c1.592 1.642 2.924 3.479 4.259 5.44l8.942-8.943A9.938 9.938 0 0 0 61.72 9.584L53.604 17.7l-5.76-1.543l-1.544-5.763l8.114-8.111a9.92 9.92 0 0 0-9.381 2.63a9.932 9.932 0 0 0-2.631 9.38l-8.394 8.396" />
+              <path d="M26.489 35.429a53.723 53.723 0 0 1-2.479-2.743l-9.717 9.718a9.926 9.926 0 0 0-9.381 2.629c-3.883 3.88-3.882 10.174 0 14.055a9.934 9.934 0 0 0 14.054 0a9.939 9.939 0 0 0 2.631-9.384l10.004-10.003c-1.84-1.338-3.567-2.679-5.112-4.272M13.483 57.821l-5.761-1.544l-1.543-5.762l4.218-4.215l5.76 1.541l1.543 5.763l-4.217 4.217" />
+            </svg>
+          </button>
+          <button
+            class="view-tab view-tab-icon"
+            class:active={mainView === 'timer'}
+            onclick={() => (mainView = 'timer')}
+            title={m.nav_timer()}
+            aria-label={m.nav_timer()}
+            type="button"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="12 7 12 12 15.5 14" />
+            </svg>
+          </button>
           <button
             class="tab-options-btn"
             class:active={showSettings}
@@ -1546,6 +1561,11 @@
     cursor: pointer;
     transition: opacity 0.12s, color 0.12s;
 
+    /* Without this the button keeps the UA default (white) background, which
+       peeks through the gaps between the 3 slice images when a resize lands the
+       tab on a sub-pixel width. */
+    background-color: transparent;
+
     background-image:
       url('/ui/buttongenericnormalleft.webp'),
       url('/ui/buttongenericnormalright.webp'),
@@ -1557,6 +1577,17 @@
     color: color-mix(in srgb, #c8b060 60%, transparent);
     text-shadow: 0 1px 2px rgba(0,0,0,0.8);
     opacity: 0.7;
+  }
+
+  /* Icon-only tab (timer): narrow + centred instead of taking a full flex share,
+     so it frees horizontal space for the labelled tabs. */
+  .view-tab-icon {
+    flex: 0 0 auto;
+    width: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .view-tab:hover {

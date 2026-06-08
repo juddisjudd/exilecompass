@@ -584,6 +584,7 @@ pub fn run() {
             let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                 .title("ExileCompass")
                 .inner_size(553.0, 680.0)
+                .min_inner_size(328.0, 420.0)
                 // Start hidden on Linux so we can reveal after the first frontend
                 // paint (avoids white/blank first frame on some WebKitGTK stacks).
                 .visible(!cfg!(target_os = "linux"))

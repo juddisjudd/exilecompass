@@ -52,6 +52,8 @@
   "campaign_edit_mode_enter": "Jinru bianji moshi",
   "campaign_edit_mode_exit": "Tuichu bianji moshi",
   "campaign_reset_progress_title": "Chongzhi jindu",
+  "campaign_mark_act_complete": "标记本幕为完成",
+  "campaign_clear_act": "清除本幕进度",
   "campaign_optional_badge": "OPTIONAL",
   "confirm_reset_campaign_progress": "Yao chongzhi suoyou campaign jindu ma?",
   "rewards_title": "Changzhu nagrand",
@@ -221,7 +223,7 @@
   "regex_fav_load": "Load",
   "regex_exclude_text": "Exclude keywords",
   "regex_exclude_placeholder": "words to hide, e.g. block ward (space-separated)",
-  "regex_groups_hint2": "same group = OR · separate = AND",
+  "regex_groups_help": "同一组内任意一个条件匹配即可（OR）。不同组之间必须全部匹配（AND）。",
   "regex_group_add": "Add group",
   "regex_group_remove": "Remove"
 }

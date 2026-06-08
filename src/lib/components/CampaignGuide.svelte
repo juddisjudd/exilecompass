@@ -5,6 +5,7 @@
   import { m } from '$lib/paraglide/messages.js';
   import { trAct, trZone, trObjective, trObjectiveReward, trNotes } from '$lib/dataI18n';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
+  import ConfirmReset from './ConfirmReset.svelte';
 
   // Completion lives in the shared module (so global hotkeys can mark objectives).
   // The component only owns the expand/collapse UI state.
@@ -95,22 +96,24 @@
   }
 
   function resetProgress() {
-    if (confirm(m.confirm_reset_campaign_progress())) {
-      campaignProgress.resetAll();
-    }
+    campaignProgress.resetAll();
   }
 </script>
 
 <div class="campaign-guide">
   <div class="guide-header">
     <h3>{m.campaign_guide_title()}</h3>
-    <button class="btn-reset" onclick={resetProgress} title={m.campaign_reset_progress_title()}>
-      {m.action_reset()}
-    </button>
+    <ConfirmReset
+      label={m.action_reset()}
+      prompt={m.confirm_reset_campaign_progress()}
+      title={m.campaign_reset_progress_title()}
+      onconfirm={resetProgress}
+    />
   </div>
 
   {#each CAMPAIGN_DATA as act (act.number)}
-    {@const progress = summarize(act.zones.flatMap((z) => z.objectives))}
+    {@const objectives = act.zones.flatMap((z) => z.objectives)}
+    {@const progress = summarize(objectives)}
     {@const isComplete = progress.status === 'complete'}
     {@const isRequired = progress.status === 'required'}
     {@const expanded = guideState.expandedActs.has(act.number)}
@@ -120,23 +123,35 @@
       class:required={isRequired}
       class:complete-collapsed={isComplete && !expanded}
     >
-      <button
-        class="act-header"
-        onclick={() => toggleAct(act.number)}
-        type="button"
-      >
-        <span class="toggle-icon" class:expanded>▶</span>
-        <span class="act-title">{trAct(act.number, act.name)}</span>
-        {#if act.temporary}
-          <span class="badge-interlude">{m.campaign_interlude_badge()}</span>
-        {/if}
-        {#if isComplete}
-          <span class="badge-complete">✓ {m.campaign_complete_badge()}</span>
-        {/if}
-        <span class="act-progress" class:complete={isComplete} class:required={isRequired}>
-          {progress.completed}/{progress.total}
-        </span>
-      </button>
+      <div class="act-header-row">
+        <button
+          class="act-header"
+          onclick={() => toggleAct(act.number)}
+          type="button"
+        >
+          <span class="toggle-icon" class:expanded>▶</span>
+          <span class="act-title">{trAct(act.number, act.name)}</span>
+          {#if act.temporary}
+            <span class="badge-interlude">{m.campaign_interlude_badge()}</span>
+          {/if}
+          {#if isComplete}
+            <span class="badge-complete">✓ {m.campaign_complete_badge()}</span>
+          {/if}
+          <span class="act-progress" class:complete={isComplete} class:required={isRequired}>
+            {progress.completed}/{progress.total}
+          </span>
+        </button>
+        <button
+          class="act-complete-btn"
+          class:done={isComplete}
+          onclick={() => campaignProgress.setMany(objectives.map((o) => o.id), !isComplete)}
+          title={isComplete ? m.campaign_clear_act() : m.campaign_mark_act_complete()}
+          aria-label={isComplete ? m.campaign_clear_act() : m.campaign_mark_act_complete()}
+          type="button"
+        >
+          {isComplete ? '↺' : '✓'}
+        </button>
+      </div>
 
       <div class="progress-bar-track">
         <div
@@ -237,26 +252,6 @@
     text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent);
   }
 
-  .btn-reset {
-    padding: 2px 8px;
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 2px;
-    color: color-mix(in srgb, var(--c-muted) 90%, #fff 10%);
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .btn-reset:hover {
-    border-color: color-mix(in srgb, #f38d78 42%, transparent);
-    color: #f38d78;
-    background: color-mix(in srgb, #f38d78 6%, transparent);
-  }
-
   /* Act group */
   .act-group {
     border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
@@ -285,10 +280,16 @@
     opacity: 0.85;
   }
 
+  .act-header-row {
+    display: flex;
+    align-items: stretch;
+  }
+
   .act-header {
     display: flex;
     align-items: center;
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     padding: 8px 12px;
     background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
     border: none;
@@ -307,6 +308,36 @@
 
   .act-header:hover {
     background: color-mix(in srgb, var(--c-bg) 78%, var(--c-mid));
+  }
+
+  /* One-click "complete the whole act" toggle, sitting at the end of the header
+     row. Shows a check to fill the act in, or an undo arrow to clear it. */
+  .act-complete-btn {
+    flex-shrink: 0;
+    width: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
+    border: none;
+    border-left: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
+    color: color-mix(in srgb, #4ade80 70%, var(--c-accent));
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .act-complete-btn:hover {
+    background: color-mix(in srgb, #4ade80 16%, transparent);
+    color: #86efac;
+  }
+  .act-complete-btn.done {
+    color: color-mix(in srgb, var(--c-muted) 80%, #fff 12%);
+    font-size: 12px;
+  }
+  .act-complete-btn.done:hover {
+    background: color-mix(in srgb, #fbbf24 14%, transparent);
+    color: #fbbf24;
   }
 
   .complete .act-header {

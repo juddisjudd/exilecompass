@@ -52,6 +52,8 @@
   "campaign_edit_mode_enter": "Entrer en mode edition",
   "campaign_edit_mode_exit": "Quitter le mode edition",
   "campaign_reset_progress_title": "Reinitialiser la progression",
+  "campaign_mark_act_complete": "Marquer l'acte comme termine",
+  "campaign_clear_act": "Effacer la progression de l'acte",
   "campaign_optional_badge": "OPTIONNEL",
   "confirm_reset_campaign_progress": "Reinitialiser toute la progression de campagne ?",
   "rewards_title": "Recompenses permanentes",
@@ -221,7 +223,7 @@
   "regex_fav_load": "Load",
   "regex_exclude_text": "Exclude keywords",
   "regex_exclude_placeholder": "words to hide, e.g. block ward (space-separated)",
-  "regex_groups_hint2": "same group = OR · separate = AND",
+  "regex_groups_help": "Dans un même groupe, une seule condition suffit (OU). Entre groupes distincts, toutes doivent correspondre (ET).",
   "regex_group_add": "Add group",
   "regex_group_remove": "Remove"
 }

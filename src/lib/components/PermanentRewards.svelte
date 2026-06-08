@@ -4,6 +4,7 @@
   import REWARDS_DATA from '$lib/data/rewards.json';
   import { m } from '$lib/paraglide/messages.js';
   import { trReward, trRewardGroup } from '$lib/dataI18n';
+  import ConfirmReset from './ConfirmReset.svelte';
 
   const STATE_KEY = 'PERMANENT_REWARDS_STATE_V2';
 
@@ -40,11 +41,9 @@
   }
 
   function resetAll() {
-    if (confirm(m.confirm_reset_rewards())) {
-      collected = new SvelteSet<string>();
-      autoDetected = new SvelteSet<string>();
-      save();
-    }
+    collected = new SvelteSet<string>();
+    autoDetected = new SvelteSet<string>();
+    save();
   }
 
   /** Called by the log watcher when a reward is detected in the log file. */
@@ -93,7 +92,11 @@
 <div class="rewards">
   <div class="rewards-header">
     <h3>{m.rewards_passive_boosts()}</h3>
-    <button class="btn-reset" onclick={resetAll}>{m.action_reset()}</button>
+    <ConfirmReset
+      label={m.action_reset()}
+      prompt={m.confirm_reset_rewards()}
+      onconfirm={resetAll}
+    />
   </div>
 
   {#each REWARDS_DATA.groups as group (group.id)}
@@ -162,24 +165,6 @@
     text-transform: uppercase;
     color: var(--c-primary);
     text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent);
-  }
-
-  .btn-reset {
-    padding: 2px 8px;
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 2px;
-    color: color-mix(in srgb, var(--c-muted) 90%, #fff 10%);
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .btn-reset:hover {
-    border-color: color-mix(in srgb, #f38d78 42%, transparent);
-    color: #f38d78;
   }
 
   .group {

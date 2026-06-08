@@ -194,9 +194,6 @@
           disabled={!assembled}
           title={m.regex_save_fav()}
         >★</button>
-        <button class="act-btn act-clear" onclick={resetAll} title={m.regex_reset()}>
-          <img src="/ui/fouriconclear.webp" width="16" height="16" alt="" aria-hidden="true" />
-        </button>
         <div class="char-bar">
           <div class="char-track">
             <div
@@ -210,6 +207,10 @@
             {charCount}/250{charOver ? ` (+${charCount - 250})` : ''}
           </span>
         </div>
+        <button class="reset-btn" onclick={resetAll} title={m.regex_reset()}>
+          <span class="reset-icon" aria-hidden="true">↺</span>
+          {m.action_reset()}
+        </button>
       </div>
       {#if showSaveFav}
         <div class="fav-save-inline">
@@ -228,11 +229,13 @@
       {/if}
     </div>
 
-    <!-- Group bar: same group = OR, separate groups = AND -->
+    <!-- Group bar: same group = OR, separate groups = AND (the "AND" chips show
+         this; the ? tooltip spells it out). -->
     <div class="group-bar">
       <span class="section-label">{m.regex_groups()}</span>
       <div class="group-chips">
         {#each builder.groups as g, gi (g.id)}
+          {#if gi > 0}<span class="group-and" aria-hidden="true">AND</span>{/if}
           <div class="group-chip" class:active={builder.activeGroup === gi} style="--g: {groupColor(gi)}">
             <button class="group-chip-sel" onclick={() => (builder.activeGroup = gi)} type="button">
               {gi + 1}{#if g.conditions.length}<span class="group-chip-count">{g.conditions.length}</span>{/if}
@@ -242,7 +245,10 @@
         {/each}
         <button class="group-add" onclick={addGroup} type="button" title={m.regex_group_add()}>＋</button>
       </div>
-      <span class="group-hint">{m.regex_groups_hint2()}</span>
+      <button class="group-help" type="button" aria-label={m.regex_groups_help()}>
+        ?
+        <span class="group-help-tip">{m.regex_groups_help()}</span>
+      </button>
     </div>
     {#if builder.groups[builder.activeGroup]?.conditions.length}
       <div class="active-conditions" style="--g: {groupColor(builder.activeGroup)}">
@@ -670,6 +676,36 @@
     flex: 1;
     margin-left: 4px;
   }
+
+  /* Reset sits apart from copy/save (past the char bar) and is labelled +
+     danger-tinted so it reads unmistakably as "clear everything". */
+  .reset-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 9px;
+    background: transparent;
+    border: 1px solid color-mix(in srgb, #f38d78 32%, transparent);
+    border-radius: 2px;
+    color: color-mix(in srgb, #f38d78 82%, var(--c-accent));
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .reset-btn:hover {
+    background: color-mix(in srgb, #f38d78 14%, transparent);
+    border-color: color-mix(in srgb, #f38d78 55%, transparent);
+    color: #f6a994;
+  }
+  .reset-icon {
+    font-size: 13px;
+    line-height: 1;
+  }
   .char-track {
     flex: 1;
     height: 3px;
@@ -994,10 +1030,69 @@
     color: var(--c-primary);
     border-color: color-mix(in srgb, var(--c-primary) 45%, transparent);
   }
-  .group-hint {
-    font-size: 10px;
-    color: color-mix(in srgb, #fff 80%, var(--c-accent));
+  /* "AND" between groups — small, muted, never wraps onto its own line. */
+  .group-and {
+    align-self: center;
+    flex-shrink: 0;
+    padding: 0 1px;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: color-mix(in srgb, var(--c-accent) 55%, transparent);
+  }
+
+  /* "?" help affordance with a hover/focus tooltip explaining OR vs AND. */
+  .group-help {
+    position: relative;
     margin-left: auto;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    background: transparent;
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 40%, transparent);
+    color: color-mix(in srgb, var(--c-accent) 88%, #fff 10%);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: help;
+    outline: none;
+  }
+  .group-help:hover,
+  .group-help:focus-visible {
+    border-color: color-mix(in srgb, var(--c-primary) 50%, transparent);
+    color: var(--c-primary);
+  }
+  .group-help-tip {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 210px;
+    padding: 6px 8px;
+    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
+    border: 1px solid color-mix(in srgb, var(--c-accent) 35%, transparent);
+    border-radius: 3px;
+    color: var(--c-primary);
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 1.45;
+    letter-spacing: normal;
+    text-transform: none;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    z-index: 50;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.12s;
+  }
+  .group-help:hover .group-help-tip,
+  .group-help:focus-visible .group-help-tip {
+    opacity: 1;
+    visibility: visible;
   }
   .active-conditions {
     display: flex;

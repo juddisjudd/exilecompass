@@ -69,6 +69,16 @@ class CampaignProgress {
     this.#save();
   }
 
+  /** Mark every given objective id complete or clear them all — used to check
+   *  off (or un-check) a whole act at once. */
+  setMany(ids: string[], done: boolean) {
+    for (const id of ids) {
+      if (done) this.completed.add(id);
+      else this.completed.delete(id);
+    }
+    this.#save();
+  }
+
   /** Mark the next incomplete required objective done. Returns its id, or null
    *  if the required path is already complete. Optional objectives are skipped
    *  (mark those by clicking). */

@@ -52,6 +52,8 @@
   "campaign_edit_mode_enter": "Voiti v rezhim redaktirovaniia",
   "campaign_edit_mode_exit": "Vyĭti iz rezhima redaktirovaniia",
   "campaign_reset_progress_title": "Sbrosit progress",
+  "campaign_mark_act_complete": "Отметить акт завершённым",
+  "campaign_clear_act": "Сбросить прогресс акта",
   "campaign_optional_badge": "DOPOLNITELNO",
   "confirm_reset_campaign_progress": "Sbrosit ves progress kampanii?",
   "rewards_title": "Postoiannye nagrady",
@@ -221,7 +223,7 @@
   "regex_fav_load": "Load",
   "regex_exclude_text": "Exclude keywords",
   "regex_exclude_placeholder": "words to hide, e.g. block ward (space-separated)",
-  "regex_groups_hint2": "same group = OR · separate = AND",
+  "regex_groups_help": "Внутри группы достаточно одного совпадения (ИЛИ). Между разными группами должны совпасть все (И).",
   "regex_group_add": "Add group",
   "regex_group_remove": "Remove"
 }
