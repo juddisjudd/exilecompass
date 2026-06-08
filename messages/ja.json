@@ -96,6 +96,7 @@
   "error_update_failed": "アップデートに失敗しました:",
   "settings_title": "設定",
   "settings_close": "設定を閉じる",
+  "action_back": "戻る",
   "settings_clickthrough_opacity_title": "クリックスルー時の不透明度",
   "settings_clickthrough_opacity_help": "クリックスルーモードが有効なときのオーバーレイの不透明度。",
   "settings_import_label": "PoB コード、pobb.in リンク、または GGG .build ファイル",

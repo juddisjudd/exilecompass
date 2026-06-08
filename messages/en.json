@@ -105,6 +105,7 @@
 
   "settings_title": "Settings",
   "settings_close": "Close settings",
+  "action_back": "Back",
   "settings_clickthrough_opacity_title": "Click-Through Opacity",
   "settings_clickthrough_opacity_help": "Overlay opacity while click-through mode is active.",
   "settings_import_label": "PoB Code, pobb.in Link, or GGG .build File",

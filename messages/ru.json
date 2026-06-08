@@ -96,6 +96,7 @@
   "error_update_failed": "Ошибка обновления:",
   "settings_title": "Настройки",
   "settings_close": "Закрыть настройки",
+  "action_back": "Назад",
   "settings_clickthrough_opacity_title": "Прозрачность сквозного клика",
   "settings_clickthrough_opacity_help": "Прозрачность оверлея при активном режиме сквозного клика.",
   "settings_import_label": "Код PoB, ссылка pobb.in или файл GGG .build",

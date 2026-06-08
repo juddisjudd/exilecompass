@@ -819,8 +819,10 @@
       <!-- Settings panel as overlay -->
       <div class="settings-overlay">
         <div class="settings-header-row">
+          <button class="back-settings" onclick={() => (showSettings = false)} aria-label={m.settings_close()}>
+            <span class="back-arrow" aria-hidden="true">←</span>{m.action_back()}
+          </button>
           <span class="settings-title">{m.settings_title()}</span>
-          <button class="close-settings" onclick={() => (showSettings = false)} aria-label={m.settings_close()}>✕</button>
         </div>
         <div class="settings-body">
           <nav class="settings-nav">
@@ -1319,7 +1321,7 @@
   .settings-header-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 12px;
     padding: 9px 14px;
     background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
     border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
@@ -1336,19 +1338,33 @@
     text-shadow: 0 0 10px color-mix(in srgb, var(--c-primary) 35%, transparent);
   }
 
-  .close-settings {
-    width: 26px;
-    height: 26px;
-    border: none;
-    background: url('/ui/buttonclosenormal.webp') center/contain no-repeat;
-    color: transparent;
-    font-size: 0;
+  .back-settings {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px 4px 8px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 32%, transparent);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid));
+    color: color-mix(in srgb, var(--c-accent) 92%, #fff 8%);
+    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     cursor: pointer;
-    opacity: 0.75;
-    transition: opacity 0.15s;
+    transition: all 0.12s;
     flex-shrink: 0;
   }
-  .close-settings:hover { opacity: 1; background-image: url('/ui/buttonclosehover.webp'); }
+  .back-settings:hover {
+    border-color: color-mix(in srgb, var(--c-primary) 45%, transparent);
+    color: var(--c-primary);
+    background: color-mix(in srgb, var(--c-bg) 70%, var(--c-mid));
+  }
+  .back-arrow {
+    font-size: 13px;
+    line-height: 1;
+  }
 
   .settings-body {
     display: grid;
@@ -1468,10 +1484,10 @@
   .field-input,
   .field-select {
     width: 100%;
-    padding: 6px 8px;
+    padding: 6px 24px 6px 8px;
     border-radius: 2px;
     border: 1px solid color-mix(in srgb, var(--c-accent) 34%, transparent);
-    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
+    background-color: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
     color: var(--c-primary);
     font: inherit;
     font-size: 12px;

@@ -96,6 +96,7 @@
   "error_update_failed": "Falha na atualização:",
   "settings_title": "Configurações",
   "settings_close": "Fechar configurações",
+  "action_back": "Voltar",
   "settings_clickthrough_opacity_title": "Opacidade do clique-através",
   "settings_clickthrough_opacity_help": "Opacidade da sobreposição enquanto o modo clique-através está ativo.",
   "settings_import_label": "Código PoB, link pobb.in ou arquivo .build da GGG",

@@ -96,6 +96,7 @@
   "error_update_failed": "Échec de la mise à jour :",
   "settings_title": "Paramètres",
   "settings_close": "Fermer les paramètres",
+  "action_back": "Retour",
   "settings_clickthrough_opacity_title": "Opacité du clic traversant",
   "settings_clickthrough_opacity_help": "Opacité de la superposition lorsque le mode clic traversant est actif.",
   "settings_import_label": "Code PoB, lien pobb.in ou fichier .build GGG",

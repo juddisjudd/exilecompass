@@ -96,6 +96,7 @@
   "error_update_failed": "更新失败：",
   "settings_title": "设置",
   "settings_close": "关闭设置",
+  "action_back": "返回",
   "settings_clickthrough_opacity_title": "穿透模式不透明度",
   "settings_clickthrough_opacity_help": "穿透模式启用时的覆盖层不透明度。",
   "settings_import_label": "PoB 代码、pobb.in 链接或 GGG .build 文件",

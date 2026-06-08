@@ -454,8 +454,8 @@
   .set-select select {
     flex: 1;
     min-width: 0;
-    padding: 4px 6px;
-    background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
+    padding: 4px 20px 4px 6px;
+    background-color: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
     border: 1px solid color-mix(in srgb, #c8a040 32%, transparent);
     border-radius: 2px;
     color: #e2c98a;
@@ -485,8 +485,8 @@
   .build-library select {
     flex: 1;
     min-width: 0;
-    padding: 4px 6px;
-    background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
+    padding: 4px 20px 4px 6px;
+    background-color: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
     border: 1px solid color-mix(in srgb, #c8a040 32%, transparent);
     border-radius: 2px;
     color: #e2c98a;

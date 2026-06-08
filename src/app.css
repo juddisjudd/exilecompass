@@ -1,0 +1,23 @@
+/* Global, non-scoped styles. Kept in a plain .css file (imported from
+   +layout.svelte) because Svelte's <style> block needs scopable markup and
+   warns when it contains only :global selectors. */
+
+/* On WebKitGTK (Linux) a native <select> ignores our CSS background/colour and
+   paints itself with the GTK system theme — a white box with pale text that's
+   unreadable on the dark overlay (Windows/WebView2 honours the CSS, so it only
+   shows there). `appearance: none` forces the browser to use our styles, and
+   styling `option` fixes the popup list. The chevron replaces the native arrow
+   that `appearance: none` drops. Each select's own rule sets its background-
+   COLOUR (not the `background` shorthand, which would wipe this image). */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23c8a040' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+}
+select option {
+  background-color: #14130f;
+  color: #e8e4de;
+}

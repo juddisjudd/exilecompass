@@ -96,6 +96,7 @@
   "error_update_failed": "업데이트 실패:",
   "settings_title": "설정",
   "settings_close": "설정 닫기",
+  "action_back": "뒤로",
   "settings_clickthrough_opacity_title": "클릭 통과 불투명도",
   "settings_clickthrough_opacity_help": "클릭 통과 모드가 활성화된 동안의 오버레이 불투명도.",
   "settings_import_label": "PoB 코드, pobb.in 링크 또는 GGG .build 파일",

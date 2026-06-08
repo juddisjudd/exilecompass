@@ -96,6 +96,7 @@
   "error_update_failed": "Update fehlgeschlagen:",
   "settings_title": "Einstellungen",
   "settings_close": "Einstellungen schließen",
+  "action_back": "Zurück",
   "settings_clickthrough_opacity_title": "Klick-durch-Deckkraft",
   "settings_clickthrough_opacity_help": "Deckkraft des Overlays, während der Klick-durch-Modus aktiv ist.",
   "settings_import_label": "PoB-Code, pobb.in-Link oder GGG .build-Datei",
