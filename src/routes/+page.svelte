@@ -11,6 +11,7 @@
   import CampaignGuide from '$lib/components/CampaignGuide.svelte';
   import PermanentRewards from '$lib/components/PermanentRewards.svelte';
   import StashRegex from '$lib/components/StashRegex.svelte';
+  import CraftingGuide from '$lib/components/CraftingGuide.svelte';
   import SpeedrunTimer from '$lib/components/SpeedrunTimer.svelte';
   import BuildOverview from '$lib/components/BuildOverview.svelte';
   import {
@@ -78,7 +79,7 @@
   type SettingsTabId = 'hotkeys' | 'language' | 'logFile' | 'importBuilds' | 'about';
 
   const KOFI_URL = 'https://ko-fi.com/ohitsjudd';
-  type MainViewId = 'campaign' | 'rewards' | 'stash' | 'timer' | 'build';
+  type MainViewId = 'campaign' | 'rewards' | 'stash' | 'crafting' | 'timer' | 'build';
 
   const LOG_FILE_STORAGE_KEY   = 'EXILECOMPASS_LOG_FILE_PATH_V1';
   const CT_OPACITY_KEY         = 'EXILECOMPASS_CT_OPACITY_V1';
@@ -1093,6 +1094,12 @@
             type="button"
           >{m.nav_stash()}</button>
           <button
+            class="view-tab"
+            class:active={mainView === 'crafting'}
+            onclick={() => (mainView = 'crafting')}
+            type="button"
+          >{m.nav_crafting()}</button>
+          <button
             class="view-tab view-tab-icon"
             class:active={mainView === 'build'}
             onclick={() => (mainView = 'build')}
@@ -1136,6 +1143,8 @@
             <PermanentRewards bind:this={rewardsComponent} />
           {:else if mainView === 'stash'}
             <StashRegex />
+          {:else if mainView === 'crafting'}
+            <CraftingGuide />
           {:else if mainView === 'timer'}
             <SpeedrunTimer />
           {:else}
