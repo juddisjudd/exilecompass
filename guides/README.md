@@ -19,12 +19,14 @@ id: gloves-plus2-projectiles          # unique across all guides, kebab-case
 slot: gloves                          # which equipment slot (see list below)
 name: "+2 Projectiles (Ice Shot / Twisters)"   # craft name in the listing
 goal: "What the finished item is for."         # one-line summary
-base: { name: Exceptional Secured Wraps, icon: Secured Wraps }  # starting item
+base: Secured Wraps                            # starting item (see "Base item(s)")
 
 steps:
   - id: roll-prefix                   # unique within this guide
     title: Roll a T1 flat damage prefix          # the action (required)
     detail: Longer explanation shown under the title.   # optional
+    optional: true                    # optional — flags a skippable step
+    note: { kind: warning, text: "This step can brick." }   # optional callout
     repeat: true                      # optional — flags a "spam until X" step
     items:                            # optional — items this step uses
       - Chaos Orb
@@ -32,11 +34,11 @@ steps:
     targets:                          # optional — mod(s) this step aims for
       - { text: "Adds # to # Lightning Damage to Attacks", tag: prefix }  # first = ideal
       - { text: "Adds # to # Fire Damage to Attacks", tag: prefix }       # rest = alternatives
-    branches:                         # optional — for gamble/conditional steps
-      - if: success
+    branches:                         # optional — conditional outcomes
+      - if: success                   # "success" / "fail" → green / red presets
         text: What to do when it works.
-      - if: fail
-        text: What to do when it doesn't.
+      - if: "hits a suffix"           # any other text → a neutral custom label
+        text: What to do then.
         items:                        # branches can list recovery items too
           - Orb of Annulment
 ```
@@ -44,6 +46,10 @@ steps:
 A step's `targets` are the mod(s) you're aiming for — same `string` or
 `{ text, tag }` form as `result`. The **first** is shown as the *ideal*, the rest
 as *alternatives* (a single target is just labelled "Target").
+
+`optional: true` flags a skippable step. `note` is a highlighted callout —
+`kind` is `tip`, `warning`, or `alt`. A branch's `if` may be `success`, `fail`,
+or any other text (rendered as a neutral custom condition).
 
 ### Slots
 
@@ -64,9 +70,22 @@ items:
   - Fracturing Orb
 ```
 
-If a name isn't recognized, the build fails with a clear message. The `base` is
-just an item name too (`base: Secured Wraps`). Add an optional `ilvl: 80` for a
-required base item level.
+If a name isn't recognized, the build fails with a clear message.
+
+### Base item(s)
+
+`base` is an item name too. List several if the craft works on any of them — the
+first is the icon shown in the listing:
+
+```yaml
+base: Secured Wraps          # one base
+# or
+base:
+  - Slipstrike Vest          # any of these
+  - Falconer's Jacket
+```
+
+Add an optional `ilvl: 80` for a required base item level.
 
 ### Author (optional)
 

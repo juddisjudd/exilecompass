@@ -6,7 +6,9 @@ slot: gloves
 name: "+2 Projectiles (Ice Shot / Twisters)"
 goal: "Attack gloves: fractured T1 flat damage, +2 Projectiles, crit damage and additional-projectile chance."
 author:
-  name: ExileCompass
+  name: fubgun
+  youtube: https://www.youtube.com/@Fubgun
+  twitch: https://www.twitch.tv/fubgun
 base: Secured Wraps
 ilvl: 80
 
@@ -20,6 +22,7 @@ steps:
   - id: kolrs-hunt
     title: Insert Kolr's Hunt
     detail: Socket Kolr's Hunt into the gloves.
+    note: { kind: tip, text: "Kolr's Hunt adds the Marksman influence that unlocks the +2 Projectiles mod." }
     items:
       - Kolr's Hunt
 

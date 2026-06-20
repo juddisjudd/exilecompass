@@ -31,6 +31,7 @@
   "crafting_final_result": "Endergebnis",
   "crafting_result_anyof": "Eines davon",
   "crafting_by": "von",
+  "crafting_optional": "Optional",
   "crafting_target_label": "Ziel",
   "crafting_target_ideal": "Ideal",
   "crafting_target_alt": "Alt.",

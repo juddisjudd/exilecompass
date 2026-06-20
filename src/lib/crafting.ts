@@ -17,11 +17,21 @@ export interface CraftingItemRef {
 }
 
 export interface CraftingBranch {
-  kind: 'success' | 'fail';
+  /** success/fail get preset green/red labels; custom uses `label`, neutral. */
+  kind: 'success' | 'fail' | 'custom';
+  /** The condition label, set when kind is "custom" (e.g. "If it hits a prefix"). */
+  label?: string;
   /** What to do when this branch hits. */
   text: string;
   /** Items used to recover/continue in this branch. */
   items?: CraftingItemRef[];
+}
+
+/** A highlighted step callout — colour driven by kind. */
+export type CraftingNoteKind = 'tip' | 'warning' | 'alt';
+export interface CraftingNote {
+  kind: CraftingNoteKind;
+  text: string;
 }
 
 export interface CraftingStep {
@@ -30,6 +40,10 @@ export interface CraftingStep {
   title: string;
   /** Longer explanation shown under the title. */
   detail?: string;
+  /** A skippable / alternative step (shows an "Optional" badge). */
+  optional?: boolean;
+  /** A highlighted tip / warning / alternative callout. */
+  note?: CraftingNote;
   /** Currency/omens/essences consumed by this step. */
   items?: CraftingItemRef[];
   /** Mod(s) this step aims for — first is the ideal, the rest are alternatives. */
@@ -101,8 +115,8 @@ export interface CraftingGuideData {
   goal: string;
   /** Who wrote the guide (optional credit + channel links). */
   author?: CraftingAuthor;
-  /** The base item the craft starts from. */
-  base: CraftingItemRef;
+  /** The base item(s) the craft can start from (any one). */
+  bases: CraftingItemRef[];
   /** Required item level of the base, e.g. 80. */
   ilvl?: number;
   steps: CraftingStep[];

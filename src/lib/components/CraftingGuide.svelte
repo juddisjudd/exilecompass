@@ -162,7 +162,7 @@
       {#each slotGuides as g (g.id)}
         {@const progress = guideProgress(g)}
         <button class="craft-row" onclick={() => openGuide(g)} type="button">
-          <img class="craft-row-icon" src={encodeURI(g.base.icon)} alt={g.base.name} />
+          <img class="craft-row-icon" src={encodeURI(g.bases[0].icon)} alt={g.bases[0].name} />
           <span class="craft-row-text">
             <span class="craft-row-name">{g.name}</span>
             <span class="craft-row-goal">{g.goal}</span>
@@ -186,11 +186,11 @@
     {@const currentStepId = guide.steps.find((s) => !completed.has(stepKey(guide!, s.id)))?.id}
     <div class="craft-card">
       <div class="craft-card-header">
-        <img class="base-icon" src={encodeURI(guide.base.icon)} alt={guide.base.name} />
+        <img class="base-icon" src={encodeURI(guide.bases[0].icon)} alt={guide.bases[0].name} />
         <div class="craft-card-text">
           <span class="craft-name">{guide.name}</span>
           <span class="craft-base">
-            {m.crafting_base_label()}: {guide.base.name}{#if guide.ilvl}<span class="ilvl-chip">ilvl {guide.ilvl}</span>{/if}
+            {m.crafting_base_label()}: {guide.bases.map((b) => b.name).join(' / ')}{#if guide.ilvl}<span class="ilvl-chip">ilvl {guide.ilvl}</span>{/if}
           </span>
           <span class="craft-goal">{guide.goal}</span>
           {#if guide.author}
@@ -251,9 +251,18 @@
                   {#if step.repeat}
                     <span class="badge-repeat">{m.crafting_badge_repeat()}</span>
                   {/if}
+                  {#if step.optional}
+                    <span class="badge-optional">{m.crafting_optional()}</span>
+                  {/if}
                 </span>
                 {#if step.detail}
                   <span class="step-detail">{step.detail}</span>
+                {/if}
+                {#if step.note}
+                  <span class="step-note note-{step.note.kind}">
+                    <span class="note-kind">{step.note.kind}</span>
+                    <span class="note-text">{step.note.text}</span>
+                  </span>
                 {/if}
                 {#if step.targets && step.targets.length > 0}
                   {@const multi = step.targets.length > 1}
@@ -287,9 +296,16 @@
             {#if step.branches && step.branches.length > 0}
               <div class="branches">
                 {#each step.branches as branch (branch.kind + branch.text)}
-                  <div class="branch" class:success={branch.kind === 'success'} class:fail={branch.kind === 'fail'}>
+                  <div
+                    class="branch"
+                    class:success={branch.kind === 'success'}
+                    class:fail={branch.kind === 'fail'}
+                    class:custom={branch.kind === 'custom'}
+                  >
                     <span class="branch-label">
-                      {branch.kind === 'success' ? m.crafting_if_success() : m.crafting_if_fail()}
+                      {#if branch.kind === 'success'}{m.crafting_if_success()}
+                      {:else if branch.kind === 'fail'}{m.crafting_if_fail()}
+                      {:else}{branch.label}{/if}
                     </span>
                     <span class="branch-text">{branch.text}</span>
                     {#if branch.items && branch.items.length > 0}
@@ -775,6 +791,62 @@
     border: 1px solid color-mix(in srgb, #60a5fa 28%, transparent);
     flex-shrink: 0;
   }
+  .badge-optional {
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--c-muted) 12%, transparent);
+    color: color-mix(in srgb, var(--c-muted) 80%, #fff 20%);
+    border: 1px solid color-mix(in srgb, var(--c-muted) 35%, transparent);
+    flex-shrink: 0;
+  }
+
+  /* Step callout: tip / warning / alternative. */
+  .step-note {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 1px;
+    padding: 4px 8px;
+    border-radius: 2px;
+    border-left: 2px solid var(--c-accent);
+    background: color-mix(in srgb, var(--c-accent) 6%, transparent);
+  }
+  .note-kind {
+    flex-shrink: 0;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .note-text {
+    font-size: 10px;
+    line-height: 1.45;
+    color: color-mix(in srgb, var(--c-muted) 75%, #fff 25%);
+  }
+  .step-note.note-warning {
+    border-left-color: #fbbf24;
+    background: color-mix(in srgb, #fbbf24 7%, transparent);
+  }
+  .note-warning .note-kind {
+    color: #fbbf24;
+  }
+  .step-note.note-tip {
+    border-left-color: #60a5fa;
+    background: color-mix(in srgb, #60a5fa 7%, transparent);
+  }
+  .note-tip .note-kind {
+    color: #93c5fd;
+  }
+  .step-note.note-alt {
+    border-left-color: var(--c-accent);
+  }
+  .note-alt .note-kind {
+    color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%);
+  }
 
   .step-detail {
     font-size: 10px;
@@ -874,6 +946,10 @@
   .branch.fail {
     background: color-mix(in srgb, #f38d78 6%, transparent);
     border-left-color: color-mix(in srgb, #f38d78 50%, transparent);
+  }
+  .branch.custom {
+    background: color-mix(in srgb, var(--c-accent) 6%, transparent);
+    border-left-color: color-mix(in srgb, var(--c-accent) 45%, transparent);
   }
 
   .branch-label {

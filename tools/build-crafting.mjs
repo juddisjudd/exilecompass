@@ -63,11 +63,18 @@ function validateBranch(b, ctx, errors, catalog) {
     errors.push(`${ctx}: must be a mapping with "if" and "text"`);
     return { kind: 'fail', text: '' };
   }
-  const kind = asString(b.if) ?? asString(b.kind);
+  const ifVal = asString(b.if) ?? asString(b.kind);
   const text = asString(b.text);
-  if (kind !== 'success' && kind !== 'fail') errors.push(`${ctx}: "if" must be "success" or "fail"`);
   if (!text) errors.push(`${ctx}: missing "text"`);
-  const out = { kind: kind === 'success' ? 'success' : 'fail', text: text ?? '' };
+  let out;
+  if (ifVal === 'success' || ifVal === 'fail') {
+    out = { kind: ifVal, text: text ?? '' };
+  } else if (ifVal && ifVal.trim()) {
+    out = { kind: 'custom', label: ifVal.trim(), text: text ?? '' };
+  } else {
+    errors.push(`${ctx}: "if" must be "success", "fail", or a condition label`);
+    out = { kind: 'fail', text: text ?? '' };
+  }
   if (b.items != null) {
     if (!Array.isArray(b.items)) errors.push(`${ctx}: "items" must be a list`);
     else out.items = b.items.map((it, i) => resolveItem(it, `${ctx} › item ${i + 1}`, errors, catalog));
@@ -90,6 +97,25 @@ function validateStep(s, ctx, errors, catalog, stepIds) {
   const out = { id: id ?? '', title: title ?? '' };
   const detail = asString(s.detail);
   if (detail) out.detail = detail;
+  if (s.optional != null) {
+    if (typeof s.optional !== 'boolean') errors.push(`${ctx}: "optional" must be true or false`);
+    else if (s.optional) out.optional = true;
+  }
+  if (s.note != null) {
+    if (typeof s.note !== 'object') {
+      errors.push(`${ctx}: "note" must be a { kind, text } mapping`);
+    } else {
+      const kind = asString(s.note.kind);
+      const noteText = asString(s.note.text);
+      if (!NOTE_KINDS.includes(kind)) {
+        errors.push(`${ctx}: note "kind" must be one of: ${NOTE_KINDS.join(', ')}`);
+      } else if (!noteText || !noteText.trim()) {
+        errors.push(`${ctx}: note needs "text"`);
+      } else {
+        out.note = { kind, text: noteText };
+      }
+    }
+  }
   if (s.items != null) {
     if (!Array.isArray(s.items)) errors.push(`${ctx}: "items" must be a list`);
     else out.items = s.items.map((it, i) => resolveItem(it, `${ctx} › item ${i + 1}`, errors, catalog));
@@ -110,6 +136,7 @@ function validateStep(s, ctx, errors, catalog, stepIds) {
 }
 
 const RESULT_TAGS = ['prefix', 'suffix', 'fractured', 'implicit'];
+const NOTE_KINDS = ['tip', 'warning', 'alt'];
 
 /** Resolve a result mod (a string, or `{ text, tag, alt }`). */
 function validateResultMod(raw, ctx, errors) {
@@ -199,9 +226,16 @@ function validateGuide(doc, ctx, errors, catalog, ids) {
   if (!name) errors.push(`${ctx}: missing "name"`);
   if (!goal) errors.push(`${ctx}: missing "goal"`);
 
-  let base = { name: '', icon: '' };
-  if (doc.base == null) errors.push(`${ctx}: missing "base" item`);
-  else base = resolveItem(doc.base, `${ctx} › base`, errors, catalog);
+  let bases = [];
+  if (doc.base == null) {
+    errors.push(`${ctx}: missing "base" item`);
+  } else {
+    const rawBases = Array.isArray(doc.base) ? doc.base : [doc.base];
+    if (rawBases.length === 0) errors.push(`${ctx}: "base" must name at least one item`);
+    bases = rawBases.map((b, i) =>
+      resolveItem(b, `${ctx} › base${rawBases.length > 1 ? ' ' + (i + 1) : ''}`, errors, catalog),
+    );
+  }
 
   let ilvl;
   if (doc.ilvl != null) {
@@ -216,7 +250,7 @@ function validateGuide(doc, ctx, errors, catalog, ids) {
     validateStep(s, `${ctx} › step ${i + 1}`, errors, catalog, stepIds),
   );
 
-  const guide = { id: id ?? '', slot: slot ?? '', name: name ?? '', goal: goal ?? '', base, steps };
+  const guide = { id: id ?? '', slot: slot ?? '', name: name ?? '', goal: goal ?? '', bases, steps };
   if (ilvl != null) guide.ilvl = ilvl;
   if (doc.author != null) guide.author = validateAuthor(doc.author, ctx, errors);
 

@@ -31,6 +31,7 @@
   "crafting_final_result": "최종 결과",
   "crafting_result_anyof": "다음 중 하나",
   "crafting_by": "제작자",
+  "crafting_optional": "선택",
   "crafting_target_label": "목표",
   "crafting_target_ideal": "이상적",
   "crafting_target_alt": "대체",
