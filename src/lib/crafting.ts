@@ -1,14 +1,18 @@
-// Data-driven crafting guides. Each guide is an ordered list of steps the
-// player checks off as they craft; steps can show the currency/omens/essences
-// they consume, flag "spam until X" loops, and carry success/fail branches for
-// gamble steps (fracturing, whittling).
+// Type definitions for the data-driven crafting guides shown in the Craft tab.
+// Each guide is an ordered list of steps the player checks off; steps can show
+// the currency/omens/essences they consume, flag "spam until X" loops, and carry
+// success/fail branches for gamble steps (fracturing, whittling).
 //
-// MVP: guide content is English-only (no dataI18n layer yet).
+// Guide CONTENT lives in `guides/*.yaml` (contributor-friendly) and is compiled
+// into `crafting.generated.ts` by `tools/build-crafting.mjs` (run via
+// `bun run crafting`). Edit the YAML, not the generated file.
+//
+// Guide content is English-only for now (no dataI18n layer yet).
 
 export interface CraftingItemRef {
   /** Display name shown in the chip/tooltip, e.g. "Perfect Regal Orb". */
   name: string;
-  /** Image path under /static, e.g. "/currency/Regal Orb.webp". */
+  /** Resolved icon URL in the shared icon tree, e.g. "/poe2/currency/foo.webp". */
   icon: string;
 }
 
@@ -28,9 +32,35 @@ export interface CraftingStep {
   detail?: string;
   /** Currency/omens/essences consumed by this step. */
   items?: CraftingItemRef[];
+  /** Mod(s) this step aims for — first is the ideal, the rest are alternatives. */
+  targets?: CraftingStepTarget[];
   /** Marks "repeat until you hit X" steps. */
   repeat?: boolean;
   branches?: CraftingBranch[];
+}
+
+/** How a target mod sits on the finished item — drives its colour chip. */
+export type ResultTag = 'prefix' | 'suffix' | 'fractured' | 'implicit';
+
+export interface CraftingStepTarget {
+  /** The mod line, e.g. "Adds # to # Lightning Damage to Attacks". */
+  text: string;
+  tag?: ResultTag;
+}
+
+export interface CraftingResultMod {
+  /** The mod line, e.g. "+2 to Level of all Projectile Skills". */
+  text: string;
+  tag?: ResultTag;
+  /** One of several acceptable results — grouped under "any of these". */
+  alt?: boolean;
+}
+
+export interface CraftingAuthor {
+  name: string;
+  /** Channel URLs (http/https only). */
+  youtube?: string;
+  twitch?: string;
 }
 
 export type EquipmentSlot =
@@ -43,7 +73,8 @@ export type EquipmentSlot =
   | 'boots'
   | 'belt'
   | 'amulet'
-  | 'ring';
+  | 'ring'
+  | 'jewel';
 
 /** Display order + labels for the slot picker (English-only, like guide content). */
 export const EQUIPMENT_SLOTS: Array<{ id: EquipmentSlot; label: string }> = [
@@ -57,6 +88,7 @@ export const EQUIPMENT_SLOTS: Array<{ id: EquipmentSlot; label: string }> = [
   { id: 'belt', label: 'Belt' },
   { id: 'amulet', label: 'Amulet' },
   { id: 'ring', label: 'Ring' },
+  { id: 'jewel', label: 'Jewel' },
 ];
 
 export interface CraftingGuideData {
@@ -67,125 +99,17 @@ export interface CraftingGuideData {
   name: string;
   /** What the finished item is for. */
   goal: string;
+  /** Who wrote the guide (optional credit + channel links). */
+  author?: CraftingAuthor;
   /** The base item the craft starts from. */
   base: CraftingItemRef;
+  /** Required item level of the base, e.g. 80. */
+  ilvl?: number;
   steps: CraftingStep[];
+  /** The target mods the finished item should have. */
+  result?: CraftingResultMod[];
 }
 
-const currency = (name: string, file = name): CraftingItemRef => ({
-  name,
-  icon: `/currency/${file}.webp`,
-});
-const omen = (name: string): CraftingItemRef => ({ name, icon: `/omen/${name}.webp` });
-const essence = (name: string): CraftingItemRef => ({ name, icon: `/essence/${name}.webp` });
-const augment = (name: string): CraftingItemRef => ({ name, icon: `/augment/${name}.webp` });
-
-export const CRAFTING_GUIDES: CraftingGuideData[] = [
-  {
-    id: 'gloves-plus2-projectiles',
-    slot: 'gloves',
-    name: '+2 Projectiles (Ice Shot / Twisters)',
-    goal: 'Attack gloves: fractured T1 flat damage, +2 Projectiles, crit damage and additional-projectile chance.',
-    base: { name: 'Exceptional Secured Wraps', icon: '/items/Secured Wraps.webp' },
-    steps: [
-      {
-        id: 'base',
-        title: 'Start with the base gloves',
-        detail: 'Get an "Exceptional Secured Wraps" base to craft on.',
-        items: [{ name: 'Exceptional Secured Wraps', icon: '/items/Secured Wraps.webp' }],
-      },
-      {
-        id: 'kolrs-hunt',
-        title: "Insert Kolr's Hunt",
-        detail: "Socket Kolr's Hunt into the gloves.",
-        items: [augment("Kolr's Hunt")],
-      },
-      {
-        id: 'perfect-aug',
-        title: 'Use a Perfect Orb of Augmentation',
-        items: [currency('Perfect Orb of Augmentation', 'Orb of Augmentation')],
-      },
-      {
-        id: 'perfect-regal',
-        title: 'Use a Perfect Regal Orb',
-        items: [currency('Perfect Regal Orb', 'Regal Orb')],
-      },
-      {
-        id: 'roll-t1-prefix',
-        title: 'Roll a T1 flat damage prefix',
-        detail:
-          'Use Chaos Orbs and Orbs of Annulment until you roll a Tier 1 prefix such as T1 Lightning, Fire or Physical Damage to Attacks.',
-        repeat: true,
-        items: [currency('Chaos Orb'), currency('Orb of Annulment')],
-      },
-      {
-        id: 'fracture',
-        title: 'Fracture the T1 prefix',
-        detail: 'Use a Fracturing Orb with a Preserved Rib to fracture the T1 prefix.',
-        items: [currency('Fracturing Orb'), currency('Preserved Rib')],
-        branches: [
-          { kind: 'success', text: 'The T1 prefix is fractured — continue to the next step.' },
-          { kind: 'fail', text: 'It fractured the wrong mod — start over from the beginning.' },
-        ],
-      },
-      {
-        id: 'chaos-spam-projectiles',
-        title: 'Chaos spam for +2 Projectiles',
-        detail: 'Chaos spam the fractured gloves until you hit the +2 Projectiles modifier.',
-        repeat: true,
-        items: [currency('Chaos Orb')],
-      },
-      {
-        id: 'crit-suffix',
-        title: 'Guarantee the Critical Damage suffix',
-        detail:
-          'Use Omen of Sinistral Exaltation + Exalted Orb, then Omen of Sinistral Crystallisation + Essence of Hysteria to guarantee Critical Damage on a suffix.',
-        items: [
-          omen('Omen of Sinistral Exaltation'),
-          currency('Exalted Orb'),
-          omen('Omen of Sinistral Crystallisation'),
-          essence('Essence of Hysteria'),
-        ],
-      },
-      {
-        id: 'unveil-projectile-suffix',
-        title: 'Unveil the additional-projectile suffix',
-        detail:
-          'Use an Ancient Rib with Omen of Dextral Necromancy, Omen of Light and Omen of Abyssal Echoes to unveil a suffix — you want "+#% Surpassing chance to Fire an Additional Projectile". Annul and repeat until you hit it.',
-        repeat: true,
-        items: [
-          currency('Ancient Rib'),
-          omen('Omen of Dextral Necromancy'),
-          omen('Omen of Light'),
-          omen('Omen of Abyssal Echoes'),
-          currency('Orb of Annulment'),
-        ],
-      },
-      {
-        id: 'exalt-prefix',
-        title: 'Exalt the open prefix',
-        detail: 'Use a Greater or Perfect Exalted Orb to fill a prefix.',
-        items: [currency('Greater / Perfect Exalted Orb', 'Exalted Orb')],
-      },
-      {
-        id: 'whittle-final-prefix',
-        title: 'Whittle to the final prefix',
-        detail:
-          'Use Omen of Whittling + Chaos Orb to reroll the lowest-level mod until you land a desirable final prefix.',
-        repeat: true,
-        items: [omen('Omen of Whittling'), currency('Chaos Orb')],
-        branches: [
-          {
-            kind: 'fail',
-            text: "If the whittle hits a bad mod (like Runic Ward): insert Astrid's Creativity, then use Sovereign Alloy + Omen of Sinistral Crystallisation to safely remove the prefix, and keep whittling.",
-            items: [
-              augment("Astrid's Creativity"),
-              currency('Sovereign Alloy'),
-              omen('Omen of Sinistral Crystallisation'),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
+// Compiled from guides/*.yaml at build time (see header). The generated module
+// imports the types above, so this re-export stays type-safe.
+export { CRAFTING_GUIDES } from './crafting.generated';

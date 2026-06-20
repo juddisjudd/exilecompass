@@ -40,6 +40,12 @@ panel with tabs:
   apply ready-made presets, test against pasted item text, and copy — with a live
   250-character counter so you stay under the game's limit.
 
+- **Craft (Crafting Guides)** — Step-by-step crafting walkthroughs, browsable by
+  equipment slot. Each guide shows the currency/omens to use at every step, the
+  mod(s) the step is aiming for, success/fail branches, and the finished item's
+  target stats — with real item icons. Check steps off as you craft. Guides are
+  community-contributed (see [Contributing](#contributing)).
+
 - **Timer** — A speedrun timer with start/pause/resume, per-act splits, and
   reset.
 
@@ -192,6 +198,13 @@ The campaign guide and reward data live in plain JSON files under
 `src/lib/data/`, and translations live in `messages/` and `src/lib/data/i18n/` —
 no coding required to fix a typo, add an objective, or translate game text. See
 `src/lib/data/campaign/README.md` for the format.
+
+**Crafting guides** are plain YAML files in [`guides/`](guides/) — one file per
+craft, referencing items by name (icons resolve automatically). See
+[`guides/README.md`](guides/README.md) for the format, or build one visually with
+the [Guide Creator](https://exilecompass.com/guide-creator) and submit the
+exported `.yaml` — either as a pull request to `guides/`, or in the
+`#crafting-guides` channel on [Discord](https://discord.exilecompass.com/).
 
 <details>
 <summary>Building from source</summary>

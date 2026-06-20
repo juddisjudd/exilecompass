@@ -11,6 +11,8 @@ vite.config.ts.timestamp-*
 # Paraglide
 src/lib/paraglide
 project.inlang/cache/
+# Generated from guides/*.yaml by tools/build-crafting.mjs (run via `bun run crafting`)
+src/lib/crafting.generated.ts
 .claude
 .vscode
 CLAUDE.md

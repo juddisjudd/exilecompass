@@ -5,12 +5,23 @@
     CRAFTING_GUIDES,
     EQUIPMENT_SLOTS,
     type CraftingGuideData,
+    type CraftingResultMod,
     type EquipmentSlot,
   } from '$lib/crafting';
   import { m } from '$lib/paraglide/messages.js';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import ConfirmReset from './ConfirmReset.svelte';
 
   const STATE_KEY = 'CRAFTING_GUIDE_STATE_V1';
+
+  // Open a creator's channel link externally (Tauri opener, with a web fallback).
+  async function openExternal(url: string) {
+    try {
+      await openUrl(url);
+    } catch {
+      window.open(url, '_blank', 'noopener');
+    }
+  }
 
   type CraftView = 'slots' | 'list' | 'guide';
 
@@ -178,8 +189,37 @@
         <img class="base-icon" src={encodeURI(guide.base.icon)} alt={guide.base.name} />
         <div class="craft-card-text">
           <span class="craft-name">{guide.name}</span>
-          <span class="craft-base">{m.crafting_base_label()}: {guide.base.name}</span>
+          <span class="craft-base">
+            {m.crafting_base_label()}: {guide.base.name}{#if guide.ilvl}<span class="ilvl-chip">ilvl {guide.ilvl}</span>{/if}
+          </span>
           <span class="craft-goal">{guide.goal}</span>
+          {#if guide.author}
+            <span class="craft-author">
+              <span class="by">{m.crafting_by()} {guide.author.name}</span>
+              {#if guide.author.youtube}
+                <button
+                  class="author-link yt"
+                  onclick={() => openExternal(guide!.author!.youtube!)}
+                  title="YouTube"
+                  aria-label="YouTube"
+                  type="button"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.5 15.5v-7l6.5 3.5-6.5 3.5z"/></svg>
+                </button>
+              {/if}
+              {#if guide.author.twitch}
+                <button
+                  class="author-link tw"
+                  onclick={() => openExternal(guide!.author!.twitch!)}
+                  title="Twitch"
+                  aria-label="Twitch"
+                  type="button"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 2 3 6v14h5v3h3l3-3h4l5-5V2H4zm17 11-3 3h-5l-3 3v-3H6V4h15v9zM16 7h-2v5h2V7zm-5 0H9v5h2V7z"/></svg>
+                </button>
+              {/if}
+            </span>
+          {/if}
         </div>
         <span class="craft-progress" class:complete={progress.done === progress.total}>
           {progress.done}/{progress.total}
@@ -214,6 +254,22 @@
                 </span>
                 {#if step.detail}
                   <span class="step-detail">{step.detail}</span>
+                {/if}
+                {#if step.targets && step.targets.length > 0}
+                  {@const multi = step.targets.length > 1}
+                  <span class="step-targets">
+                    {#each step.targets as t, ti (t.text)}
+                      <span class="target-line" class:ideal={multi && ti === 0}>
+                        <span class="target-pos">
+                          {#if !multi}{m.crafting_target_label()}
+                          {:else if ti === 0}{m.crafting_target_ideal()}
+                          {:else}{m.crafting_target_alt()} {ti}{/if}
+                        </span>
+                        {#if t.tag}<span class="mod-tag tag-{t.tag}">{t.tag}</span>{/if}
+                        <span class="target-text">{t.text}</span>
+                      </span>
+                    {/each}
+                  </span>
                 {/if}
                 {#if step.items && step.items.length > 0}
                   <span class="step-items">
@@ -253,9 +309,41 @@
           </div>
         {/each}
       </div>
+
+      {#if guide.result && guide.result.length > 0}
+        {@const required = guide.result.filter((mod) => !mod.alt)}
+        {@const alts = guide.result.filter((mod) => mod.alt)}
+        <div class="result-panel">
+          <div class="result-title">{m.crafting_final_result()}</div>
+          <div class="result-mods">
+            {#each required as mod (mod.text)}
+              {@render resultMod(mod)}
+            {/each}
+          </div>
+          {#if alts.length > 0}
+            <div class="result-anyof">
+              <div class="anyof-label">{m.crafting_result_anyof()}</div>
+              <div class="result-mods">
+                {#each alts as mod (mod.text)}
+                  {@render resultMod(mod)}
+                {/each}
+              </div>
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
+
+{#snippet resultMod(mod: CraftingResultMod)}
+  <div class="result-mod" class:fractured={mod.tag === 'fractured'}>
+    {#if mod.tag}
+      <span class="mod-tag tag-{mod.tag}">{mod.tag}</span>
+    {/if}
+    <span class="mod-text">{mod.text}</span>
+  </div>
+{/snippet}
 
 <style>
   .crafting-guide {
@@ -527,6 +615,42 @@
     color: color-mix(in srgb, var(--c-muted) 70%, #fff 30%);
   }
 
+  /* Author credit + channel links */
+  .craft-author {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .craft-author .by {
+    font-size: 10px;
+    font-style: italic;
+    color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
+  }
+  .author-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: color-mix(in srgb, var(--c-accent) 70%, transparent);
+    cursor: pointer;
+    transition: color 0.12s;
+  }
+  .author-link svg {
+    width: 14px;
+    height: 14px;
+  }
+  .author-link.yt:hover {
+    color: #ff4444;
+  }
+  .author-link.tw:hover {
+    color: #a970ff;
+  }
+
   .craft-progress {
     font-family: 'Inter Tight', sans-serif;
     font-size: 10px;
@@ -658,6 +782,43 @@
     color: color-mix(in srgb, var(--c-muted) 70%, #fff 30%);
   }
 
+  /* Per-step target mod(s): ideal + alternatives. */
+  .step-targets {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 1px;
+    padding: 4px 7px;
+    border-left: 2px solid color-mix(in srgb, #8aa8e6 45%, transparent);
+    background: color-mix(in srgb, #1a1f3a 28%, transparent);
+    border-radius: 2px;
+  }
+  .target-line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .target-pos {
+    flex-shrink: 0;
+    min-width: 30px;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--c-muted) 75%, #fff 25%);
+  }
+  .target-line.ideal .target-pos {
+    color: var(--c-primary);
+  }
+  .target-text {
+    font-size: 10px;
+    line-height: 1.35;
+    color: color-mix(in srgb, #8aa8e6 55%, var(--c-muted) 45%);
+  }
+  .target-line.ideal .target-text {
+    color: #8aa8e6;
+  }
+
   /* ── Item chips ──────────────────────────────────────────────── */
   .step-items {
     display: flex;
@@ -728,5 +889,111 @@
     font-size: 10px;
     line-height: 1.45;
     color: color-mix(in srgb, var(--c-muted) 70%, #fff 30%);
+  }
+
+  /* ── Final Result (target mods on the finished item) ─────────── */
+  .result-panel {
+    margin: 4px;
+    padding: 8px 10px 10px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
+    border-radius: 2px;
+    background: color-mix(in srgb, #1a1f3a 30%, var(--c-bg));
+  }
+
+  .result-title {
+    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--c-accent);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent);
+  }
+
+  .result-mods {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .result-mod {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  /* PoE affix blue for the mod text. */
+  .mod-text {
+    font-size: 11px;
+    line-height: 1.35;
+    color: #8aa8e6;
+  }
+  .result-mod.fractured .mod-text {
+    color: #c9aa71;
+  }
+
+  .mod-tag {
+    flex-shrink: 0;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 2px;
+    line-height: 1.4;
+  }
+  .tag-prefix {
+    color: #93c5fd;
+    background: color-mix(in srgb, #60a5fa 12%, transparent);
+    border: 1px solid color-mix(in srgb, #60a5fa 30%, transparent);
+  }
+  .tag-suffix {
+    color: #c4b5fd;
+    background: color-mix(in srgb, #a78bfa 12%, transparent);
+    border: 1px solid color-mix(in srgb, #a78bfa 30%, transparent);
+  }
+  .tag-fractured {
+    color: #d8b888;
+    background: color-mix(in srgb, #c9aa71 14%, transparent);
+    border: 1px solid color-mix(in srgb, #c9aa71 36%, transparent);
+  }
+  .tag-implicit {
+    color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%);
+    background: color-mix(in srgb, var(--c-accent) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
+  }
+  /* "Any of these" group — alternatives where any single mod is acceptable. */
+  .result-anyof {
+    margin-top: 6px;
+    padding: 5px 0 1px 8px;
+    border-left: 2px solid color-mix(in srgb, var(--c-accent) 35%, transparent);
+  }
+  .anyof-label {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--c-accent) 75%, #fff 25%);
+    margin-bottom: 4px;
+  }
+  .result-anyof .mod-text {
+    color: color-mix(in srgb, #8aa8e6 80%, var(--c-muted) 20%);
+  }
+
+  /* Item level chip next to the base name. */
+  .ilvl-chip {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 0 5px;
+    border-radius: 2px;
+    color: color-mix(in srgb, var(--c-accent) 90%, #fff 10%);
+    background: color-mix(in srgb, var(--c-accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-accent) 32%, transparent);
+    vertical-align: middle;
   }
 </style>
