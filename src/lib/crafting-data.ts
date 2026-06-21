@@ -15,8 +15,20 @@ import fallback from './guides.fallback.json';
 
 export const GUIDES_URL = 'https://guides.exilecompass.com/guides.json';
 const CACHE_KEY = 'CRAFTING_GUIDES_CACHE_V1';
+const CACHE_TS_KEY = 'CRAFTING_GUIDES_CACHE_TS_V1';
 
 const bundled = fallback as CraftingGuideData[];
+
+/** When the cached guides were last successfully fetched (epoch ms), or null. */
+export function cachedFetchedAt(): number | null {
+  try {
+    const raw = localStorage.getItem(CACHE_TS_KEY);
+    const ts = raw ? Number(raw) : NaN;
+    return Number.isFinite(ts) ? ts : null;
+  } catch {
+    return null;
+  }
+}
 
 function isGuideArray(data: unknown): data is CraftingGuideData[] {
   return Array.isArray(data) && data.length > 0 && data.every((g) => g && typeof g.id === 'string');
@@ -71,6 +83,7 @@ export async function fetchGuides(): Promise<CraftingGuideData[] | null> {
     if (!strictMode()) {
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
       } catch {
         // Cache write is best-effort.
       }

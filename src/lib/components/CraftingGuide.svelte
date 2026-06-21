@@ -7,8 +7,9 @@
     type CraftingResultMod,
     type EquipmentSlot,
   } from '$lib/crafting';
-  import { initialGuides, fetchGuides } from '$lib/crafting-data';
+  import { initialGuides, fetchGuides, cachedFetchedAt } from '$lib/crafting-data';
   import { m } from '$lib/paraglide/messages.js';
+  import { getLocale } from '$lib/paraglide/runtime.js';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import ConfirmReset from './ConfirmReset.svelte';
 
@@ -38,9 +39,45 @@
   // Bundled/cached guides immediately; the CDN refresh (onMount) updates this.
   let allGuides = $state<CraftingGuideData[]>(initialGuides());
 
+  // Freshness of the guide data: when it was last pulled from the CDN, plus a
+  // ticking `now` so the "updated X ago" label stays current while open.
+  let lastRefreshed = $state<number | null>(cachedFetchedAt());
+  let refreshing = $state(false);
+  let now = $state(Date.now());
+
   let guide = $derived(allGuides.find((g) => g.id === activeGuideId));
   let slotGuides = $derived(allGuides.filter((g) => g.slot === selectedSlot));
   let slotLabel = $derived(EQUIPMENT_SLOTS.find((s) => s.id === selectedSlot)?.label ?? '');
+  let updatedLabel = $derived(lastRefreshed ? relativeTime(lastRefreshed, now) : '');
+
+  /** Localized "5 minutes ago" / "now" for a past timestamp. */
+  function relativeTime(ts: number, nowMs: number): string {
+    const secs = Math.round((ts - nowMs) / 1000);
+    let rtf: Intl.RelativeTimeFormat;
+    try {
+      rtf = new Intl.RelativeTimeFormat(getLocale(), { numeric: 'auto' });
+    } catch {
+      rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+    }
+    if (Math.abs(secs) < 45) return rtf.format(0, 'second');
+    const mins = Math.round(secs / 60);
+    if (Math.abs(mins) < 60) return rtf.format(mins, 'minute');
+    const hours = Math.round(mins / 60);
+    if (Math.abs(hours) < 24) return rtf.format(hours, 'hour');
+    return rtf.format(Math.round(hours / 24), 'day');
+  }
+
+  // Pull the latest guides from the CDN. Used on open and by the manual button.
+  async function checkForUpdates() {
+    if (refreshing) return;
+    refreshing = true;
+    const fresh = await fetchGuides();
+    if (fresh) {
+      allGuides = fresh;
+      lastRefreshed = cachedFetchedAt() ?? Date.now();
+    }
+    refreshing = false;
+  }
 
   onMount(() => {
     const saved = window.localStorage.getItem(STATE_KEY);
@@ -64,9 +101,11 @@
 
     // Refresh from the CDN in the background — picks up new/updated guides
     // without an app release. Failure silently keeps the cached/bundled set.
-    fetchGuides().then((fresh) => {
-      if (fresh) allGuides = fresh;
-    });
+    checkForUpdates();
+
+    // Keep the "updated X ago" label live without re-fetching.
+    const tick = setInterval(() => (now = Date.now()), 30_000);
+    return () => clearInterval(tick);
   });
 
   function saveState() {
@@ -131,6 +170,24 @@
       </button>
     {/if}
     <h3>{view === 'slots' ? m.crafting_guide_title() : slotLabel}</h3>
+    {#if view === 'slots'}
+      <div class="guides-status">
+        {#if lastRefreshed}
+          <span class="updated">{m.crafting_updated({ time: updatedLabel })}</span>
+        {/if}
+        <button
+          class="refresh-btn"
+          class:busy={refreshing}
+          onclick={checkForUpdates}
+          disabled={refreshing}
+          title={refreshing ? m.crafting_checking() : m.crafting_check_updates()}
+          type="button"
+        >
+          <span class="refresh-icon" aria-hidden="true">↻</span>
+          {refreshing ? m.crafting_checking() : m.crafting_check_updates()}
+        </button>
+      </div>
+    {/if}
     {#if view === 'guide' && guide}
       <ConfirmReset
         label={m.action_reset()}
@@ -461,6 +518,58 @@
     font-size: 10px;
     color: color-mix(in srgb, var(--c-muted) 80%, #fff 20%);
     padding: 2px 2px 4px;
+  }
+
+  /* Guide-data freshness + manual refresh — sits at the right of the header on
+     the slot-picker view only. */
+  .guides-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+  }
+  .guides-status .updated {
+    font-size: 9px;
+    color: color-mix(in srgb, var(--c-muted) 65%, transparent);
+    font-feature-settings: 'tnum';
+    white-space: nowrap;
+  }
+  .refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid));
+    color: color-mix(in srgb, var(--c-accent) 88%, #fff 12%);
+    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .refresh-btn:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--c-primary) 45%, transparent);
+    color: var(--c-primary);
+  }
+  .refresh-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .refresh-icon {
+    font-size: 11px;
+    line-height: 1;
+  }
+  .refresh-btn.busy .refresh-icon {
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* ── Level 1: slot picker ────────────────────────────────────── */
