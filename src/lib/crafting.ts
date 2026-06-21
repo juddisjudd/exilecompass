@@ -3,16 +3,17 @@
 // the currency/omens/essences they consume, flag "spam until X" loops, and carry
 // success/fail branches for gamble steps (fracturing, whittling).
 //
-// Guide CONTENT lives in `guides/*.yaml` (contributor-friendly) and is compiled
-// into `crafting.generated.ts` by `tools/build-crafting.mjs` (run via
-// `bun run crafting`). Edit the YAML, not the generated file.
+// Guide CONTENT lives in the exilecompass-guides repo (authored as YAML, compiled
+// + validated, published to guides.exilecompass.com/guides.json). The overlay
+// loads it at runtime via `crafting-data.ts` (with a bundled fallback snapshot),
+// so new guides ship without an app update.
 //
 // Guide content is English-only for now (no dataI18n layer yet).
 
 export interface CraftingItemRef {
   /** Display name shown in the chip/tooltip, e.g. "Perfect Regal Orb". */
   name: string;
-  /** Resolved icon URL in the shared icon tree, e.g. "/poe2/currency/foo.webp". */
+  /** Absolute CDN URL, e.g. "https://cdn.exilecompass.com/currency/foo.webp". */
   icon: string;
 }
 
@@ -124,6 +125,3 @@ export interface CraftingGuideData {
   result?: CraftingResultMod[];
 }
 
-// Compiled from guides/*.yaml at build time (see header). The generated module
-// imports the types above, so this re-export stays type-safe.
-export { CRAFTING_GUIDES } from './crafting.generated';

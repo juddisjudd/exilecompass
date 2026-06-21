@@ -2,12 +2,12 @@
   import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import {
-    CRAFTING_GUIDES,
     EQUIPMENT_SLOTS,
     type CraftingGuideData,
     type CraftingResultMod,
     type EquipmentSlot,
   } from '$lib/crafting';
+  import { initialGuides, fetchGuides } from '$lib/crafting-data';
   import { m } from '$lib/paraglide/messages.js';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import ConfirmReset from './ConfirmReset.svelte';
@@ -35,8 +35,11 @@
   let selectedSlot = $state<EquipmentSlot | null>(null);
   let activeGuideId = $state('');
 
-  let guide = $derived(CRAFTING_GUIDES.find((g) => g.id === activeGuideId));
-  let slotGuides = $derived(CRAFTING_GUIDES.filter((g) => g.slot === selectedSlot));
+  // Bundled/cached guides immediately; the CDN refresh (onMount) updates this.
+  let allGuides = $state<CraftingGuideData[]>(initialGuides());
+
+  let guide = $derived(allGuides.find((g) => g.id === activeGuideId));
+  let slotGuides = $derived(allGuides.filter((g) => g.slot === selectedSlot));
   let slotLabel = $derived(EQUIPMENT_SLOTS.find((s) => s.id === selectedSlot)?.label ?? '');
 
   onMount(() => {
@@ -48,7 +51,7 @@
         if (EQUIPMENT_SLOTS.some((s) => s.id === parsed.selectedSlot)) {
           selectedSlot = parsed.selectedSlot;
         }
-        if (CRAFTING_GUIDES.some((g) => g.id === parsed.activeGuideId)) {
+        if (allGuides.some((g) => g.id === parsed.activeGuideId)) {
           activeGuideId = parsed.activeGuideId;
         }
         // Only restore views whose backing selection survived validation.
@@ -58,6 +61,12 @@
         // ignore corrupted state
       }
     }
+
+    // Refresh from the CDN in the background — picks up new/updated guides
+    // without an app release. Failure silently keeps the cached/bundled set.
+    fetchGuides().then((fresh) => {
+      if (fresh) allGuides = fresh;
+    });
   });
 
   function saveState() {
@@ -110,7 +119,7 @@
   }
 
   function slotGuideCount(slot: EquipmentSlot) {
-    return CRAFTING_GUIDES.filter((g) => g.slot === slot).length;
+    return allGuides.filter((g) => g.slot === slot).length;
   }
 </script>
 
