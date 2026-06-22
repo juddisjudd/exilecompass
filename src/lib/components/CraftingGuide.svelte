@@ -290,6 +290,15 @@
           {#if guide.updatedAt}
             <span class="craft-updated">Updated {new Date(guide.updatedAt).toLocaleDateString()}</span>
           {/if}
+          {#if guide.videoUrl}
+            <button
+              class="video-link"
+              type="button"
+              onclick={() => openExternal(guide!.videoUrl!)}
+            >
+              ▶ Watch video guide
+            </button>
+          {/if}
           {#if guide.author}
             <span class="craft-author">
               <span class="by">{m.crafting_by()} {guide.author.name}</span>
@@ -1099,6 +1108,25 @@
     letter-spacing: 0.04em;
     color: var(--c-muted);
     margin-top: 2px;
+  }
+  .video-link {
+    align-self: flex-start;
+    margin-top: 4px;
+    padding: 3px 9px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--c-primary);
+    background: none;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent);
+    border-radius: 3px;
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .video-link:hover {
+    color: var(--c-primary, #fff);
+    border-color: var(--c-accent);
   }
 
   /* ── Community rating (read-only) ────────────────────────────── */

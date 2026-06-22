@@ -129,6 +129,8 @@ export interface CraftingGuideData {
   goal: string;
   /** Who wrote the guide (optional credit + channel links). */
   author?: CraftingAuthor;
+  /** Optional link to a video version of the guide (YouTube). */
+  videoUrl?: string;
   /** The base item(s) the craft can start from (any one). */
   bases: CraftingItemRef[];
   /** Required item level of the base, e.g. 80. */
