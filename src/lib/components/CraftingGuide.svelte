@@ -382,24 +382,25 @@
                     {#each step.items as it (it.name)}{@render itemChip(it)}{/each}
                   </span>
                 {/if}
-                {#if stepDesecrates(step)}
-                  <span class="desec-note">
-                    <span class="desec-kind">Desecration</span>
-                    <span class="desec-text">
-                      Adds an <strong>unrevealed</strong> Desecrated modifier — not the mod above
-                      directly. Reveal it at the <strong>Well of Souls</strong> from random options
-                      (you may not get the one you want). If mods are full, a random one is removed
-                      first, and an item with Desecrated modifiers can't be Desecrated again.
-                      <span class="desec-omens">
-                        <strong>Omen of Abyssal Echoes</strong> rerolls the reveal options once;
-                        <strong>Omen of Light</strong> makes the next Orb of Annulment remove only Desecrated
-                        modifiers.
-                      </span>
-                    </span>
-                  </span>
-                {/if}
               </span>
             </label>
+
+            {#if stepDesecrates(step)}
+              <div class="desec-note">
+                <span class="desec-kind">Desecration</span>
+                <span class="desec-text">
+                  Adds an <strong>unrevealed</strong> Desecrated modifier — not the mod above
+                  directly. Reveal it at the <strong>Well of Souls</strong> from random options (you
+                  may not get the one you want). If mods are full, a random one is removed first, and
+                  an item with Desecrated modifiers can't be Desecrated again.
+                  <span class="desec-omens">
+                    <strong>Omen of Abyssal Echoes</strong> rerolls the reveal options once;
+                    <strong>Omen of Light</strong> makes the next Orb of Annulment remove only Desecrated
+                    modifiers.
+                  </span>
+                </span>
+              </div>
+            {/if}
 
             {#if step.branches && step.branches.length > 0}
               <div class="branches">
@@ -1215,22 +1216,24 @@
   }
 
   /* Desecration explainer callout */
+  /* Green to match the Abyss / Well of Souls theme. Sits outside the clickable
+     step label, indented to align under the step body. */
   .desec-note {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    margin-top: 3px;
+    margin: 5px 0 1px 40px;
     padding: 5px 8px;
     border-radius: 2px;
-    border-left: 2px solid color-mix(in srgb, #e0a85a 70%, transparent);
-    background: color-mix(in srgb, #e0a85a 10%, transparent);
+    border-left: 2px solid color-mix(in srgb, #5ec27a 65%, transparent);
+    background: color-mix(in srgb, #5ec27a 10%, transparent);
   }
   .desec-kind {
     font-size: 8px;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #e0b878;
+    color: #6fd08c;
   }
   .desec-text {
     font-size: 10px;
