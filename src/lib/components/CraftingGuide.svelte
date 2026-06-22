@@ -6,6 +6,7 @@
     type CraftingGuideData,
     type CraftingResultMod,
     type CraftingItemRef,
+    type CraftingStep,
     type EquipmentSlot,
   } from '$lib/crafting';
   import { initialGuides, fetchGuides, cachedFetchedAt } from '$lib/crafting-data';
@@ -26,6 +27,17 @@
   }
 
   type CraftView = 'slots' | 'list' | 'guide';
+
+  // A "desecration" currency (the bones) adds an *unrevealed* modifier you gamble
+  // on at the Well of Souls — not the listed mod directly. Detect it from the
+  // item's effect text (canonical game wording starts with "Desecrat").
+  const isDesecrationItem = (it: CraftingItemRef) => /^desecrat/i.test(it.description ?? '');
+  function stepDesecrates(step: CraftingStep): boolean {
+    if (step.items?.some(isDesecrationItem)) return true;
+    if (step.branches?.some((b) => b.items?.some(isDesecrationItem))) return true;
+    // Authors often just word the action "Desecrate …" without listing the bone.
+    return /desecrat/i.test(`${step.title} ${step.detail ?? ''}`);
+  }
 
   // Completed step ids, namespaced as `${guideId}/${stepId}` so one set covers
   // every guide.
@@ -350,6 +362,22 @@
                 {#if step.items && step.items.length > 0}
                   <span class="step-items">
                     {#each step.items as it (it.name)}{@render itemChip(it)}{/each}
+                  </span>
+                {/if}
+                {#if stepDesecrates(step)}
+                  <span class="desec-note">
+                    <span class="desec-kind">Desecration</span>
+                    <span class="desec-text">
+                      Adds an <strong>unrevealed</strong> Desecrated modifier — not the mod above
+                      directly. Reveal it at the <strong>Well of Souls</strong> from random options
+                      (you may not get the one you want). If mods are full, a random one is removed
+                      first, and an item with Desecrated modifiers can't be Desecrated again.
+                      <span class="desec-omens">
+                        <strong>Omen of Abyssal Echoes</strong> rerolls the reveal options once;
+                        <strong>Omen of Light</strong> makes the next Orb of Annulment remove only Desecrated
+                        modifiers.
+                      </span>
+                    </span>
                   </span>
                 {/if}
               </span>
@@ -1124,6 +1152,42 @@
     line-height: 1.35;
     color: color-mix(in srgb, var(--c-accent) 90%, #fff 10%);
     white-space: normal;
+  }
+
+  /* Desecration explainer callout */
+  .desec-note {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 3px;
+    padding: 5px 8px;
+    border-radius: 2px;
+    border-left: 2px solid color-mix(in srgb, #e0a85a 70%, transparent);
+    background: color-mix(in srgb, #e0a85a 10%, transparent);
+  }
+  .desec-kind {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #e0b878;
+  }
+  .desec-text {
+    font-size: 10px;
+    line-height: 1.4;
+    color: color-mix(in srgb, var(--c-accent) 88%, #fff 12%);
+  }
+  .desec-text strong {
+    color: var(--c-primary);
+    font-weight: 600;
+  }
+  .desec-omens {
+    display: block;
+    margin-top: 4px;
+    color: var(--c-muted);
+  }
+  .desec-omens strong {
+    color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%);
   }
 
   /* ── Branches (success/fail callouts) ────────────────────────── */
