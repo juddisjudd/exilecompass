@@ -472,7 +472,7 @@
       {#each [1, 2, 3, 4, 5] as s (s)}
         <span class="star" class:on={s <= Math.round(a.avg)}>★</span>
       {/each}
-      <span class="rating-num">{a.avg.toFixed(1)} ({a.count})</span>
+      <span class="rating-num">({a.count})</span>
     </span>
   {/if}
 {/snippet}
