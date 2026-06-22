@@ -10,11 +10,24 @@
 //
 // Guide content is English-only for now (no dataI18n layer yet).
 
+/** A socketable (soul-core / rune) granted effect, per equipment slot. */
+export interface CraftingItemEffect {
+  slot: string;
+  /** Effect while the item is socketed. */
+  socketed: string[];
+  /** Permanent effect once bonded. */
+  bonded: string[];
+}
+
 export interface CraftingItemRef {
   /** Display name shown in the chip/tooltip, e.g. "Perfect Regal Orb". */
   name: string;
   /** Absolute CDN URL, e.g. "https://cdn.exilecompass.com/currency/foo.webp". */
   icon: string;
+  /** In-game effect text shown in the item hovercard (currencies, omens, …). */
+  description?: string;
+  /** Socketable socket-bound / bonded effects (soul cores / runes). */
+  effects?: CraftingItemEffect[];
 }
 
 export interface CraftingBranch {

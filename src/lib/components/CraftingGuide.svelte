@@ -5,6 +5,7 @@
     EQUIPMENT_SLOTS,
     type CraftingGuideData,
     type CraftingResultMod,
+    type CraftingItemRef,
     type EquipmentSlot,
   } from '$lib/crafting';
   import { initialGuides, fetchGuides, cachedFetchedAt } from '$lib/crafting-data';
@@ -348,12 +349,7 @@
                 {/if}
                 {#if step.items && step.items.length > 0}
                   <span class="step-items">
-                    {#each step.items as it (it.name)}
-                      <span class="item-chip" title={it.name}>
-                        <img class="item-icon" src={encodeURI(it.icon)} alt={it.name} />
-                        <span class="item-name">{it.name}</span>
-                      </span>
-                    {/each}
+                    {#each step.items as it (it.name)}{@render itemChip(it)}{/each}
                   </span>
                 {/if}
               </span>
@@ -376,12 +372,7 @@
                     <span class="branch-text">{branch.text}</span>
                     {#if branch.items && branch.items.length > 0}
                       <span class="step-items">
-                        {#each branch.items as it (it.name)}
-                          <span class="item-chip" title={it.name}>
-                            <img class="item-icon" src={encodeURI(it.icon)} alt={it.name} />
-                            <span class="item-name">{it.name}</span>
-                          </span>
-                        {/each}
+                        {#each branch.items as it (it.name)}{@render itemChip(it)}{/each}
                       </span>
                     {/if}
                   </div>
@@ -425,6 +416,40 @@
     {/if}
     <span class="mod-text">{mod.text}</span>
   </div>
+{/snippet}
+
+{#snippet itemChip(it: CraftingItemRef)}
+  {@const hasCard = !!(it.description || (it.effects && it.effects.length))}
+  <span class="item-chip" class:has-card={hasCard} title={hasCard ? undefined : it.name}>
+    <img class="item-icon" src={encodeURI(it.icon)} alt={it.name} />
+    <span class="item-name">{it.name}</span>
+    {#if hasCard}
+      <span class="hovercard" role="tooltip">
+        <span class="hc-name">{it.name}</span>
+        {#if it.description}<span class="hc-desc">{it.description}</span>{/if}
+        {#if it.effects && it.effects.length}
+          {@const socketed = it.effects.filter((e) => e.socketed.length)}
+          {@const bonded = it.effects.filter((e) => e.bonded.length)}
+          {#if socketed.length}
+            <span class="hc-group">
+              <span class="hc-label">Socket-bound</span>
+              {#each socketed as e (e.slot)}
+                <span class="hc-line">{e.slot}: {e.socketed.join(' / ')}</span>
+              {/each}
+            </span>
+          {/if}
+          {#if bonded.length}
+            <span class="hc-group">
+              <span class="hc-label">Bonded</span>
+              {#each bonded as e (e.slot)}
+                <span class="hc-line">{e.slot}: {e.bonded.join(' / ')}</span>
+              {/each}
+            </span>
+          {/if}
+        {/if}
+      </span>
+    {/if}
+  </span>
 {/snippet}
 
 <style>
@@ -1018,6 +1043,7 @@
   }
 
   .item-chip {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -1038,6 +1064,66 @@
     font-size: 9px;
     color: color-mix(in srgb, var(--c-accent) 90%, #fff 10%);
     white-space: nowrap;
+  }
+
+  .item-chip.has-card {
+    cursor: help;
+    border-bottom-style: dotted;
+  }
+
+  /* Item hovercard */
+  .hovercard {
+    position: absolute;
+    bottom: calc(100% + 5px);
+    left: 0;
+    z-index: 60;
+    width: max-content;
+    max-width: 230px;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    padding: 7px 9px;
+    text-align: left;
+    background: color-mix(in srgb, var(--c-bg) 92%, #000);
+    border: 1px solid color-mix(in srgb, var(--c-accent) 35%, transparent);
+    border-radius: 3px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+  }
+  .item-chip.has-card:hover .hovercard {
+    display: flex;
+  }
+  .hc-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--c-primary);
+    white-space: normal;
+  }
+  .hc-desc {
+    font-size: 10px;
+    line-height: 1.4;
+    color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%);
+    white-space: pre-line;
+  }
+  .hc-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding-top: 4px;
+    border-top: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent);
+  }
+  .hc-label {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--c-muted);
+  }
+  .hc-line {
+    font-size: 10px;
+    line-height: 1.35;
+    color: color-mix(in srgb, var(--c-accent) 90%, #fff 10%);
+    white-space: normal;
   }
 
   /* ── Branches (success/fail callouts) ────────────────────────── */
