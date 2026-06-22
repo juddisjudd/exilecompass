@@ -1216,7 +1216,7 @@
   }
 
   /* Desecration explainer callout */
-  /* Green to match the Abyss / Well of Souls theme. Sits outside the clickable
+  /* Olive/Abyss palette (#6E8C2B / #405919 / #1A2609). Sits outside the clickable
      step label, indented to align under the step body. */
   .desec-note {
     display: flex;
@@ -1225,15 +1225,15 @@
     margin: 5px 0 1px 40px;
     padding: 5px 8px;
     border-radius: 2px;
-    border-left: 2px solid color-mix(in srgb, #5ec27a 65%, transparent);
-    background: color-mix(in srgb, #5ec27a 10%, transparent);
+    border-left: 2px solid #6e8c2b;
+    background: color-mix(in srgb, #405919 20%, transparent);
   }
   .desec-kind {
     font-size: 8px;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #6fd08c;
+    color: color-mix(in srgb, #6e8c2b 72%, #fff);
   }
   .desec-text {
     font-size: 10px;
