@@ -136,5 +136,9 @@ export interface CraftingGuideData {
   steps: CraftingStep[];
   /** The target mods the finished item should have. */
   result?: CraftingResultMod[];
+  /** ISO timestamp of the last edit — shown as "Updated …". */
+  updatedAt?: string;
+  /** Stable DB id — the key for community ratings. */
+  uid?: string;
 }
 

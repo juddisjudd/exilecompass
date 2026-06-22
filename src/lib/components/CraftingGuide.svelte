@@ -52,6 +52,18 @@
   // Bundled/cached guides immediately; the CDN refresh (onMount) updates this.
   let allGuides = $state<CraftingGuideData[]>(initialGuides());
 
+  // Community ratings (read-only here) — fetched from the website when online;
+  // silently absent offline, keeping the bundled-fallback path intact.
+  let ratings = $state<Record<string, { avg: number; count: number }>>({});
+  async function loadRatings() {
+    try {
+      const res = await fetch('https://exilecompass.com/api/ratings');
+      if (res.ok) ratings = ((await res.json()).aggregates ?? {}) as typeof ratings;
+    } catch {
+      // offline — no ratings shown
+    }
+  }
+
   // Freshness of the guide data: when it was last pulled from the CDN, plus a
   // ticking `now` so the "updated X ago" label stays current while open.
   let lastRefreshed = $state<number | null>(cachedFetchedAt());
@@ -115,6 +127,7 @@
     // Refresh from the CDN in the background — picks up new/updated guides
     // without an app release. Failure silently keeps the cached/bundled set.
     checkForUpdates();
+    loadRatings();
 
     // Keep the "updated X ago" label live without re-fetching.
     const tick = setInterval(() => (now = Date.now()), 30_000);
@@ -245,6 +258,7 @@
           <span class="craft-row-text">
             <span class="craft-row-name">{g.name}</span>
             <span class="craft-row-goal">{g.goal}</span>
+            {@render ratingStars(g.uid)}
           </span>
           <span
             class="craft-row-progress"
@@ -272,6 +286,10 @@
             {m.crafting_base_label()}: {guide.bases.map((b) => b.name).join(' / ')}{#if guide.ilvl}<span class="ilvl-chip">ilvl {guide.ilvl}</span>{/if}
           </span>
           <span class="craft-goal">{guide.goal}</span>
+          {@render ratingStars(guide.uid)}
+          {#if guide.updatedAt}
+            <span class="craft-updated">Updated {new Date(guide.updatedAt).toLocaleDateString()}</span>
+          {/if}
           {#if guide.author}
             <span class="craft-author">
               <span class="by">{m.crafting_by()} {guide.author.name}</span>
@@ -436,6 +454,18 @@
     </div>
   {/if}
 </div>
+
+{#snippet ratingStars(uid: string | undefined)}
+  {#if uid && ratings[uid]?.count}
+    {@const a = ratings[uid]}
+    <span class="rating" title={`${a.avg.toFixed(1)} from ${a.count} rating${a.count > 1 ? 's' : ''}`}>
+      {#each [1, 2, 3, 4, 5] as s (s)}
+        <span class="star" class:on={s <= Math.round(a.avg)}>★</span>
+      {/each}
+      <span class="rating-num">{a.avg.toFixed(1)} ({a.count})</span>
+    </span>
+  {/if}
+{/snippet}
 
 {#snippet resultMod(mod: CraftingResultMod)}
   <div class="result-mod" class:fractured={mod.tag === 'fractured'}>
@@ -1060,6 +1090,36 @@
   }
   .target-line.ideal .target-text {
     color: #8aa8e6;
+  }
+
+  .craft-updated {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--c-muted);
+    margin-top: 2px;
+  }
+
+  /* ── Community rating (read-only) ────────────────────────────── */
+  .rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    margin-top: 2px;
+    line-height: 1;
+  }
+  .rating .star {
+    font-size: 11px;
+    color: color-mix(in srgb, var(--c-accent) 25%, transparent);
+  }
+  .rating .star.on {
+    color: var(--c-primary);
+  }
+  .rating-num {
+    margin-left: 5px;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--c-muted);
   }
 
   /* ── Item chips ──────────────────────────────────────────────── */
