@@ -7,6 +7,7 @@
   import ConfirmReset from './ConfirmReset.svelte';
 
   const STATE_KEY = 'PERMANENT_REWARDS_STATE_V2';
+  const EXPANDED_KEY = 'PERMANENT_REWARDS_EXPANDED_V1';
 
   type RewardGroup = typeof REWARDS_DATA.groups[number];
   type Reward = RewardGroup['rewards'][number];
@@ -14,6 +15,7 @@
   let collected = $state(new SvelteSet<string>());
   // IDs auto-detected from the log file (shown with a small indicator)
   let autoDetected = $state(new SvelteSet<string>());
+  let expandedGroups = $state(new SvelteSet<string>());
 
   onMount(() => {
     const saved = window.localStorage.getItem(STATE_KEY);
@@ -28,11 +30,31 @@
         autoDetected = new SvelteSet<string>(JSON.parse(savedAuto));
       } catch { /* ignore */ }
     }
+
+    const savedExpanded = window.localStorage.getItem(EXPANDED_KEY);
+    if (savedExpanded) {
+      try {
+        expandedGroups = new SvelteSet<string>(JSON.parse(savedExpanded));
+      } catch { /* ignore */ }
+    } else {
+      // First run: start with all groups expanded.
+      expandedGroups = new SvelteSet<string>(REWARDS_DATA.groups.map((g) => g.id));
+    }
   });
 
   function save() {
     window.localStorage.setItem(STATE_KEY, JSON.stringify(Array.from(collected)));
     window.localStorage.setItem(STATE_KEY + '_AUTO', JSON.stringify(Array.from(autoDetected)));
+    window.localStorage.setItem(EXPANDED_KEY, JSON.stringify(Array.from(expandedGroups)));
+  }
+
+  function toggleGroup(id: string) {
+    if (expandedGroups.has(id)) {
+      expandedGroups.delete(id);
+    } else {
+      expandedGroups.add(id);
+    }
+    save();
   }
 
   function toggle(id: string) {
@@ -103,37 +125,43 @@
     {@const total = groupCollected(group)}
     {@const max = groupMax(group)}
     {@const hasNumeric = max > 0}
+    {@const expanded = expandedGroups.has(group.id)}
     <div class="group" style="--g-color: {group.color}">
-      <div class="group-header">
-        <span class="group-label">{trRewardGroup(group.id, group.label)}</span>
+      <button class="group-header" type="button" onclick={() => toggleGroup(group.id)}>
+        <span class="group-left">
+          <span class="toggle-icon" class:expanded={expanded}>▶</span>
+          <span class="group-label">{trRewardGroup(group.id, group.label)}</span>
+        </span>
         {#if hasNumeric}
           <span class="group-total" class:complete={total === max && max > 0}>
             {total} / {max}
           </span>
         {/if}
-      </div>
+      </button>
 
-      {#each group.rewards as reward (reward.id)}
-        {@const done = collected.has(reward.id)}
-        <label class="reward-row" class:done>
-          <input
-            type="checkbox"
-            class="reward-check"
-            checked={done}
-            onchange={() => toggle(reward.id)}
-          />
-          <span class="reward-info">
-            <span class="reward-source">{trReward(reward.id, 'source', reward.source)}</span>
-            <span class="reward-location">{trReward(reward.id, 'location', reward.location)} · {reward.act}</span>
-          </span>
-          {#if autoDetected.has(reward.id)}
-            <span class="auto-badge" title={m.rewards_auto_badge_title()}>{m.rewards_auto_badge()}</span>
-          {/if}
-          <span class="reward-value" style="color: {valueColor(reward)}; border-color: color-mix(in srgb, {valueColor(reward)} 28%, transparent); background: color-mix(in srgb, {valueColor(reward)} 8%, transparent)">
-            {valueLabel(reward)}
-          </span>
-        </label>
-      {/each}
+      {#if expanded}
+        {#each group.rewards as reward (reward.id)}
+          {@const done = collected.has(reward.id)}
+          <label class="reward-row" class:done>
+            <input
+              type="checkbox"
+              class="reward-check"
+              checked={done}
+              onchange={() => toggle(reward.id)}
+            />
+            <span class="reward-info">
+              <span class="reward-source">{trReward(reward.id, 'source', reward.source)}</span>
+              <span class="reward-location">{trReward(reward.id, 'location', reward.location)} · {reward.act}</span>
+            </span>
+            {#if autoDetected.has(reward.id)}
+              <span class="auto-badge" title={m.rewards_auto_badge_title()}>{m.rewards_auto_badge()}</span>
+            {/if}
+            <span class="reward-value" style="color: {valueColor(reward)}; border-color: color-mix(in srgb, {valueColor(reward)} 28%, transparent); background: color-mix(in srgb, {valueColor(reward)} 8%, transparent)">
+              {valueLabel(reward)}
+            </span>
+          </label>
+        {/each}
+      {/if}
     </div>
   {/each}
 </div>
@@ -180,6 +208,35 @@
     padding: 5px 12px;
     background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
     border-bottom: 1px solid color-mix(in srgb, var(--g-color, var(--c-accent)) 20%, transparent);
+    width: 100%;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s;
+  }
+
+  .group-header:hover {
+    background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
+  }
+
+  .group-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .toggle-icon {
+    font-size: 9px;
+    color: color-mix(in srgb, var(--c-accent) 75%, transparent);
+    transition: transform 0.12s;
+    flex-shrink: 0;
+  }
+
+  .toggle-icon.expanded {
+    transform: rotate(90deg);
   }
 
   .group-label {

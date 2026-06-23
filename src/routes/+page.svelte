@@ -14,6 +14,9 @@
   import CraftingGuide from '$lib/components/CraftingGuide.svelte';
   import SpeedrunTimer from '$lib/components/SpeedrunTimer.svelte';
   import BuildOverview from '$lib/components/BuildOverview.svelte';
+  import AddonsHub from '$lib/components/addons/AddonsHub.svelte';
+  import AddonsPanel from '$lib/components/addons/AddonsPanel.svelte';
+  import { addonsHost, initAddonsHost } from '$lib/plugins/host.svelte';
   import {
     importBuild,
     loadStoredBuild,
@@ -79,7 +82,10 @@
   type SettingsTabId = 'hotkeys' | 'language' | 'logFile' | 'importBuilds' | 'about';
 
   const KOFI_URL = 'https://ko-fi.com/ohitsjudd';
-  type MainViewId = 'campaign' | 'rewards' | 'stash' | 'crafting' | 'timer' | 'build';
+  const ADDONS_LABEL = 'Add-ons';
+  type MainViewId = 'campaign' | 'rewards' | 'stash' | 'crafting' | 'timer' | 'build' | 'addons';
+  // Pinned add-ons get their own top-level view, keyed `addon:<id>`.
+  type ViewId = MainViewId | `addon:${string}`;
 
   const LOG_FILE_STORAGE_KEY   = 'EXILECOMPASS_LOG_FILE_PATH_V1';
   const CT_OPACITY_KEY         = 'EXILECOMPASS_CT_OPACITY_V1';
@@ -95,7 +101,25 @@
 
   let error = $state('');
   let showSettings = $state(false);
-  let mainView = $state<MainViewId>('campaign');
+  let mainView = $state<ViewId>('campaign');
+
+  // Enabled, pinned add-ons that contribute a panel — shown as top-level tabs.
+  const pinnedAddons = $derived(
+    addonsHost.installed.filter((a) => a.pinned && a.enabled && a.hasPanel),
+  );
+  const activeAddon = $derived(
+    mainView.startsWith('addon:')
+      ? addonsHost.installed.find((a) => a.id === mainView.slice('addon:'.length)) ?? null
+      : null,
+  );
+
+  // If the active add-on tab is unpinned/disabled/removed, fall back to the hub.
+  $effect(() => {
+    if (mainView.startsWith('addon:')) {
+      const id = mainView.slice('addon:'.length);
+      if (!pinnedAddons.some((a) => a.id === id)) mainView = 'addons';
+    }
+  });
   let hotkeyError = $state('');
   let autoAttachInFlight = false;
   let lastAttached = false;
@@ -198,6 +222,10 @@
       requestAnimationFrame(() => requestAnimationFrame(showWindow));
       setTimeout(showWindow, 350);
     }
+
+    // Load installed add-ons up front so pinned panels can appear as top-level
+    // tabs without first visiting the Add-ons hub.
+    void initAddonsHost();
 
     hotkeyBindings = loadHotkeyBindings();
     hotkeyDrafts = { ...hotkeyBindings };
@@ -1032,28 +1060,39 @@
 
             {:else if activeSettingsTab === 'about'}
               <div class="settings-section-title">{m.settings_tab_about()}</div>
-              <div class="about-card">
-                <span class="about-name">ExileCompass</span>
-                <span class="about-version">{m.about_version()} {appVersion || '—'}</span>
-              </div>
-              <div class="settings-actions">
-                <button class="btn btn-primary" onclick={checkUpdatesManually} disabled={updateChecking}>
-                  {updateChecking ? m.update_checking() : m.action_check_updates()}
-                </button>
-                {#if updateHandle}
-                  <button class="btn btn-ghost" onclick={handleInstallUpdate} disabled={updateInstalling}>
-                    {updateInstalling ? `${m.update_installing()} ${updateProgress}%` : m.update_install()}
-                  </button>
-                {/if}
-              </div>
-              {#if updateCheckMsg}
-                <p class="field-help">{updateCheckMsg}</p>
-              {/if}
+              <div class="about-layout">
+                <section class="about-hero">
+                  <div class="about-eyebrow">Overlay Companion</div>
+                  <div class="about-title-row">
+                    <span class="about-name">ExileCompass</span>
+                    <span class="about-version-pill">{m.about_version()} {appVersion || '—'}</span>
+                  </div>
+                </section>
 
-              <div class="settings-section-title" style="margin-top:8px">{m.about_support_title()}</div>
-              <p class="field-help">{m.about_support_text()}</p>
-              <div class="settings-actions">
-                <button class="btn btn-kofi" onclick={openKofi}>{m.about_kofi()}</button>
+                <section class="about-panel">
+                  <div class="about-panel-title">Updates</div>
+                  <div class="settings-actions about-actions">
+                    <button class="btn btn-primary" onclick={checkUpdatesManually} disabled={updateChecking}>
+                      {updateChecking ? m.update_checking() : m.action_check_updates()}
+                    </button>
+                    {#if updateHandle}
+                      <button class="btn btn-ghost" onclick={handleInstallUpdate} disabled={updateInstalling}>
+                        {updateInstalling ? `${m.update_installing()} ${updateProgress}%` : m.update_install()}
+                      </button>
+                    {/if}
+                  </div>
+                  {#if updateCheckMsg}
+                    <p class="about-status">{updateCheckMsg}</p>
+                  {/if}
+                </section>
+
+                <section class="about-panel">
+                  <div class="about-panel-title">{m.about_support_title()}</div>
+                  <p class="field-help">{m.about_support_text()}</p>
+                  <div class="settings-actions about-actions">
+                    <button class="btn btn-kofi" onclick={openKofi}>{m.about_kofi()}</button>
+                  </div>
+                </section>
               </div>
             {/if}
           </div>
@@ -1127,6 +1166,21 @@
             </svg>
           </button>
           <button
+            class="view-tab view-tab-icon"
+            class:active={mainView === 'addons'}
+            onclick={() => (mainView = 'addons')}
+            title={ADDONS_LABEL}
+            aria-label={ADDONS_LABEL}
+            type="button"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22v-5" />
+              <path d="M9 8V2" />
+              <path d="M15 8V2" />
+              <path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z" />
+            </svg>
+          </button>
+          <button
             class="tab-options-btn"
             class:active={showSettings}
             onclick={() => (showSettings = !showSettings)}
@@ -1135,8 +1189,32 @@
           ></button>
         </div>
 
+        <!-- Pinned add-on sub-nav (kept separate so it never squeezes core tabs) -->
+        {#if pinnedAddons.length > 0}
+          <div class="addon-subnav">
+            <span class="addon-subnav-label" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22v-5" /><path d="M9 8V2" /><path d="M15 8V2" />
+                <path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z" />
+              </svg>
+            </span>
+            {#each pinnedAddons as addon (addon.id)}
+              <button
+                class="addon-subtab"
+                class:active={mainView === `addon:${addon.id}`}
+                onclick={() => (mainView = `addon:${addon.id}`)}
+                title={addon.panelTitle ?? addon.name}
+                type="button"
+              >{addon.panelTitle ?? addon.name}</button>
+            {/each}
+          </div>
+        {/if}
+
         <!-- Tab content -->
-        <div class="view-content">
+        <div
+          class="view-content"
+          class:hide-scrollbar={mainView === 'campaign' || mainView === 'rewards' || mainView === 'crafting'}
+        >
           {#if mainView === 'campaign'}
             <CampaignGuide />
           {:else if mainView === 'rewards'}
@@ -1147,6 +1225,10 @@
             <CraftingGuide />
           {:else if mainView === 'timer'}
             <SpeedrunTimer />
+          {:else if mainView === 'addons'}
+            <AddonsHub />
+          {:else if mainView.startsWith('addon:')}
+            <AddonsPanel addon={activeAddon} showHeader={false} />
           {:else}
             <!-- An error boundary keeps a malformed imported build from throwing
                  during render and locking the whole overlay (no clicks register).
@@ -1351,24 +1433,21 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 4px 10px 4px 8px;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 32%, transparent);
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid));
-    color: color-mix(in srgb, var(--c-accent) 92%, #fff 8%);
+    padding: 2px 1px;
+    border: none;
+    background: transparent;
+    color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
     font-family: 'Inter Tight', 'Inter', sans-serif;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.12s;
+    transition: color 0.12s;
     flex-shrink: 0;
   }
   .back-settings:hover {
-    border-color: color-mix(in srgb, var(--c-primary) 45%, transparent);
     color: var(--c-primary);
-    background: color-mix(in srgb, var(--c-bg) 70%, var(--c-mid));
   }
   .back-arrow {
     font-size: 13px;
@@ -1377,7 +1456,7 @@
 
   .settings-body {
     display: grid;
-    grid-template-columns: 150px 1fr;
+    grid-template-columns: 138px 1fr;
     flex: 1;
     overflow: hidden;
   }
@@ -1385,44 +1464,55 @@
   .settings-nav {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 12px 0 12px 10px;
+    gap: 12px;
+    padding: 12px 0 12px 8px;
     border-right: 1px solid color-mix(in srgb, var(--c-accent) 14%, transparent);
     overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .settings-nav::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   .settings-nav-group {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
   }
 
   .settings-group-label {
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 700;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: color-mix(in srgb, var(--c-accent) 60%, transparent);
-    padding: 0 8px;
-    margin-bottom: 3px;
+    color: color-mix(in srgb, var(--c-accent) 48%, transparent);
+    padding: 0 6px;
+    margin-bottom: 4px;
   }
 
   .settings-nav-btn {
-    padding: 6px 8px;
+    padding: 5px 7px;
     border: none;
-    border-radius: 2px;
+    border-left: 2px solid transparent;
+    border-radius: 0;
     background: transparent;
-    color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
+    color: color-mix(in srgb, var(--c-accent) 74%, #fff 26%);
     font: inherit;
-    font-size: 11px;
+    font-size: 10px;
+    line-height: 1.25;
+    letter-spacing: 0.02em;
     text-align: left;
     cursor: pointer;
-    transition: background 0.12s, color 0.12s;
+    transition: color 0.12s, border-color 0.12s;
   }
 
-  .settings-nav-btn:hover { background: rgba(255,255,255,0.03); color: var(--c-primary); }
+  .settings-nav-btn:hover { color: var(--c-primary); }
   .settings-nav-btn.active {
-    background: color-mix(in srgb, var(--c-primary) 8%, transparent);
+    border-left-color: color-mix(in srgb, var(--c-primary) 62%, transparent);
     color: var(--c-primary);
   }
 
@@ -1432,6 +1522,14 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .settings-content::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   .settings-section-title {
@@ -1522,27 +1620,91 @@
   }
 
   /* ── About tab ───────────────────────────────────────────────── */
-  .about-card {
+  .about-layout {
     display: flex;
-    align-items: baseline;
-    gap: 8px;
-    padding: 10px 12px;
-    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
-    border-radius: 3px;
+    flex-direction: column;
+    gap: 10px;
   }
+
+  .about-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 26%, transparent);
+    border-radius: 3px;
+    background:
+      linear-gradient(125deg, color-mix(in srgb, var(--c-primary) 9%, transparent), transparent 45%),
+      color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
+  }
+
+  .about-eyebrow {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--c-accent) 72%, #fff 28%);
+  }
+
+  .about-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
   .about-name {
     font-family: 'Inter Tight', 'Inter', sans-serif;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: 0.05em;
     color: var(--c-primary);
-    text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 35%, transparent);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 30%, transparent);
   }
-  .about-version {
+
+  .about-version-pill {
+    flex-shrink: 0;
+    padding: 3px 7px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 32%, transparent);
+    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--c-accent) 86%, #fff 14%);
+  }
+
+  .about-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
+  }
+
+  .about-panel-title {
     font-size: 11px;
-    font-feature-settings: 'tnum';
-    color: color-mix(in srgb, var(--c-muted) 85%, #fff 15%);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--c-accent) 86%, #fff 14%);
+  }
+
+  .about-actions {
+    gap: 8px;
+  }
+
+  .about-status {
+    font-size: 11px;
+    color: color-mix(in srgb, var(--c-muted) 86%, #fff 14%);
+    line-height: 1.45;
+    padding: 5px 7px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 14%, transparent);
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--c-bg) 95%, var(--c-mid));
   }
 
   .btn-kofi {
@@ -1615,6 +1777,55 @@
     justify-content: center;
   }
 
+  /* Pinned add-on sub-nav — a secondary tier below the core tabs so add-ons
+     get their own row instead of squeezing Campaign/Stash/etc. */
+  .addon-subnav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 2px 0;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .addon-subnav-label {
+    display: inline-flex;
+    align-items: center;
+    color: color-mix(in srgb, var(--c-accent) 55%, transparent);
+    padding-right: 2px;
+  }
+
+  .addon-subtab {
+    flex: 0 1 auto;
+    max-width: 140px;
+    height: 20px;
+    padding: 0 9px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 24%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, #141416 80%, transparent);
+    color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
+    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+
+  .addon-subtab:hover {
+    color: #e8d070;
+    border-color: color-mix(in srgb, #e8d070 45%, transparent);
+  }
+
+  .addon-subtab.active {
+    color: #1a1407;
+    background: color-mix(in srgb, #e8d070 86%, transparent);
+    border-color: color-mix(in srgb, #e8d070 70%, transparent);
+  }
+
   .view-tab:hover {
     background-image:
       url('/ui/buttongenerichoverleft.webp'),
@@ -1645,6 +1856,19 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+  }
+
+  /* Campaign/Rewards use a dense checklist layout where the scrollbar chrome
+     is visual noise. Keep scrolling enabled, just hide the track/thumb. */
+  .view-content.hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .view-content.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   /* Error */
@@ -1764,6 +1988,63 @@
   .btn-primary { opacity: 1; }
   .btn-ghost   { opacity: 0.78; }
   .btn-ghost:hover { opacity: 1; }
+
+  /* Settings actions should feel lightweight and not use image-sliced game buttons. */
+  .settings-content .btn,
+  .settings-content .btn:hover,
+  .settings-content .btn:active {
+    height: auto;
+    min-height: 28px;
+    padding: 5px 9px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 36%, transparent);
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
+    background-image: none;
+    color: color-mix(in srgb, var(--c-accent) 92%, #fff 8%);
+    text-shadow: none;
+    filter: none;
+    opacity: 1;
+    letter-spacing: 0.06em;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+  }
+
+  .settings-content .btn:hover {
+    border-color: color-mix(in srgb, var(--c-primary) 48%, transparent);
+    color: var(--c-primary);
+    background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
+  }
+
+  .settings-content .btn:active {
+    border-color: color-mix(in srgb, var(--c-primary) 62%, transparent);
+    background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid));
+  }
+
+  .settings-content .btn-primary {
+    border-color: color-mix(in srgb, var(--c-primary) 36%, transparent);
+    color: var(--c-primary);
+  }
+
+  .settings-content .btn-kofi {
+    border-color: color-mix(in srgb, #29abe0 48%, transparent);
+    background: color-mix(in srgb, #29abe0 12%, var(--c-bg));
+    color: #8ad8f4;
+  }
+
+  .settings-content .btn-kofi:hover {
+    border-color: color-mix(in srgb, #29abe0 68%, transparent);
+    background: color-mix(in srgb, #29abe0 20%, var(--c-bg));
+    color: #b6e9fa;
+  }
+
+  .settings-content .btn:disabled,
+  .settings-content .btn:disabled:hover,
+  .settings-content .btn:disabled:active {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: color-mix(in srgb, var(--c-accent) 20%, transparent);
+    color: color-mix(in srgb, var(--c-muted) 70%, transparent);
+    background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
+  }
 
   .pob-textarea {
     resize: vertical;

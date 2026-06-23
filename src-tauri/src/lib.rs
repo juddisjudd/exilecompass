@@ -63,6 +63,666 @@ fn store_remove(app: AppHandle, key: String) -> Result<(), String> {
     write_settings(&app, &map)
 }
 
+const ADDONS_STATE_KEY: &str = "EXILECOMPASS_ADDONS_STATE_V1";
+
+/// Fixed release-asset filename the addon build pipeline uploads, so installs
+/// can construct the download URL without querying the GitHub API.
+const ADDON_PACKAGE_ASSET: &str = "exilecompass-addon.zip";
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct AddonRecord {
+    id: String,
+    name: String,
+    version: String,
+    enabled: bool,
+    trust: String,
+    source: String,
+    permissions: Vec<String>,
+    has_update: bool,
+    update_version: Option<String>,
+    last_error: Option<String>,
+    /// Whether the addon contributes a panel (has `entry.panel`).
+    #[serde(default)]
+    has_panel: bool,
+    /// When pinned, the host promotes the panel to a top-level tab.
+    #[serde(default)]
+    pinned: bool,
+    /// Short label for the panel tab (from `contributions.view.panels[].title`).
+    #[serde(default)]
+    panel_title: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct AddonManifestEntry {
+    main: Option<String>,
+    panel: Option<String>,
+    data: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct AddonManifest {
+    id: String,
+    name: String,
+    version: String,
+    homepage: Option<String>,
+    #[serde(alias = "repoUrl")]
+    repo_url: Option<String>,
+    entry: Option<AddonManifestEntry>,
+    permissions: Option<Vec<String>>,
+    contributions: Option<serde_json::Value>,
+}
+
+/// Pull the first declared panel's `title` and `pinDefault` out of a manifest's
+/// `contributions.view.panels`, if any.
+fn manifest_panel_meta(manifest: &AddonManifest) -> (Option<String>, bool) {
+    let panel = manifest
+        .contributions
+        .as_ref()
+        .and_then(|c| c.get("view"))
+        .and_then(|v| v.get("panels"))
+        .and_then(|p| p.as_array())
+        .and_then(|a| a.first());
+    let title = panel
+        .and_then(|p| p.get("title"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let pin_default = panel
+        .and_then(|p| p.get("pinDefault"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    (title, pin_default)
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RegistryAddon {
+    id: String,
+    name: String,
+    author: String,
+    repo_url: String,
+    description: String,
+    latest_version: String,
+    trust: String,
+    compatible: bool,
+}
+
+fn read_addons(app: &AppHandle) -> Vec<AddonRecord> {
+    read_settings(app)
+        .get(ADDONS_STATE_KEY)
+        .and_then(|s| serde_json::from_str::<Vec<AddonRecord>>(s).ok())
+        .unwrap_or_default()
+}
+
+fn write_addons(app: &AppHandle, addons: &[AddonRecord]) -> Result<(), String> {
+    let mut map = read_settings(app);
+    map.insert(
+        ADDONS_STATE_KEY.to_string(),
+        serde_json::to_string(addons).map_err(|e| e.to_string())?,
+    );
+    write_settings(app, &map)
+}
+
+fn registry_url_candidates() -> Vec<String> {
+    let mut out = Vec::new();
+
+    if let Ok(explicit) = std::env::var("EXILECOMPASS_REGISTRY_URL") {
+        let trimmed = explicit.trim();
+        if !trimmed.is_empty() {
+            out.push(trimmed.to_string());
+        }
+    }
+
+    out.push("https://registry.exilecompass.com/registry.v1.json".to_string());
+    out
+}
+
+fn is_url(value: &str) -> bool {
+    value.starts_with("https://") || value.starts_with("http://")
+}
+
+fn fetch_registry_from_url(url: &str) -> Result<String, String> {
+    let target = url.to_string();
+    tauri::async_runtime::block_on(async move {
+        let response = reqwest::get(&target).await.map_err(|e| e.to_string())?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(format!("Registry request failed ({status}) for {target}"));
+        }
+        response.text().await.map_err(|e| e.to_string())
+    })
+}
+
+fn parse_registry_addons(raw: &str) -> Result<Vec<RegistryAddon>, String> {
+    let json: serde_json::Value = serde_json::from_str(raw).map_err(|e| e.to_string())?;
+
+    // Supported shape A:
+    // { "addons": [{ id, name, description, latestVersion, trust, compatible }] }
+    if let Some(items) = json.get("addons").and_then(|v| v.as_array()) {
+        let mapped = items
+            .iter()
+            .filter_map(|item| {
+                Some(RegistryAddon {
+                    id: item.get("id")?.as_str()?.to_string(),
+                    name: item
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unnamed addon")
+                        .to_string(),
+                    author: item
+                        .get("author")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown author")
+                        .to_string(),
+                    repo_url: item
+                        .get("repoUrl")
+                        .or_else(|| item.get("repo_url"))
+                        .or_else(|| item.get("homepage"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    description: item
+                        .get("description")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    latest_version: item
+                        .get("latestVersion")
+                        .or_else(|| item.get("latest_version"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("0.0.0")
+                        .to_string(),
+                    trust: item
+                        .get("trust")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unverified")
+                        .to_string(),
+                    compatible: item
+                        .get("compatible")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(true),
+                })
+            })
+            .collect();
+        return Ok(mapped);
+    }
+
+    // Supported shape B (registry spec draft):
+    // { "packages": [{ id, latest, versions: [{ version }] }] }
+    if let Some(packages) = json.get("packages").and_then(|v| v.as_array()) {
+        let mapped = packages
+            .iter()
+            .filter_map(|pkg| {
+                let id = pkg.get("id")?.as_str()?.to_string();
+                let latest = pkg
+                    .get("latest")
+                    .and_then(|v| v.as_str())
+                    .or_else(|| {
+                        pkg.get("versions")
+                            .and_then(|v| v.as_array())
+                            .and_then(|arr| arr.first())
+                            .and_then(|v| v.get("version"))
+                            .and_then(|v| v.as_str())
+                    })
+                    .unwrap_or("0.0.0")
+                    .to_string();
+
+                Some(RegistryAddon {
+                    name: id.clone(),
+                    id,
+                    author: "Unknown author".to_string(),
+                    repo_url: "".to_string(),
+                    description: "From registry package index".to_string(),
+                    latest_version: latest,
+                    trust: "verified".to_string(),
+                    compatible: true,
+                })
+            })
+            .collect();
+        return Ok(mapped);
+    }
+
+    Err("Unsupported registry format".to_string())
+}
+
+fn resolve_manifest_entry_path(
+    addon_root: &std::path::Path,
+    value: &str,
+    field_name: &str,
+) -> Result<std::path::PathBuf, String> {
+    if !value.starts_with("./") {
+        return Err(format!("{field_name} must start with './'"));
+    }
+    let candidate = addon_root.join(&value[2..]);
+    if !candidate.exists() {
+        return Err(format!("{field_name} points to a missing file: {value}"));
+    }
+    Ok(candidate)
+}
+
+/// Validate a *built* addon package as it sits on disk after install: the
+/// manifest plus a `dist/` directory of bundled, browser-runnable JS. Authors
+/// write TypeScript; the release pipeline bundles it to `./dist/*.js`, so we
+/// never validate or run `src/` here.
+fn validate_addon_layout(
+    manifest_path: &std::path::Path,
+    manifest: &AddonManifest,
+) -> Result<(), String> {
+    let manifest_name = manifest_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default();
+    if manifest_name != "plugin.manifest.json" {
+        return Err("Manifest filename must be plugin.manifest.json".to_string());
+    }
+
+    let addon_root = manifest_path
+        .parent()
+        .ok_or("Manifest path must include a parent directory")?;
+
+    if !addon_root.join("README.md").is_file() {
+        return Err("Package must include README.md".to_string());
+    }
+    if !addon_root.join("dist").is_dir() {
+        return Err("Package must include a built dist directory".to_string());
+    }
+
+    let entry = manifest
+        .entry
+        .as_ref()
+        .ok_or("Manifest must include an entry object")?;
+
+    // A package must expose at least one runnable bundle (panel and/or main).
+    let runnable = [entry.main.as_deref(), entry.panel.as_deref()];
+    if runnable.iter().all(|v| v.is_none()) {
+        return Err("Manifest entry must declare a panel or main bundle".to_string());
+    }
+
+    for (field, value) in [("entry.main", entry.main.as_deref()), ("entry.panel", entry.panel.as_deref())] {
+        let Some(value) = value else { continue };
+        if !value.starts_with("./dist/") {
+            return Err(format!("{field} must be a bundled file inside ./dist/"));
+        }
+        if !(value.ends_with(".js") || value.ends_with(".mjs")) {
+            return Err(format!("{field} must target a bundled .js/.mjs file"));
+        }
+        let _ = resolve_manifest_entry_path(addon_root, value, field)?;
+    }
+
+    if let Some(data) = entry.data.as_deref() {
+        if !data.starts_with("./data/") {
+            return Err("entry.data must be inside ./data/".to_string());
+        }
+        let _ = resolve_manifest_entry_path(addon_root, data, "entry.data")?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn addons_list(app: AppHandle) -> Vec<AddonRecord> {
+    read_addons(&app)
+}
+
+#[tauri::command]
+fn addons_set_enabled(app: AppHandle, id: String, enabled: bool) -> Result<(), String> {
+    let mut addons = read_addons(&app);
+    if let Some(addon) = addons.iter_mut().find(|a| a.id == id) {
+        addon.enabled = enabled;
+        return write_addons(&app, &addons);
+    }
+    Err("Addon not found".to_string())
+}
+
+#[tauri::command]
+fn addons_set_pinned(app: AppHandle, id: String, pinned: bool) -> Result<(), String> {
+    let mut addons = read_addons(&app);
+    if let Some(addon) = addons.iter_mut().find(|a| a.id == id) {
+        addon.pinned = pinned;
+        return write_addons(&app, &addons);
+    }
+    Err("Addon not found".to_string())
+}
+
+#[tauri::command]
+fn addons_uninstall(app: AppHandle, id: String) -> Result<(), String> {
+    let mut addons = read_addons(&app);
+    let before = addons.len();
+    addons.retain(|a| a.id != id);
+    if addons.len() == before {
+        return Err("Addon not found".to_string());
+    }
+    write_addons(&app, &addons)
+}
+
+#[tauri::command]
+fn addons_install_from_manifest(
+    app: AppHandle,
+    path: String,
+    source: Option<String>,
+) -> Result<AddonRecord, String> {
+    let manifest_path = std::path::PathBuf::from(&path);
+    let source = source.unwrap_or_else(|| "manual".to_string());
+    install_record_from_manifest(&app, &manifest_path, &source, None)
+}
+
+/// Validate the addon package rooted at `manifest_path`, build its record and
+/// persist it. Shared by manual (local path) and registry (downloaded) installs.
+/// `trust_override` lets the registry index dictate the trust level; otherwise
+/// it's derived from the install source.
+fn install_record_from_manifest(
+    app: &AppHandle,
+    manifest_path: &std::path::Path,
+    source: &str,
+    trust_override: Option<&str>,
+) -> Result<AddonRecord, String> {
+    let raw = std::fs::read_to_string(manifest_path).map_err(|e| e.to_string())?;
+    let manifest: AddonManifest = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+
+    let has_repo_link = manifest
+        .homepage
+        .as_deref()
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false)
+        || manifest
+            .repo_url
+            .as_deref()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
+    if !has_repo_link {
+        return Err("Addon manifest must include a repository/homepage link (homepage or repoUrl)".to_string());
+    }
+
+    validate_addon_layout(manifest_path, &manifest)?;
+
+    let has_panel = manifest
+        .entry
+        .as_ref()
+        .and_then(|e| e.panel.as_ref())
+        .is_some();
+    let (panel_title, pin_default) = manifest_panel_meta(&manifest);
+
+    let mut addons = read_addons(app);
+    // On re-install/update, keep the user's current pin choice; otherwise seed
+    // it from the manifest's pinDefault.
+    let pinned = addons
+        .iter()
+        .find(|a| a.id == manifest.id)
+        .map(|existing| existing.pinned)
+        .unwrap_or(pin_default);
+
+    let record = AddonRecord {
+        id: manifest.id,
+        name: manifest.name,
+        version: manifest.version,
+        enabled: true,
+        trust: trust_override
+            .map(|t| t.to_string())
+            .unwrap_or_else(|| if source == "registry" { "verified" } else { "unverified" }.to_string()),
+        source: source.to_string(),
+        permissions: manifest.permissions.unwrap_or_default(),
+        has_update: false,
+        update_version: None,
+        last_error: None,
+        has_panel,
+        pinned,
+        panel_title,
+    };
+
+    if let Some(existing) = addons.iter_mut().find(|a| a.id == record.id) {
+        *existing = record.clone();
+    } else {
+        addons.push(record.clone());
+    }
+
+    write_addons(app, &addons)?;
+    Ok(record)
+}
+
+/// Where downloaded addon packages are extracted: `<app_data>/addons/<id>/`.
+fn addons_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("addons");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+/// Keep an addon id safe to use as a single directory name (no traversal,
+/// no separators). Ids come from the remote registry, so never trust them:
+/// reject anything that would resolve to the parent (`.`, `..`, all-dots) or
+/// is empty after sanitizing.
+fn sanitize_id(id: &str) -> Result<String, String> {
+    let cleaned: String = id
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_') { c } else { '_' })
+        .collect();
+    if cleaned.is_empty() || cleaned.chars().all(|c| c == '.') {
+        return Err(format!("Invalid addon id: {id}"));
+    }
+    Ok(cleaned)
+}
+
+/// Pull `(owner, repo)` out of a GitHub URL like
+/// `https://github.com/owner/repo` (trailing `/` or `.git` tolerated).
+fn parse_github_owner_repo(url: &str) -> Option<(String, String)> {
+    let rest = url
+        .strip_prefix("https://github.com/")
+        .or_else(|| url.strip_prefix("http://github.com/"))?;
+    let rest = rest.trim_end_matches('/');
+    let mut parts = rest.split('/');
+    let owner = parts.next()?.to_string();
+    let repo = parts.next()?.trim_end_matches(".git").to_string();
+    if owner.is_empty() || repo.is_empty() {
+        return None;
+    }
+    Some((owner, repo))
+}
+
+/// Download `url` as bytes. GitHub serves archive zips via a redirect to
+/// codeload, which reqwest follows by default; a User-Agent avoids the
+/// occasional 403 from GitHub's edge.
+fn http_get_bytes(url: &str) -> Result<Vec<u8>, String> {
+    let target = url.to_string();
+    tauri::async_runtime::block_on(async move {
+        let client = reqwest::Client::builder()
+            .user_agent("ExileCompass")
+            .build()
+            .map_err(|e| e.to_string())?;
+        let response = client.get(&target).send().await.map_err(|e| e.to_string())?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(format!("HTTP {status} for {target}"));
+        }
+        let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+        Ok(bytes.to_vec())
+    })
+}
+
+/// Extract an addon package zip into `dest`. The release pipeline builds a flat
+/// package (manifest + dist/ + data/ at the zip root), so entries map straight
+/// to `dest`. `enclosed_name` guards against zip-slip path traversal.
+fn extract_zip(zip_bytes: &[u8], dest: &std::path::Path) -> Result<(), String> {
+    let reader = std::io::Cursor::new(zip_bytes);
+    let mut archive = zip::ZipArchive::new(reader).map_err(|e| e.to_string())?;
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let Some(rel) = entry.enclosed_name() else {
+            continue;
+        };
+        if rel.as_os_str().is_empty() {
+            continue;
+        }
+        let out_path = dest.join(&rel);
+        if entry.is_dir() {
+            std::fs::create_dir_all(&out_path).map_err(|e| e.to_string())?;
+        } else {
+            if let Some(parent) = out_path.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            let mut out = std::fs::File::create(&out_path).map_err(|e| e.to_string())?;
+            std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn addons_install_from_registry(app: AppHandle, id: String) -> Result<AddonRecord, String> {
+    let entry = resolve_registry_addons(None)?
+        .into_iter()
+        .find(|a| a.id == id)
+        .ok_or_else(|| format!("Addon {id} not found in registry"))?;
+
+    if !entry.compatible {
+        return Err(format!("Addon {id} is not compatible with this app version"));
+    }
+
+    let (owner, repo) = parse_github_owner_repo(&entry.repo_url)
+        .ok_or_else(|| format!("Addon {id} has no installable GitHub repoUrl"))?;
+
+    // The release workflow uploads the built package under a fixed asset name,
+    // so the download URL is predictable — no GitHub API call (or rate limit).
+    // GitHub tags are usually `vX.Y.Z`, but accept a bare `X.Y.Z` too.
+    let ver = entry.latest_version.trim_start_matches('v');
+    let tag_candidates = [format!("v{ver}"), ver.to_string()];
+
+    let mut zip_bytes = None;
+    let mut last_err = String::from("no release asset matched");
+    for tag in &tag_candidates {
+        let url = format!(
+            "https://github.com/{owner}/{repo}/releases/download/{tag}/{ADDON_PACKAGE_ASSET}"
+        );
+        match http_get_bytes(&url) {
+            Ok(bytes) => {
+                zip_bytes = Some(bytes);
+                break;
+            }
+            Err(e) => last_err = e,
+        }
+    }
+    let zip_bytes = zip_bytes.ok_or_else(|| {
+        format!("Failed to download {ADDON_PACKAGE_ASSET} for {owner}/{repo}@{ver}: {last_err}")
+    })?;
+
+    let root = addons_dir(&app)?;
+    let dest = root.join(sanitize_id(&id)?);
+    // Defense in depth: dest must be a direct child of the addons dir before we
+    // ever remove_dir_all it, so a crafted id can never escape upward.
+    if dest.parent() != Some(root.as_path()) {
+        return Err(format!("Refusing to install addon with unsafe id: {id}"));
+    }
+    if dest.exists() {
+        std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?;
+    }
+    std::fs::create_dir_all(&dest).map_err(|e| e.to_string())?;
+    extract_zip(&zip_bytes, &dest)?;
+
+    let manifest_path = dest.join("plugin.manifest.json");
+    if !manifest_path.is_file() {
+        return Err("Downloaded package is missing plugin.manifest.json at its root".to_string());
+    }
+
+    install_record_from_manifest(&app, &manifest_path, "registry", Some(&entry.trust))
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AddonPanelPayload {
+    /// The addon's bundled panel JS (a single ESM module exporting `mount`).
+    code: String,
+    title: String,
+}
+
+/// Read an installed addon's bundled panel module so the host can run it inside
+/// a sandboxed iframe. Resolves `entry.panel` from the on-disk manifest, keeps
+/// the path inside the addon directory, and returns the JS text.
+#[tauri::command]
+fn addons_read_panel(app: AppHandle, id: String) -> Result<AddonPanelPayload, String> {
+    let addon_root = addons_dir(&app)?.join(sanitize_id(&id)?);
+    let manifest_path = addon_root.join("plugin.manifest.json");
+    let raw = std::fs::read_to_string(&manifest_path).map_err(|e| e.to_string())?;
+    let manifest: serde_json::Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+
+    let panel_rel = manifest
+        .get("entry")
+        .and_then(|e| e.get("panel"))
+        .and_then(|v| v.as_str())
+        .ok_or("This add-on does not provide a panel")?;
+    if !panel_rel.starts_with("./") {
+        return Err("entry.panel must be a relative './' path".to_string());
+    }
+    let panel_path = addon_root.join(&panel_rel[2..]);
+
+    // Resolve symlinks/.. and confirm the file is still inside the addon dir.
+    let canon_root = addon_root.canonicalize().map_err(|e| e.to_string())?;
+    let canon_panel = panel_path.canonicalize().map_err(|e| e.to_string())?;
+    if !canon_panel.starts_with(&canon_root) {
+        return Err("entry.panel escapes the addon directory".to_string());
+    }
+
+    let code = std::fs::read_to_string(&canon_panel).map_err(|e| e.to_string())?;
+
+    let title = manifest
+        .get("contributions")
+        .and_then(|c| c.get("view"))
+        .and_then(|v| v.get("panels"))
+        .and_then(|p| p.as_array())
+        .and_then(|a| a.first())
+        .and_then(|p| p.get("title"))
+        .and_then(|v| v.as_str())
+        .or_else(|| manifest.get("name").and_then(|v| v.as_str()))
+        .unwrap_or("Add-on")
+        .to_string();
+
+    Ok(AddonPanelPayload { code, title })
+}
+
+#[tauri::command]
+fn addons_load_registry(path: Option<String>) -> Result<Vec<RegistryAddon>, String> {
+    resolve_registry_addons(path)
+}
+
+fn resolve_registry_addons(path: Option<String>) -> Result<Vec<RegistryAddon>, String> {
+    if let Some(p) = path {
+        if is_url(&p) {
+            let raw = fetch_registry_from_url(&p)?;
+            return parse_registry_addons(&raw);
+        }
+
+        let explicit_path = std::path::PathBuf::from(&p);
+        if explicit_path.exists() {
+            let raw = std::fs::read_to_string(explicit_path).map_err(|e| e.to_string())?;
+            return parse_registry_addons(&raw);
+        }
+
+        return Err(format!("Explicit registry path not found: {p}"));
+    }
+
+    let mut last_remote_error = None;
+    for url in registry_url_candidates() {
+        match fetch_registry_from_url(&url) {
+            Ok(raw) => match parse_registry_addons(&raw) {
+                Ok(parsed) => return Ok(parsed),
+                Err(e) => {
+                    last_remote_error = Some(format!("{url}: {e}"));
+                }
+            },
+            Err(e) => {
+                last_remote_error = Some(format!("{url}: {e}"));
+            }
+        }
+    }
+
+    if let Some(err) = last_remote_error {
+        return Err(format!("Remote registry failed: {err}"));
+    }
+
+    Err("No registry URL configured".to_string())
+}
+
 // ── Window bounds restore ─────────────────────────────────────────────────────
 //
 // The overlay window position/size is saved by the frontend (debounced) under
@@ -434,21 +1094,34 @@ fn focus_game(state: State<'_, OverlayState>) -> bool {
     }
 }
 
+/// Dev/testing bypass for PoE2 process/window detection.
+///
+/// Enabled when either:
+/// - `EXILECOMPASS_NO_DETECT` environment variable is set (non-empty), or
+/// - `--no-detect` appears in app arguments (for `tauri dev -- --no-detect`).
+fn no_detect_mode() -> bool {
+    std::env::var_os("EXILECOMPASS_NO_DETECT").is_some()
+        || std::env::args().any(|arg| arg == "--no-detect")
+}
+
 /// Return current overlay status for the frontend.
 #[tauri::command]
 fn get_overlay_status(state: State<'_, OverlayState>) -> serde_json::Value {
     let hwnd = *state.game_hwnd.lock().unwrap();
     let click_through = *state.click_through.lock().unwrap();
     let game_alive = hwnd.map(is_window_alive).unwrap_or(false);
+    let no_detect = no_detect_mode();
 
     serde_json::json!({
         "attached": hwnd.is_some() && game_alive,
         "clickThrough": click_through,
-        "gameRunning": find_poe2_window().is_some(),
+        // In no-detect mode we force the frontend out of the "waiting for game"
+        // gate and skip auto-attach polling, so UI tools can be tested standalone.
+        "gameRunning": no_detect || find_poe2_window().is_some(),
         // Only Windows can enumerate and attach to the PoE2 window. Elsewhere the
         // overlay runs standalone: the frontend skips the "waiting for game" gate
         // and the auto-attach polling, showing the tools immediately.
-        "standalone": cfg!(not(target_os = "windows")),
+        "standalone": no_detect || cfg!(not(target_os = "windows")),
         // Whether the window was created transparent. When false (Linux default),
         // the frontend fills the backdrop opaque + squares the corners so the area
         // outside the rounded shell doesn't show the webview's white surface.
@@ -640,6 +1313,14 @@ pub fn run() {
             store_get,
             store_set,
             store_remove,
+            addons_list,
+            addons_set_enabled,
+            addons_set_pinned,
+            addons_uninstall,
+            addons_install_from_manifest,
+            addons_install_from_registry,
+            addons_read_panel,
+            addons_load_registry,
         ])
         .run(tauri::generate_context!());
 

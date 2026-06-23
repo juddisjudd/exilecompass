@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "dev:no-detect": "EXILECOMPASS_NO_DETECT=1 tauri dev",
     "build": "vite build",
     "build:frontend": "vite build",
     "build:backend": "cargo build --manifest-path src-tauri/Cargo.toml --release",
@@ -14,6 +15,7 @@
     "preview": "vite preview",
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
     "sync-guides": "node tools/sync-guides-fallback.mjs",
+    "addon:scaffold": "node tools/addon-scaffold/create-addon.mjs",
     "check": "bun run paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "bun run paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "tauri": "tauri"
