@@ -588,12 +588,22 @@ export function loadStoredBuild(): PobBuild | null {
   }
 }
 
+/** Fired on the window whenever the active build is saved or cleared, so the
+ *  addon host can push the change to open panels (see AddonsPanel). */
+export const BUILD_CHANGED_EVENT = 'exilecompass:build-changed';
+
+function emitBuildChanged(): void {
+  window.dispatchEvent(new CustomEvent(BUILD_CHANGED_EVENT));
+}
+
 export function saveBuild(build: PobBuild): void {
   window.localStorage.setItem(POB_STORAGE_KEY, JSON.stringify(build));
+  emitBuildChanged();
 }
 
 export function clearBuild(): void {
   window.localStorage.removeItem(POB_STORAGE_KEY);
+  emitBuildChanged();
 }
 
 // ── Build folder library ────────────────────────────────────────────────────

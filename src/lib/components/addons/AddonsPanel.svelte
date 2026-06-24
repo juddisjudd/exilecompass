@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { persistGet, persistSet } from '$lib/persist';
+  import { loadStoredBuild, BUILD_CHANGED_EVENT } from '$lib/pob';
   import type { InstalledAddon } from '$lib/plugins/host.svelte';
 
   interface Props {
@@ -55,10 +56,21 @@
       parent.postMessage({ __ec: 'req', id, method, params }, '*');
     });
   }
+  const buildChangeCbs = new Set();
   const host = {
     storage: {
       get: (key) => rpc('storage.get', { key: String(key) }),
       set: (key, value) => rpc('storage.set', { key: String(key), value: String(value) }),
+    },
+    builds: {
+      getActive: () => rpc('builds.getActive'),
+      // Subscribe to build imports/changes while the panel is open. Returns an
+      // unsubscribe function. The callback receives the new build (or null).
+      onChange: (cb) => {
+        if (typeof cb !== 'function') return () => {};
+        buildChangeCbs.add(cb);
+        return () => { buildChangeCbs.delete(cb); };
+      },
     },
   };
   addEventListener('message', async (e) => {
@@ -69,6 +81,11 @@
       if (!p) return;
       pending.delete(d.id);
       d.error ? p.reject(new Error(d.error)) : p.resolve(d.result);
+      return;
+    }
+    if (d.__ec === 'event') {
+      if (d.name === 'builds.changed')
+        for (const cb of buildChangeCbs) { try { cb(d.build ?? null); } catch (_) {} }
       return;
     }
     if (d.__ec === 'init') {
@@ -129,6 +146,11 @@
             return reply(undefined, 'permission denied: storage.write');
           await persistSet(storageKey(cur.id, key), String(d.params?.value ?? ''));
           reply(null);
+        } else if (d.method === 'builds.getActive') {
+          if (!cur.permissions.includes('builds.read'))
+            return reply(undefined, 'permission denied: builds.read');
+          // Read-only snapshot of the player's active imported build (or null).
+          reply(loadStoredBuild());
         } else {
           reply(undefined, `unknown host method: ${d.method}`);
         }
@@ -141,6 +163,21 @@
   $effect(() => {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
+  });
+
+  // Push build imports/changes to a panel that's allowed to read them, so addons
+  // can react live without polling getActive().
+  $effect(() => {
+    const onBuildChange = () => {
+      const cur = addon;
+      if (!cur?.enabled || !cur.permissions.includes('builds.read')) return;
+      iframeEl?.contentWindow?.postMessage(
+        { __ec: 'event', name: 'builds.changed', build: loadStoredBuild() },
+        '*',
+      );
+    };
+    window.addEventListener(BUILD_CHANGED_EVENT, onBuildChange);
+    return () => window.removeEventListener(BUILD_CHANGED_EVENT, onBuildChange);
   });
 
   // (Re)load the panel bundle whenever the active, enabled addon changes.
