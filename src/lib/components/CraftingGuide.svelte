@@ -373,7 +373,7 @@
                 {#if step.targets && step.targets.length > 0}
                   {@const multi = step.targets.length > 1}
                   <span class="step-targets">
-                    {#each step.targets as t, ti (t.text)}
+                    {#each step.targets as t, ti (ti)}
                       <span class="target-line" class:ideal={multi && ti === 0}>
                         <span class="target-pos">
                           {#if !multi}{m.crafting_target_label()}
@@ -388,7 +388,7 @@
                 {/if}
                 {#if step.items && step.items.length > 0}
                   <span class="step-items">
-                    {#each step.items as it (it.name)}{@render itemChip(it)}{/each}
+                    {#each step.items as it, i (i)}{@render itemChip(it)}{/each}
                   </span>
                 {/if}
               </span>
@@ -428,7 +428,7 @@
                     <span class="branch-text">{branch.text}</span>
                     {#if branch.items && branch.items.length > 0}
                       <span class="step-items">
-                        {#each branch.items as it (it.name)}{@render itemChip(it)}{/each}
+                        {#each branch.items as it, i (i)}{@render itemChip(it)}{/each}
                       </span>
                     {/if}
                   </div>
