@@ -80,3 +80,62 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+  # After the release (and its .deb asset) is published, bump the AUR -bin
+  # package to the new version: pkgver + checksums + .SRCINFO, then push.
+  #
+  # One-time setup: add an SSH *private* key as the `AUR_SSH_PRIVATE_KEY` repo
+  # secret, with its matching public key registered on the maintainer's AUR
+  # account (https://aur.archlinux.org/account). Runs in an Arch container so
+  # makepkg / updpkgsums are available.
+  publish-aur:
+    needs: release
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Install tooling
+        run: pacman -Syu --noconfirm --needed git openssh pacman-contrib sudo
+
+      - name: Bump and push the AUR package
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          version="${REF_NAME#v}"
+
+          # makepkg / updpkgsums refuse to run as root — do the work as a
+          # dedicated unprivileged user.
+          useradd -m builder
+
+          # SSH key + host config for the AUR, owned by the build user.
+          install -d -m 700 -o builder -g builder /home/builder/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > /home/builder/.ssh/id_aur
+          cat > /home/builder/.ssh/config <<'EOF'
+          Host aur.archlinux.org
+            User aur
+            IdentityFile ~/.ssh/id_aur
+            StrictHostKeyChecking accept-new
+          EOF
+          chmod 600 /home/builder/.ssh/id_aur /home/builder/.ssh/config
+          chown -R builder:builder /home/builder/.ssh
+
+          sudo -u builder env HOME=/home/builder VERSION="$version" bash -euo pipefail <<'EOSU'
+          cd "$HOME"
+          git clone ssh://aur@aur.archlinux.org/exilecompass-bin.git aur
+          cd aur
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
+          updpkgsums                                   # downloads the release .deb, fills sha256sums
+          makepkg --printsrcinfo > .SRCINFO
+          git config user.name "exilecompass-release"
+          git config user.email "ipajudd@gmail.com"
+          git add PKGBUILD .SRCINFO
+          if git diff --cached --quiet; then
+            echo "AUR package already at ${VERSION}; nothing to push."
+          else
+            git commit -m "Update to ${VERSION}"
+            git push
+          fi
+          EOSU
