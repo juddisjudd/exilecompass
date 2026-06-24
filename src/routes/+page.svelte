@@ -75,7 +75,7 @@
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { getVersion } from '@tauri-apps/api/app';
   import { openUrl } from '@tauri-apps/plugin-opener';
-  import { checkForUpdate, installUpdate } from '$lib/updater';
+  import { checkForUpdate, installUpdate, isUpdateSupported, RELEASES_URL } from '$lib/updater';
   import type { Update } from '@tauri-apps/plugin-updater';
 
   type AppLocale = (typeof locales)[number];
@@ -177,6 +177,9 @@
   let updateDismissed = $state(false);
   let updateChecking = $state(false);
   let updateCheckMsg = $state('');
+  // False for Linux .deb / AUR installs, where Tauri can't self-update — those
+  // users get a "Get update" link to the releases page instead of an Install button.
+  let updateSupported = $state(true);
 
   // About
   let appVersion = $state('');
@@ -315,6 +318,7 @@
     const logTimer = setInterval(syncLog, 2000);
 
     // Check for app updates (non-blocking, silent on failure / when offline)
+    isUpdateSupported().then((ok) => { if (!cancelled) updateSupported = ok; });
     checkForUpdate()
       .then((u) => { if (u && !cancelled) updateHandle = u; })
       .catch(() => {});
@@ -808,6 +812,10 @@
     try { await openUrl(KOFI_URL); } catch { /* ignore */ }
   }
 
+  async function openReleases() {
+    try { await openUrl(RELEASES_URL); } catch { /* ignore */ }
+  }
+
   async function handleInstallUpdate() {
     if (!updateHandle || updateInstalling) return;
     updateInstalling = true;
@@ -835,7 +843,11 @@
         <div class="update-progress"><div class="update-progress-fill" style="width:{updateProgress}%"></div></div>
       {:else}
         <span class="update-text">{m.update_available({ version: updateHandle.version })}</span>
-        <button class="update-btn" onclick={handleInstallUpdate}>{m.update_install()}</button>
+        {#if updateSupported}
+          <button class="update-btn" onclick={handleInstallUpdate}>{m.update_install()}</button>
+        {:else}
+          <button class="update-btn" onclick={openReleases}>{m.update_get()}</button>
+        {/if}
         <button class="update-dismiss" onclick={() => (updateDismissed = true)} aria-label={m.update_later()}>✕</button>
       {/if}
     </div>
@@ -1075,14 +1087,19 @@
                     <button class="btn btn-primary" onclick={checkUpdatesManually} disabled={updateChecking}>
                       {updateChecking ? m.update_checking() : m.action_check_updates()}
                     </button>
-                    {#if updateHandle}
+                    {#if updateHandle && updateSupported}
                       <button class="btn btn-ghost" onclick={handleInstallUpdate} disabled={updateInstalling}>
                         {updateInstalling ? `${m.update_installing()} ${updateProgress}%` : m.update_install()}
                       </button>
+                    {:else if updateHandle}
+                      <button class="btn btn-ghost" onclick={openReleases}>{m.update_get()}</button>
                     {/if}
                   </div>
                   {#if updateCheckMsg}
                     <p class="about-status">{updateCheckMsg}</p>
+                  {/if}
+                  {#if !updateSupported}
+                    <p class="about-status">{m.update_manual()}</p>
                   {/if}
                 </section>
 

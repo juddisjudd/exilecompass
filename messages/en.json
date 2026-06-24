@@ -116,6 +116,8 @@
   "update_later": "Later",
   "update_checking": "Checking…",
   "update_up_to_date": "You're on the latest version.",
+  "update_get": "Get update",
+  "update_manual": "Automatic updates aren't available for this install — get the new version from the releases page, or update via your package manager (e.g. apt or your AUR helper).",
   "action_check_updates": "Check for Updates",
   "settings_tab_about": "About",
   "about_version": "Version",

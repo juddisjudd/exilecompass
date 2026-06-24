@@ -1,5 +1,20 @@
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { invoke } from '@tauri-apps/api/core';
+
+/** GitHub releases page — where non-AppImage Linux users get the new build. */
+export const RELEASES_URL = 'https://github.com/juddisjudd/exilecompass/releases/latest';
+
+/** Whether the in-app updater can self-update this install. False for Linux
+ *  `.deb` / AUR installs (Tauri's updater only replaces AppImages), so the UI
+ *  should point those users to a manual update instead of failing. */
+export async function isUpdateSupported(): Promise<boolean> {
+  try {
+    return await invoke<boolean>('update_supported');
+  } catch {
+    return true; // assume supported if the check itself fails
+  }
+}
 
 export interface UpdateStatus {
   state: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'uptodate' | 'error';

@@ -44,6 +44,23 @@ fn write_settings(app: &AppHandle, map: &HashMap<String, String>) -> Result<(), 
     std::fs::write(path, json).map_err(|e| e.to_string())
 }
 
+/// Whether the in-app updater can self-update this install. Tauri's Linux
+/// updater only supports AppImage (it replaces the running AppImage file in
+/// place, located via the `APPIMAGE` env var). `.deb` / AUR / other system
+/// installs must update through their package manager, so we surface manual
+/// update guidance for those instead of an Install button that would fail.
+#[tauri::command]
+fn update_supported() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        std::env::var_os("APPIMAGE").is_some()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
 #[tauri::command]
 fn store_get(app: AppHandle, key: String) -> Option<String> {
     read_settings(&app).get(&key).cloned()
@@ -1310,6 +1327,7 @@ pub fn run() {
             detect_build_folder,
             fetch_pobb_code,
             window_show_main,
+            update_supported,
             store_get,
             store_set,
             store_remove,
