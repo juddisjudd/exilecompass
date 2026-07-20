@@ -8,8 +8,7 @@ Track your campaign, never miss a permanent reward, build stash search strings,
 time your runs, and keep your build's gems and gear one glance away — all in a
 compact window that floats over the game.
 
-<img width="1679" height="733" alt="exilecompass" src="https://github.com/user-attachments/assets/b5f843ad-9c72-410c-9ee2-b6e01c211c7a" />
-
+<img width="1368" height="576" alt="exile-compass-new" src="https://github.com/user-attachments/assets/819103a2-7d46-4a3c-b230-a9c4d15b37cd" />
 
 [Download the latest release »](https://github.com/juddisjudd/exilecompass/releases/latest)
 
