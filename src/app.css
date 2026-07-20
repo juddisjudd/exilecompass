@@ -48,9 +48,9 @@
    (src/lib/theme.svelte.ts; no attribute = Default). `--c-red` is the
    historical name for "the brand accent" whatever the theme's actual hue —
    emerald green in Abyss, neon purple in Breach, crimson in Ritual, gold in
-   Vaal, white in Mono — same convention as the website keeping `--gold`
-   when it turned red. Palettes follow each league's in-game look; accents
-   are kept bright enough for text/fill legibility. */
+   Vaal, arcane blue in Aldur, white in Mono — same convention as the website
+   keeping `--gold` when it turned red. Palettes follow each league's
+   in-game look; accents are kept bright enough for text/fill legibility. */
 
 /* Abyss — cracks in the ground, poisonous fog: emerald glow on green-black murk */
 :root[data-theme='abyss'] {
@@ -104,6 +104,18 @@
   --c-red: oklch(52% 0.2 24); /* ≈ #c21628 corruption crimson */
   --c-red-bright: oklch(64% 0.22 24); /* ≈ #f53c44 */
   --c-red-deep: oklch(30% 0.13 28); /* ≈ #5f0000 */
+}
+
+/* Aldur — runic sapphire: glowing arcane blue on ink-dark night, icy cyan flare */
+:root[data-theme='aldur'] {
+  --c-bg: oklch(15% 0.02 260); /* ≈ #070b14 */
+  --c-mid: oklch(20% 0.04 258); /* ≈ #0a1628 */
+  --c-muted: oklch(38% 0.06 255); /* ≈ #2c4462 */
+  --c-accent: oklch(70% 0.05 250); /* ≈ #87a1bd */
+  --c-primary: oklch(94% 0.015 250); /* ≈ #e4ecf5 */
+  --c-red: oklch(60% 0.19 255); /* ≈ #127eee rune blue */
+  --c-red-bright: oklch(72% 0.13 220); /* ≈ #09b7dc icy flare */
+  --c-red-deep: oklch(35% 0.14 260); /* ≈ #023481 */
 }
 
 :root[data-theme='mono'] {
