@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
     "sync-guides": "node tools/sync-guides-fallback.mjs",
+    "build:tree": "bun tools/build-poe1-tree.mjs",
     "addon:scaffold": "node tools/addon-scaffold/create-addon.mjs",
     "check": "bun run paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "bun run paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -22,7 +23,8 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@fontsource/inter-tight": "^5.2.7",
+    "@fontsource/fira-mono": "^5.2.7",
+    "@fontsource/inter": "^5.2.8",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-global-shortcut": "~2",

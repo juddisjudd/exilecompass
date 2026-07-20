@@ -112,7 +112,7 @@ export const RARITY_COLOR: Record<string, string> = {
 
 // ── Decompression ──────────────────────────────────────────────────────────────
 
-async function zlibInflate(code: string): Promise<string> {
+export async function zlibInflate(code: string): Promise<string> {
   const b64    = code.replace(/-/g, '+').replace(/_/g, '/');
   const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
   const bytes  = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
@@ -137,7 +137,7 @@ async function zlibInflate(code: string): Promise<string> {
   return new TextDecoder().decode(out);
 }
 
-async function resolveCode(input: string): Promise<string> {
+export async function resolveCode(input: string): Promise<string> {
   const match = input.match(POBB_IN);
   if (!match) return input;
   return invoke<string>('fetch_pobb_code', { buildId: match[1] });
@@ -630,5 +630,6 @@ export function listBuildFiles(dir: string): Promise<BuildFileEntry[]> {
 
 /** The default GGG BuildPlanner folder if it exists on this machine. */
 export function detectBuildFolder(): Promise<string | null> {
-  return invoke<string | null>('detect_build_folder');
+  // Build import is a PoE2-only tab (not shown in PoE1 mode) — always poe2.
+  return invoke<string | null>('detect_build_folder', { game: 'poe2' });
 }

@@ -35,31 +35,20 @@
 {#if armed}
   <span class="confirm-inline">
     <span class="confirm-prompt">{prompt}</span>
-    <button class="confirm-yes" onclick={accept} title={prompt}>✓</button>
-    <button class="confirm-no" onclick={() => (armed = false)} title="Cancel">✕</button>
+    <button class="btn btn-danger confirm-btn" onclick={accept} title={prompt}>✓</button>
+    <button class="btn btn-ghost confirm-btn" onclick={() => (armed = false)} title="Cancel">✕</button>
   </span>
 {:else}
-  <button class="btn-reset" onclick={() => (armed = true)} {title}>{label}</button>
+  <button class="btn btn-ghost confirm-btn" onclick={() => (armed = true)} {title}>{label}</button>
 {/if}
 
 <style>
-  .btn-reset {
+  .confirm-btn {
+    height: auto;
     padding: 2px 8px;
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 2px;
-    color: color-mix(in srgb, var(--c-muted) 90%, #fff 10%);
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 0.06em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .btn-reset:hover {
-    border-color: color-mix(in srgb, #f38d78 42%, transparent);
-    color: #f38d78;
-    background: color-mix(in srgb, #f38d78 6%, transparent);
   }
 
   .confirm-inline {
@@ -70,30 +59,5 @@
   .confirm-prompt {
     font-size: 10px;
     color: color-mix(in srgb, var(--c-muted) 90%, #fff 10%);
-  }
-  .confirm-yes,
-  .confirm-no {
-    padding: 2px 6px;
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 2px;
-    font-size: 10px;
-    line-height: 1;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .confirm-yes {
-    color: #f38d78;
-    border-color: color-mix(in srgb, #f38d78 42%, transparent);
-  }
-  .confirm-yes:hover {
-    background: color-mix(in srgb, #f38d78 14%, transparent);
-  }
-  .confirm-no {
-    color: color-mix(in srgb, var(--c-muted) 90%, #fff 10%);
-  }
-  .confirm-no:hover {
-    color: var(--c-primary);
-    border-color: color-mix(in srgb, var(--c-primary) 40%, transparent);
   }
 </style>

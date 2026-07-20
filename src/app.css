@@ -2,6 +2,124 @@
    +layout.svelte) because Svelte's <style> block needs scopable markup and
    warns when it contains only :global selectors. */
 
+/* Satoshi (Fontshare, FF EULA — see static/fonts/SATOSHI-LICENSE.txt) —
+   vendored variable font, one file covers weights 300–900. Used for headings,
+   labels, tabs, and buttons; body text is Inter (via @fontsource). */
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi-Variable.woff2') format('woff2');
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Tokens are authored in oklch (perceptually uniform — ramps and
+     color-mix() behave predictably); hex equivalents in comments. Same
+     relative lightness ordering the app's color-mix() calls depend on
+     (bg darkest -> mid -> muted -> accent -> primary lightest). */
+  --c-bg: oklch(14.5% 0.005 86); /* ≈ #0b0a08 */
+  --c-mid: oklch(19% 0.009 59); /* ≈ #171310 */
+  --c-muted: oklch(38.9% 0.021 85); /* ≈ #4a4438 */
+  --c-accent: oklch(69.2% 0.033 80); /* ≈ #a79a85 */
+  --c-primary: oklch(92.6% 0.024 88); /* ≈ #ede6d5 */
+
+  /* Carmine — the brand accent, matches the website exactly. Main for fills,
+     bright for hovers/small accent text (carmine proper is too dark to read
+     at small sizes on ink), deep for offset shadows. */
+  --c-red: oklch(42.4% 0.172 24); /* #960018 */
+  --c-red-bright: oklch(60% 0.21 24); /* ≈ #e2333c */
+  --c-red-deep: oklch(32% 0.13 24); /* ≈ #65000c */
+
+  /* Text color used ON accent-filled surfaces (buttons, active tabs). Light
+     by default since carmine is a dark fill; themes with bright accents
+     (Abyss, Ritual, Mono) override this to the dark bg tone. */
+  --c-on-accent: var(--c-primary);
+
+  /* Success / positive state. Danger/destructive states reuse --c-red. */
+  --c-success: oklch(65.7% 0.101 152); /* ≈ #5fa372 */
+  --c-success-deep: oklch(42.7% 0.07 152); /* ≈ #2f5a3c */
+
+  --radius: 0px;
+}
+
+/* ── Themes ──────────────────────────────────────────────────────
+   Each theme remaps the same token set, applied via `data-theme` on <html>
+   (src/lib/theme.svelte.ts; no attribute = Default). `--c-red` is the
+   historical name for "the brand accent" whatever the theme's actual hue —
+   emerald green in Abyss, neon purple in Breach, crimson in Ritual, gold in
+   Vaal, white in Mono — same convention as the website keeping `--gold`
+   when it turned red. Palettes follow each league's in-game look; accents
+   are kept bright enough for text/fill legibility. */
+
+/* Abyss — cracks in the ground, poisonous fog: emerald glow on green-black murk */
+:root[data-theme='abyss'] {
+  --c-bg: oklch(15% 0.005 160); /* ≈ #090c0a */
+  --c-mid: oklch(20% 0.02 155); /* ≈ #0f1912 */
+  --c-muted: oklch(37% 0.04 150); /* ≈ #304635 */
+  --c-accent: oklch(68% 0.05 150); /* ≈ #83a188 */
+  --c-primary: oklch(93% 0.02 150); /* ≈ #dfece1 */
+  --c-red: oklch(70% 0.18 148); /* ≈ #35bb58 emerald/poison */
+  --c-red-bright: oklch(80% 0.2 140); /* ≈ #6fdb55 */
+  --c-red-deep: oklch(38% 0.09 150); /* ≈ #154f27 */
+  --c-on-accent: var(--c-bg); /* emerald is bright — dark text on it */
+}
+
+/* Breach — otherworldly rifts: neon purple, pink flare, cyan highlights */
+:root[data-theme='breach'] {
+  --c-bg: oklch(16% 0.02 310); /* ≈ #100b14 */
+  --c-mid: oklch(21% 0.045 310); /* ≈ #1f1228 */
+  --c-muted: oklch(38% 0.06 310); /* ≈ #4c395a */
+  --c-accent: oklch(70% 0.06 310); /* ≈ #aa94bb */
+  --c-primary: oklch(94% 0.02 310); /* ≈ #efe8f5 */
+  --c-red: oklch(60% 0.24 305); /* ≈ #a347ef neon purple */
+  --c-red-bright: oklch(70% 0.2 330); /* ≈ #e068d8 pink flare */
+  --c-red-deep: oklch(35% 0.16 305); /* ≈ #4f147b */
+  --c-success: oklch(75% 0.12 200); /* ≈ #2ac4cc — Tul's cyan */
+  --c-success-deep: oklch(45% 0.08 200); /* ≈ #006267 */
+}
+
+/* Ritual — the blacked-out arena: blood-wine red on true near-black (the map
+   goes dark outside the circle), bone/skull tones for trim and text */
+:root[data-theme='ritual'] {
+  --c-bg: oklch(14% 0.008 20); /* ≈ #0c0808 */
+  --c-mid: oklch(19% 0.03 18); /* ≈ #200e0f */
+  --c-muted: oklch(36% 0.06 18); /* ≈ #582f31 dried blood */
+  --c-accent: oklch(66% 0.02 60); /* ≈ #9c9086 bone */
+  --c-primary: oklch(92% 0.015 75); /* ≈ #ebe3da */
+  --c-red: oklch(48% 0.19 10); /* ≈ #ad0445 blood */
+  --c-red-bright: oklch(62% 0.21 12); /* ≈ #e83964 */
+  --c-red-deep: oklch(28% 0.11 10); /* ≈ #51011c */
+}
+
+/* Vaal — corrupted empire: the corruption crimson leads (red "Corrupted" tag,
+   red-glowing Vaal side areas), with aged gold as the trim color (--c-accent
+   drives borders/labels/hairlines) on ancient red-stone panels */
+:root[data-theme='vaal'] {
+  --c-bg: oklch(15% 0.01 30); /* ≈ #0f0a09 */
+  --c-mid: oklch(20% 0.03 25); /* ≈ #22100f */
+  --c-muted: oklch(38% 0.05 25); /* ≈ #5a3835 */
+  --c-accent: oklch(66% 0.07 80); /* ≈ #a98e60 aged gold trim */
+  --c-primary: oklch(92% 0.03 85); /* ≈ #eee4cf */
+  --c-red: oklch(52% 0.2 24); /* ≈ #c21628 corruption crimson */
+  --c-red-bright: oklch(64% 0.22 24); /* ≈ #f53c44 */
+  --c-red-deep: oklch(30% 0.13 28); /* ≈ #5f0000 */
+}
+
+:root[data-theme='mono'] {
+  --c-bg: oklch(14.5% 0 0); /* ≈ #0a0a0a */
+  --c-mid: oklch(20% 0 0); /* ≈ #161616 */
+  --c-muted: oklch(39.4% 0 0); /* ≈ #464646 */
+  --c-accent: oklch(69.9% 0 0); /* ≈ #9e9e9e */
+  --c-primary: oklch(96.1% 0 0); /* ≈ #f2f2f2 */
+  --c-red: oklch(93.1% 0 0); /* ≈ #e8e8e8 */
+  --c-red-bright: oklch(100% 0 0); /* #ffffff */
+  --c-red-deep: oklch(47.5% 0 0); /* ≈ #5c5c5c */
+  --c-on-accent: var(--c-bg); /* white accent — dark text on it */
+  --c-success: oklch(83.6% 0 0); /* ≈ #c9c9c9 */
+  --c-success-deep: oklch(52.4% 0 0); /* ≈ #6a6a6a */
+}
+
 /* On WebKitGTK (Linux) a native <select> ignores our CSS background/colour and
    paints itself with the GTK system theme — a white box with pale text that's
    unreadable on the dark overlay (Windows/WebView2 honours the CSS, so it only
@@ -13,11 +131,184 @@ select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23c8a040' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  /* Neutral gray chevron — a data URI can't reference var(--c-red), and a
+     hardcoded accent color would clash under non-default themes. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
   background-repeat: no-repeat;
   background-position: right 7px center;
 }
 select option {
-  background-color: #14130f;
-  color: #e8e4de;
+  background-color: var(--c-bg);
+  color: var(--c-primary);
+}
+
+/* ── Shared buttons ──────────────────────────────────────────────
+   Flat, sharp-cornered, solid-fill primary with an offset drop-shadow —
+   same visual signature as the companion website's .btn system, sized down
+   for the overlay's compact 13px UI. Replaces the old 3-slice sprite button
+   used for both .btn and the tab bar. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease,
+    box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+}
+
+.btn-primary {
+  color: var(--c-on-accent);
+  background: var(--c-red);
+  border-color: var(--c-red);
+  box-shadow: 3px 3px 0 0 var(--c-red-deep);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--c-red-bright);
+  border-color: var(--c-red-bright);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 0 var(--c-red-deep);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translate(0, 0);
+  box-shadow: 1px 1px 0 0 var(--c-red-deep);
+}
+
+.btn-ghost {
+  color: var(--c-primary);
+  background: color-mix(in srgb, var(--c-mid) 80%, transparent);
+  border-color: color-mix(in srgb, var(--c-accent) 36%, transparent);
+}
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--c-red);
+  color: var(--c-red-bright);
+}
+
+.btn-danger {
+  color: var(--c-red-bright);
+  background: color-mix(in srgb, var(--c-red) 12%, transparent);
+  border-color: color-mix(in srgb, var(--c-red) 45%, transparent);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--c-red);
+  color: var(--c-on-accent);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ── Flat panel — the target for every bespoke gradient/glass card ── */
+.ec-panel {
+  background: var(--c-mid);
+  border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
+  border-radius: var(--radius);
+}
+
+/* ── Section header bar — the repeated "panel title row" shape ── */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--c-accent) 8%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
+  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+}
+
+/* ── Small pill status tags — sharp corners everywhere else, this is the
+   one deliberate exception (same rule as the companion website). ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  font-family: 'Fira Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid;
+  border-radius: 999px;
+}
+.badge-ok {
+  color: var(--c-success);
+  border-color: color-mix(in srgb, var(--c-success) 45%, transparent);
+  background: color-mix(in srgb, var(--c-success) 14%, transparent);
+}
+.badge-bad {
+  color: var(--c-red-bright);
+  border-color: color-mix(in srgb, var(--c-red) 45%, transparent);
+  background: color-mix(in srgb, var(--c-red) 14%, transparent);
+}
+.badge-neutral {
+  color: var(--c-accent);
+  border-color: color-mix(in srgb, var(--c-accent) 32%, transparent);
+  background: color-mix(in srgb, var(--c-accent) 10%, transparent);
+}
+
+/* ── CSS-only checkbox — replaces both sprite pairs (the square variant
+   used by CampaignGuide/CraftingGuide and the round variant used by
+   PermanentRewards) with one consistent shape app-wide. ── */
+.ec-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1.5px solid color-mix(in srgb, var(--c-accent) 55%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--c-bg) 60%, transparent);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.ec-checkbox:hover {
+  border-color: var(--c-red);
+}
+.ec-checkbox:checked {
+  background: var(--c-red);
+  border-color: var(--c-red);
+}
+.ec-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--c-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ── Film grain — same technique as the companion website, replaces the
+   tiled background1.webp/background2.webp game texture. ── */
+.ec-grain {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }

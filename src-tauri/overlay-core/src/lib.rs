@@ -34,9 +34,19 @@ pub struct Rect {
 /// Path of Exile 2 window title patterns to try in order.
 const POE2_TITLES: &[&str] = &["Path of Exile 2"];
 
+/// Path of Exile (1) window title patterns to try in order.
+const POE1_TITLES: &[&str] = &["Path of Exile"];
+
 /// Find the running Path of Exile 2 game window, if any.
 pub fn find_poe2_window() -> Option<WindowInfo> {
     POE2_TITLES
+        .iter()
+        .find_map(|title| find_window_by_title(title))
+}
+
+/// Find the running Path of Exile (1) game window, if any.
+pub fn find_poe1_window() -> Option<WindowInfo> {
+    POE1_TITLES
         .iter()
         .find_map(|title| find_window_by_title(title))
 }

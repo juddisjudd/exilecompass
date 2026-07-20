@@ -189,7 +189,7 @@
 </script>
 
 <div class="crafting-guide">
-  <div class="guide-header">
+  <div class="guide-header ec-panel">
     {#if view !== 'slots'}
       <button class="back-btn" onclick={goBack} type="button">
         <span class="back-arrow" aria-hidden="true">←</span>{m.action_back()}
@@ -225,7 +225,7 @@
   </div>
 
   <div class="wip-notice">
-    <span class="wip-badge">WIP</span>
+    <span class="badge wip-badge">WIP</span>
     <span>{m.crafting_wip_notice()}</span>
   </div>
 
@@ -236,7 +236,7 @@
       {#each EQUIPMENT_SLOTS as slot (slot.id)}
         {@const count = slotGuideCount(slot.id)}
         <button
-          class="slot-card"
+          class="slot-card ec-panel"
           class:empty={count === 0}
           disabled={count === 0}
           onclick={() => openSlot(slot.id)}
@@ -253,7 +253,7 @@
     <div class="craft-list">
       {#each slotGuides as g (g.id)}
         {@const progress = guideProgress(g)}
-        <button class="craft-row" onclick={() => openGuide(g)} type="button">
+        <button class="craft-row ec-panel" onclick={() => openGuide(g)} type="button">
           <img class="craft-row-icon" src={encodeURI(g.bases[0].icon)} alt={g.bases[0].name} />
           <span class="craft-row-text">
             <span class="craft-row-name">{g.name}</span>
@@ -277,13 +277,13 @@
     {@const progress = guideProgress(guide)}
     {@const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}
     {@const currentStepId = guide.steps.find((s) => !completed.has(stepKey(guide!, s.id)))?.id}
-    <div class="craft-card">
+    <div class="craft-card ec-panel">
       <div class="craft-card-header">
         <img class="base-icon" src={encodeURI(guide.bases[0].icon)} alt={guide.bases[0].name} />
         <div class="craft-card-text">
           <span class="craft-name">{guide.name}</span>
           <span class="craft-base">
-            {m.crafting_base_label()}: {guide.bases.map((b) => b.name).join(' / ')}{#if guide.ilvl}<span class="ilvl-chip">ilvl {guide.ilvl}</span>{/if}
+            {m.crafting_base_label()}: {guide.bases.map((b) => b.name).join(' / ')}{#if guide.ilvl}<span class="ilvl-chip badge badge-neutral">ilvl {guide.ilvl}</span>{/if}
           </span>
           <span class="craft-goal">{guide.goal}</span>
           {@render ratingStars(guide.uid)}
@@ -342,11 +342,11 @@
       <div class="steps">
         {#each guide.steps as step, i (step.id)}
           {@const done = completed.has(stepKey(guide!, step.id))}
-          <div class="step" class:done class:current={step.id === currentStepId}>
+          <div class="step ec-panel" class:done class:current={step.id === currentStepId}>
             <label class="step-main">
               <input
                 type="checkbox"
-                class="step-checkbox"
+                class="step-checkbox ec-checkbox"
                 checked={done}
                 onchange={() => guide && toggleStep(guide, step.id)}
               />
@@ -355,10 +355,10 @@
                 <span class="step-title-row">
                   <span class="step-title">{step.title}</span>
                   {#if step.repeat}
-                    <span class="badge-repeat">{m.crafting_badge_repeat()}</span>
+                    <span class="badge badge-repeat">{m.crafting_badge_repeat()}</span>
                   {/if}
                   {#if step.optional}
-                    <span class="badge-optional">{m.crafting_optional()}</span>
+                    <span class="badge badge-neutral">{m.crafting_optional()}</span>
                   {/if}
                 </span>
                 {#if step.detail}
@@ -380,7 +380,7 @@
                           {:else if ti === 0}{m.crafting_target_ideal()}
                           {:else}{m.crafting_target_alt()} {ti}{/if}
                         </span>
-                        {#if t.tag}<span class="mod-tag tag-{t.tag}">{t.tag}</span>{/if}
+                        {#if t.tag}<span class="badge mod-tag tag-{t.tag}">{t.tag}</span>{/if}
                         <span class="target-text">{t.text}</span>
                       </span>
                     {/each}
@@ -442,7 +442,7 @@
       {#if guide.result && guide.result.length > 0}
         {@const required = guide.result.filter((mod) => !mod.alt)}
         {@const alts = guide.result.filter((mod) => mod.alt)}
-        <div class="result-panel">
+        <div class="result-panel ec-panel">
           <div class="result-title">{m.crafting_final_result()}</div>
           <div class="result-mods">
             {#each required as mod (mod.text)}
@@ -480,7 +480,7 @@
 {#snippet resultMod(mod: CraftingResultMod)}
   <div class="result-mod" class:fractured={mod.tag === 'fractured'}>
     {#if mod.tag}
-      <span class="mod-tag tag-{mod.tag}">{mod.tag}</span>
+      <span class="badge mod-tag tag-{mod.tag}">{mod.tag}</span>
     {/if}
     <span class="mod-text">{mod.text}</span>
   </div>
@@ -488,11 +488,11 @@
 
 {#snippet itemChip(it: CraftingItemRef)}
   {@const hasCard = !!(it.description || (it.effects && it.effects.length))}
-  <span class="item-chip" class:has-card={hasCard} title={hasCard ? undefined : it.name}>
+  <span class="item-chip ec-panel" class:has-card={hasCard} title={hasCard ? undefined : it.name}>
     <img class="item-icon" src={encodeURI(it.icon)} alt={it.name} />
     <span class="item-name">{it.name}</span>
     {#if hasCard}
-      <span class="hovercard" role="tooltip">
+      <span class="hovercard ec-panel" role="tooltip">
         <span class="hc-name">{it.name}</span>
         {#if it.description}<span class="hc-desc">{it.description}</span>{/if}
         {#if it.effects && it.effects.length}
@@ -532,16 +532,13 @@
     align-items: center;
     gap: 10px;
     padding: 8px 12px;
-    background: color-mix(in srgb, var(--c-bg) 86%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 38%, transparent);
-    border-radius: 3px;
     margin-bottom: 2px;
   }
 
   .guide-header h3 {
     flex: 1;
     margin: 0;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -559,10 +556,10 @@
     gap: 5px;
     padding: 3px 9px 3px 7px;
     border: 1px solid color-mix(in srgb, var(--c-accent) 32%, transparent);
-    border-radius: 3px;
+    border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid));
     color: color-mix(in srgb, var(--c-accent) 92%, #fff 8%);
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -587,7 +584,7 @@
     gap: 7px;
     padding: 5px 10px;
     border: 1px solid color-mix(in srgb, #fbbf24 26%, transparent);
-    border-radius: 3px;
+    border-radius: var(--radius);
     background: color-mix(in srgb, #fbbf24 6%, transparent);
     font-size: 10px;
     line-height: 1.4;
@@ -597,13 +594,8 @@
 
   .wip-badge {
     flex-shrink: 0;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    padding: 1px 5px;
-    border-radius: 2px;
     background: color-mix(in srgb, #fbbf24 14%, transparent);
-    border: 1px solid color-mix(in srgb, #fbbf24 38%, transparent);
+    border-color: color-mix(in srgb, #fbbf24 38%, transparent);
     color: #fbbf24;
   }
 
@@ -633,10 +625,10 @@
     gap: 4px;
     padding: 2px 8px;
     border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 3px;
+    border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid));
     color: color-mix(in srgb, var(--c-accent) 88%, #fff 12%);
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.06em;
@@ -678,9 +670,6 @@
     justify-content: space-between;
     gap: 6px;
     padding: 9px 11px;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 24%, transparent);
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
     cursor: pointer;
     transition: border-color 0.12s, background 0.12s;
     text-align: left;
@@ -695,7 +684,7 @@
   }
 
   .slot-name {
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -705,7 +694,7 @@
   .slot-card:hover:not(:disabled) .slot-name { color: var(--c-primary); }
 
   .slot-count {
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 9px;
     font-weight: 600;
     color: color-mix(in srgb, var(--c-accent) 60%, transparent);
@@ -725,9 +714,6 @@
     align-items: center;
     gap: 10px;
     padding: 8px 10px;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 24%, transparent);
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
     cursor: pointer;
     transition: border-color 0.12s, background 0.12s;
     text-align: left;
@@ -772,7 +758,7 @@
   }
 
   .craft-row-progress {
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 500;
     color: color-mix(in srgb, var(--c-accent) 60%, transparent);
@@ -780,7 +766,7 @@
     flex-shrink: 0;
   }
   .craft-row-progress.started { color: #fbbf24; }
-  .craft-row-progress.complete { color: #4ade80; }
+  .craft-row-progress.complete { color: var(--c-success); }
 
   .craft-row-chevron {
     font-size: 14px;
@@ -791,9 +777,6 @@
 
   /* ── Level 3: guide card ─────────────────────────────────────── */
   .craft-card {
-    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
     overflow: hidden;
   }
 
@@ -822,7 +805,7 @@
   }
 
   .craft-name {
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -879,7 +862,7 @@
   }
 
   .craft-progress {
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 500;
     color: color-mix(in srgb, var(--c-accent) 70%, transparent);
@@ -888,7 +871,7 @@
     flex-shrink: 0;
     align-self: flex-start;
   }
-  .craft-progress.complete { color: #4ade80; }
+  .craft-progress.complete { color: var(--c-success); }
 
   .progress-bar-track {
     height: 2px;
@@ -900,7 +883,7 @@
     transition: width 0.4s ease;
   }
   .progress-bar-fill.complete {
-    background: linear-gradient(90deg, #4ade80, #86efac);
+    background: var(--c-success);
   }
 
   /* ── Steps ───────────────────────────────────────────────────── */
@@ -913,16 +896,13 @@
   }
 
   .step {
-    border: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent);
-    border-radius: 2px;
-    background: color-mix(in srgb, var(--c-bg) 96%, transparent);
     padding: 6px 10px 6px 8px;
     transition: border-color 0.2s, background 0.2s, opacity 0.2s;
   }
 
   .step.done {
     opacity: 0.5;
-    border-color: color-mix(in srgb, #4ade80 24%, transparent);
+    border-color: color-mix(in srgb, var(--c-success) 24%, transparent);
   }
 
   /* The next step to do — picked out so the eye lands on it instantly. */
@@ -939,27 +919,14 @@
   }
 
   .step-checkbox {
-    flex-shrink: 0;
-    appearance: none;
-    width: 16px;
-    height: 16px;
     margin-top: 1px;
-    border: none;
-    border-radius: 0;
-    background: url('/ui/checkboxsquareunchecked.webp') center/contain no-repeat;
-    cursor: pointer;
-    transition: opacity 0.12s;
-  }
-  .step-checkbox:hover { opacity: 0.8; }
-  .step-checkbox:checked {
-    background-image: url('/ui/checkboxsquarechecked.webp');
   }
 
   .step-num {
     flex-shrink: 0;
     min-width: 16px;
     margin-top: 2px;
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 9px;
     font-weight: 700;
     text-align: center;
@@ -991,28 +958,9 @@
   .step.done .step-title { text-decoration: line-through; }
 
   .badge-repeat {
-    font-size: 8px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 1px 5px;
-    border-radius: 2px;
     background: color-mix(in srgb, #60a5fa 10%, transparent);
     color: #93c5fd;
-    border: 1px solid color-mix(in srgb, #60a5fa 28%, transparent);
-    flex-shrink: 0;
-  }
-  .badge-optional {
-    font-size: 8px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 1px 5px;
-    border-radius: 2px;
-    background: color-mix(in srgb, var(--c-muted) 12%, transparent);
-    color: color-mix(in srgb, var(--c-muted) 80%, #fff 20%);
-    border: 1px solid color-mix(in srgb, var(--c-muted) 35%, transparent);
-    flex-shrink: 0;
+    border-color: color-mix(in srgb, #60a5fa 28%, transparent);
   }
 
   /* Step callout: tip / warning / alternative. */
@@ -1022,7 +970,7 @@
     gap: 6px;
     margin-top: 1px;
     padding: 4px 8px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     border-left: 2px solid var(--c-accent);
     background: color-mix(in srgb, var(--c-accent) 6%, transparent);
   }
@@ -1074,7 +1022,7 @@
     padding: 4px 7px;
     border-left: 2px solid color-mix(in srgb, #8aa8e6 45%, transparent);
     background: color-mix(in srgb, #1a1f3a 28%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
   }
   .target-line {
     display: flex;
@@ -1118,7 +1066,7 @@
     color: var(--c-primary);
     background: none;
     border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent);
-    border-radius: 3px;
+    border-radius: var(--radius);
     cursor: pointer;
     transition:
       color 0.15s ease,
@@ -1165,9 +1113,6 @@
     align-items: center;
     gap: 4px;
     padding: 2px 6px 2px 3px;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent);
-    border-radius: 2px;
-    background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
   }
 
   .item-icon {
@@ -1201,9 +1146,6 @@
     gap: 5px;
     padding: 7px 9px;
     text-align: left;
-    background: color-mix(in srgb, var(--c-bg) 92%, #000);
-    border: 1px solid color-mix(in srgb, var(--c-accent) 35%, transparent);
-    border-radius: 3px;
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
     pointer-events: none;
   }
@@ -1252,7 +1194,7 @@
     gap: 3px;
     margin: 5px 0 1px 40px;
     padding: 5px 8px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     border-left: 2px solid #6e8c2b;
     background: color-mix(in srgb, #405919 20%, transparent);
   }
@@ -1294,17 +1236,17 @@
     flex-direction: column;
     gap: 3px;
     padding: 5px 8px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     border-left: 2px solid transparent;
   }
 
   .branch.success {
-    background: color-mix(in srgb, #4ade80 6%, transparent);
-    border-left-color: color-mix(in srgb, #4ade80 50%, transparent);
+    background: color-mix(in srgb, var(--c-success) 6%, transparent);
+    border-left-color: color-mix(in srgb, var(--c-success) 50%, transparent);
   }
   .branch.fail {
-    background: color-mix(in srgb, #f38d78 6%, transparent);
-    border-left-color: color-mix(in srgb, #f38d78 50%, transparent);
+    background: color-mix(in srgb, var(--c-red) 6%, transparent);
+    border-left-color: color-mix(in srgb, var(--c-red) 50%, transparent);
   }
   .branch.custom {
     background: color-mix(in srgb, var(--c-accent) 6%, transparent);
@@ -1317,8 +1259,8 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
-  .branch.success .branch-label { color: #86efac; }
-  .branch.fail .branch-label { color: #f38d78; }
+  .branch.success .branch-label { color: var(--c-success); }
+  .branch.fail .branch-label { color: var(--c-red-bright); }
 
   .branch-text {
     font-size: 10px;
@@ -1330,13 +1272,10 @@
   .result-panel {
     margin: 4px;
     padding: 8px 10px 10px;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 2px;
-    background: color-mix(in srgb, #1a1f3a 30%, var(--c-bg));
   }
 
   .result-title {
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -1371,33 +1310,26 @@
 
   .mod-tag {
     flex-shrink: 0;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 1px 5px;
-    border-radius: 2px;
-    line-height: 1.4;
   }
   .tag-prefix {
     color: #93c5fd;
     background: color-mix(in srgb, #60a5fa 12%, transparent);
-    border: 1px solid color-mix(in srgb, #60a5fa 30%, transparent);
+    border-color: color-mix(in srgb, #60a5fa 30%, transparent);
   }
   .tag-suffix {
     color: #c4b5fd;
     background: color-mix(in srgb, #a78bfa 12%, transparent);
-    border: 1px solid color-mix(in srgb, #a78bfa 30%, transparent);
+    border-color: color-mix(in srgb, #a78bfa 30%, transparent);
   }
   .tag-fractured {
     color: #d8b888;
     background: color-mix(in srgb, #c9aa71 14%, transparent);
-    border: 1px solid color-mix(in srgb, #c9aa71 36%, transparent);
+    border-color: color-mix(in srgb, #c9aa71 36%, transparent);
   }
   .tag-implicit {
     color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%);
     background: color-mix(in srgb, var(--c-accent) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
+    border-color: color-mix(in srgb, var(--c-accent) 28%, transparent);
   }
   /* "Any of these" group — alternatives where any single mod is acceptable. */
   .result-anyof {
@@ -1419,16 +1351,7 @@
 
   /* Item level chip next to the base name. */
   .ilvl-chip {
-    display: inline-block;
     margin-left: 6px;
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    padding: 0 5px;
-    border-radius: 2px;
-    color: color-mix(in srgb, var(--c-accent) 90%, #fff 10%);
-    background: color-mix(in srgb, var(--c-accent) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--c-accent) 32%, transparent);
     vertical-align: middle;
   }
 </style>

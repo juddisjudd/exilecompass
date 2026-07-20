@@ -15,11 +15,11 @@
 {:else}
   <div class="list">
     {#each updatable as addon (addon.id)}
-      <article class="card">
+      <article class="ec-panel card">
         <h3>{addon.name}</h3>
         <p class="meta">Current: v{addon.version}</p>
         <p class="meta">Available: v{addon.updateVersion ?? 'unknown'}</p>
-        <button class="btn" type="button" disabled>Update (planned)</button>
+        <button class="btn btn-ghost" type="button" disabled>Update (planned)</button>
       </article>
     {/each}
   </div>
@@ -28,9 +28,9 @@
 <style>
   .empty {
     font-size: 12px;
-    color: #b8b4ae;
+    color: var(--c-accent);
     padding: 10px;
-    border: 1px dashed color-mix(in srgb, #b8b4ae 35%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--c-accent) 35%, transparent);
   }
   .list {
     display: flex;
@@ -38,8 +38,6 @@
     gap: 8px;
   }
   .card {
-    border: 1px solid color-mix(in srgb, #b8b4ae 28%, transparent);
-    background: color-mix(in srgb, #111 82%, transparent);
     padding: 10px;
   }
   h3 {
@@ -48,16 +46,10 @@
   }
   .meta {
     font-size: 11px;
-    color: #b8b4ae;
+    color: var(--c-accent);
     margin-top: 3px;
   }
-  .btn {
+  .card .btn {
     margin-top: 8px;
-    border: 1px solid color-mix(in srgb, #b8b4ae 35%, transparent);
-    color: #e8e4de;
-    background: color-mix(in srgb, #171719 86%, transparent);
-    padding: 4px 8px;
-    font-size: 11px;
-    opacity: 0.55;
   }
 </style>

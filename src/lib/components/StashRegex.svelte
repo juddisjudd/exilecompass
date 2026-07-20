@@ -135,18 +135,18 @@
       type="button"
     >
       <span class="star">★</span>
-      {#if builder.favorites.length > 0}<span class="fav-count">{builder.favorites.length}</span>{/if}
+      {#if builder.favorites.length > 0}<span class="badge badge-neutral fav-count">{builder.favorites.length}</span>{/if}
     </button>
   </div>
 
   {#if view === 'favorites'}
     <!-- Saved regex library -->
-    <div class="options-panel fav-panel">
+    <div class="options-panel fav-panel ec-panel">
       {#if builder.favorites.length === 0}
         <span class="empty-hint">{m.regex_no_favorites()}</span>
       {:else}
         {#each builder.favorites as fav (fav.id)}
-          <div class="fav-item">
+          <div class="fav-item ec-panel">
             <div class="fav-item-head">
               <span class="fav-cat">{fav.category}</span>
               <span class="fav-item-name">{fav.name}</span>
@@ -158,7 +158,7 @@
                   title={m.regex_copy()}
                 >
                   {#if copiedFavId === fav.id}<span class="copied-check">✓</span>{:else}
-                    <img src="/ui/fouriconcopy.webp" width="14" height="14" alt="" aria-hidden="true" />
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                   {/if}
                 </button>
                 <button
@@ -180,12 +180,12 @@
     </div>
   {:else}
     <!-- Output -->
-    <div class="output-section">
+    <div class="output-section ec-panel">
       <code class="output-text" class:empty={!assembled}>{assembled || m.regex_placeholder_output()}</code>
       <div class="output-actions">
         <button class="act-btn" class:copied onclick={copy} disabled={!assembled} title={m.regex_copy()}>
           {#if copied}<span class="copied-check">✓</span>{:else}
-            <img src="/ui/fouriconcopy.webp" width="16" height="16" alt="" aria-hidden="true" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           {/if}
         </button>
         <button
@@ -238,7 +238,7 @@
           {#if gi > 0}<span class="group-and" aria-hidden="true">AND</span>{/if}
           <div class="group-chip" class:active={builder.activeGroup === gi} style="--g: {groupColor(gi)}">
             <button class="group-chip-sel" onclick={() => (builder.activeGroup = gi)} type="button">
-              {gi + 1}{#if g.conditions.length}<span class="group-chip-count">{g.conditions.length}</span>{/if}
+              {gi + 1}{#if g.conditions.length}<span class="badge badge-neutral group-chip-count">{g.conditions.length}</span>{/if}
             </button>
             <button class="group-chip-x" onclick={() => removeGroup(gi)} type="button" title={m.regex_group_remove()}>✕</button>
           </div>
@@ -247,7 +247,7 @@
       </div>
       <button class="group-help" type="button" aria-label={m.regex_groups_help()}>
         ?
-        <span class="group-help-tip">{m.regex_groups_help()}</span>
+        <span class="group-help-tip ec-panel">{m.regex_groups_help()}</span>
       </button>
     </div>
     {#if builder.groups[builder.activeGroup]?.conditions.length}
@@ -262,7 +262,7 @@
     {/if}
 
     <!-- Options -->
-    <div class="options-panel">
+    <div class="options-panel ec-panel">
       {#if !builder.loaded}
         <span class="empty-hint">{m.regex_loading()}</span>
       {:else if builder.category === 'vendor'}
@@ -355,7 +355,7 @@
     <button class="affix-name" type="button" onclick={() => toggleCondition(opt)}>
       {affixLabel(opt.name)}
     </button>
-    {#if sel}<span class="grp-badge" style="--g: {groupColor(gi)}">{gi + 1}</span>{/if}
+    {#if sel}<span class="badge badge-neutral grp-badge" style="--g: {groupColor(gi)}">{gi + 1}</span>{/if}
   </div>
 {/snippet}
 
@@ -507,7 +507,7 @@
 <style>
   .regex-builder {
     /* Green used to flag selected/active options at a glance. */
-    --c-on: #5fd98a;
+    --c-on: var(--c-success);
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -531,7 +531,7 @@
     padding: 5px 8px;
     background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
     border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     color: color-mix(in srgb, var(--c-accent) 88%, #fff 12%);
     font-size: 10.5px;
     font-weight: 600;
@@ -563,13 +563,13 @@
     color: var(--c-primary);
   }
   .fav-count {
+    padding: 0 5px;
     font-size: 9px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    padding: 1px 5px;
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--c-primary) 22%, transparent);
     color: var(--c-primary);
+    border-color: color-mix(in srgb, var(--c-primary) 40%, transparent);
+    background: color-mix(in srgb, var(--c-primary) 22%, transparent);
   }
 
   /* Output */
@@ -578,9 +578,6 @@
     flex-direction: column;
     gap: 4px;
     padding: 6px 8px;
-    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 34%, transparent);
-    border-radius: 3px;
     flex-shrink: 0;
   }
   .output-actions {
@@ -592,7 +589,7 @@
      long patterns scroll horizontally (we cap at 250 chars anyway). */
   .output-text {
     display: block;
-    font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 11px;
     color: var(--c-primary);
     white-space: nowrap;
@@ -609,7 +606,7 @@
   }
   .output-text::-webkit-scrollbar-thumb {
     background: color-mix(in srgb, var(--c-accent) 40%, transparent);
-    border-radius: 3px;
+    border-radius: var(--radius);
   }
   .output-text::-webkit-scrollbar-track {
     background: transparent;
@@ -627,7 +624,7 @@
     height: 24px;
     background: transparent;
     border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     color: color-mix(in srgb, var(--c-accent) 70%, transparent);
     cursor: pointer;
     transition: all 0.12s;
@@ -641,15 +638,15 @@
     cursor: default;
   }
   .act-btn.copied {
-    border-color: color-mix(in srgb, #4ade80 40%, transparent);
+    border-color: color-mix(in srgb, var(--c-success) 40%, transparent);
   }
   .copied-check {
-    color: #4ade80;
+    color: var(--c-success);
     font-size: 13px;
     font-weight: 700;
   }
   .act-clear:hover:not(:disabled) {
-    border-color: color-mix(in srgb, #f38d78 40%, transparent);
+    border-color: color-mix(in srgb, var(--c-red) 40%, transparent);
   }
   .act-save {
     font-size: 14px;
@@ -660,12 +657,12 @@
     color: var(--c-primary);
     border-color: color-mix(in srgb, var(--c-primary) 50%, transparent);
   }
-  .act-btn img {
+  .act-btn svg {
     display: block;
     opacity: 0.7;
     transition: opacity 0.12s;
   }
-  .act-btn:hover:not(:disabled) img {
+  .act-btn:hover:not(:disabled) svg {
     opacity: 1;
   }
 
@@ -687,9 +684,9 @@
     height: 24px;
     padding: 0 9px;
     background: transparent;
-    border: 1px solid color-mix(in srgb, #f38d78 32%, transparent);
-    border-radius: 2px;
-    color: color-mix(in srgb, #f38d78 82%, var(--c-accent));
+    border: 1px solid color-mix(in srgb, var(--c-red) 32%, transparent);
+    border-radius: var(--radius);
+    color: color-mix(in srgb, var(--c-red) 82%, var(--c-accent));
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.06em;
@@ -698,9 +695,9 @@
     transition: all 0.12s;
   }
   .reset-btn:hover {
-    background: color-mix(in srgb, #f38d78 14%, transparent);
-    border-color: color-mix(in srgb, #f38d78 55%, transparent);
-    color: #f6a994;
+    background: color-mix(in srgb, var(--c-red) 14%, transparent);
+    border-color: color-mix(in srgb, var(--c-red) 55%, transparent);
+    color: var(--c-red-bright);
   }
   .reset-icon {
     font-size: 13px;
@@ -710,13 +707,13 @@
     flex: 1;
     height: 3px;
     background: color-mix(in srgb, var(--c-mid) 40%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     overflow: hidden;
   }
   .char-fill {
     height: 100%;
     background: color-mix(in srgb, var(--c-accent) 60%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     transition:
       width 0.15s,
       background 0.15s;
@@ -725,7 +722,7 @@
     background: #d97706;
   }
   .char-fill.over {
-    background: #f38d78;
+    background: var(--c-red);
   }
   .char-label {
     font-size: 9.5px;
@@ -737,7 +734,7 @@
     color: #d97706;
   }
   .char-label.over {
-    color: #f38d78;
+    color: var(--c-red-bright);
     font-weight: 600;
   }
 
@@ -772,9 +769,6 @@
     flex-direction: column;
     gap: 4px;
     padding: 7px 8px;
-    background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
-    border-radius: 3px;
   }
   .fav-item-head {
     display: flex;
@@ -806,10 +800,10 @@
     font-size: 11px;
   }
   .fav-item-actions .act-clear:hover {
-    color: #f38d78;
+    color: var(--c-red-bright);
   }
   .fav-item-regex {
-    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 10.5px;
     line-height: 1.4;
     color: color-mix(in srgb, var(--c-accent) 92%, #fff 18%);
@@ -822,7 +816,7 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 2px 6px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-accent) 16%, transparent);
     color: color-mix(in srgb, var(--c-accent) 95%, #fff 20%);
   }
@@ -837,7 +831,7 @@
     padding: 4px 7px;
     background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
     border: 1px solid color-mix(in srgb, var(--c-accent) 34%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     color: var(--c-primary);
     font-size: 11px;
     outline: none;
@@ -849,7 +843,7 @@
     padding: 3px 9px;
     background: transparent;
     border: 1px solid color-mix(in srgb, var(--c-accent) 34%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     color: color-mix(in srgb, var(--c-accent) 92%, #fff 10%);
     font-size: 10.5px;
     font-weight: 600;
@@ -872,9 +866,6 @@
     min-height: 120px;
     overflow-y: auto;
     padding: 8px;
-    background: color-mix(in srgb, var(--c-bg) 96%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 14%, transparent);
-    border-radius: 3px;
   }
   .opt-grid {
     display: grid;
@@ -951,7 +942,7 @@
     padding: 3px 5px;
     background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
     border: 1px solid color-mix(in srgb, var(--c-accent) 34%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     color: var(--c-primary);
     font-size: 11px;
     outline: none;
@@ -974,7 +965,7 @@
     display: inline-flex;
     align-items: stretch;
     border: 1px solid color-mix(in srgb, var(--g, var(--c-accent)) 40%, transparent);
-    border-radius: 3px;
+    border-radius: var(--radius);
     overflow: hidden;
   }
   .group-chip.active {
@@ -997,11 +988,11 @@
     color: var(--g, var(--c-on));
   }
   .group-chip-count {
+    padding: 0 4px;
     font-size: 9px;
     font-variant-numeric: tabular-nums;
-    padding: 0 4px;
-    border-radius: 6px;
     background: color-mix(in srgb, var(--g, var(--c-accent)) 28%, transparent);
+    border-color: color-mix(in srgb, var(--g, var(--c-accent)) 45%, transparent);
     color: #fff;
   }
   .group-chip-x {
@@ -1014,13 +1005,13 @@
     cursor: pointer;
   }
   .group-chip-x:hover {
-    color: #f38d78;
+    color: var(--c-red-bright);
   }
   .group-add {
     padding: 2px 8px;
     background: transparent;
     border: 1px dashed color-mix(in srgb, var(--c-accent) 35%, transparent);
-    border-radius: 3px;
+    border-radius: var(--radius);
     color: color-mix(in srgb, var(--c-accent) 85%, transparent);
     font-size: 12px;
     line-height: 1;
@@ -1073,9 +1064,6 @@
     right: 0;
     width: 210px;
     padding: 6px 8px;
-    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 35%, transparent);
-    border-radius: 3px;
     color: var(--c-primary);
     font-size: 10px;
     font-weight: 400;
@@ -1128,18 +1116,18 @@
     padding: 0 1px;
   }
   .cond-chip button:hover {
-    color: #f38d78;
+    color: var(--c-red-bright);
   }
   .grp-badge {
     flex-shrink: 0;
     min-width: 14px;
     text-align: center;
+    padding: 1px 4px;
     font-size: 8.5px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    padding: 1px 4px;
-    border-radius: 7px;
     background: color-mix(in srgb, var(--g, var(--c-on)) 26%, transparent);
+    border-color: color-mix(in srgb, var(--g, var(--c-on)) 45%, transparent);
     color: var(--g, var(--c-on));
   }
 
@@ -1151,7 +1139,7 @@
     max-height: 220px;
     overflow-y: auto;
     border: 1px solid color-mix(in srgb, var(--c-accent) 12%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     padding: 2px;
   }
   .affix-row {
@@ -1159,17 +1147,17 @@
     align-items: center;
     gap: 4px;
     padding: 1px 2px;
-    border-radius: 2px;
+    border-radius: var(--radius);
   }
   .affix-row.active {
     background: color-mix(in srgb, var(--g, var(--c-on)) 14%, transparent);
     box-shadow: inset 2px 0 0 var(--g, var(--c-on));
   }
   .affix-row.excluded {
-    background: color-mix(in srgb, #f38d78 12%, transparent);
+    background: color-mix(in srgb, var(--c-red) 12%, transparent);
   }
   .affix-row.excluded .affix-name {
-    color: #f3a78d;
+    color: var(--c-red-bright);
     font-weight: 600;
   }
   .affix-name {
@@ -1196,7 +1184,7 @@
     padding: 2px 4px;
     background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
     border: 1px solid color-mix(in srgb, var(--c-accent) 40%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     color: var(--c-primary);
     font-size: 11px;
     outline: none;
@@ -1214,9 +1202,9 @@
     padding: 5px 8px;
     background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
     border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     color: var(--c-primary);
-    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 11px;
     outline: none;
     box-sizing: border-box;

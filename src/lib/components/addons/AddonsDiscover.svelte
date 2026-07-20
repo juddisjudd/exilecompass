@@ -15,10 +15,10 @@
 {:else}
   <div class="list">
     {#each addons as addon (addon.id)}
-      <article class="card">
+      <article class="ec-panel card">
         <header class="head">
           <h3>{addon.name} &lt;{addon.latestVersion}&gt;</h3>
-          <span class="badge {addon.trust}">{addon.trust}</span>
+          <span class="badge {addon.trust === 'verified' ? 'badge-ok' : 'badge-unverified'}">{addon.trust}</span>
         </header>
         <p class="meta">{addon.id}</p>
         <p class="meta">by {addon.author}</p>
@@ -26,7 +26,7 @@
         <p class="desc">[{addon.description}]</p>
         <div class="actions">
           <button
-            class="btn"
+            class="btn btn-primary"
             disabled={installedIds.includes(addon.id) || !addon.compatible}
             onclick={() => onInstall(addon.id)}
             type="button"
@@ -42,9 +42,9 @@
 <style>
   .empty {
     font-size: 12px;
-    color: #b8b4ae;
+    color: var(--c-accent);
     padding: 10px;
-    border: 1px dashed color-mix(in srgb, #b8b4ae 35%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--c-accent) 35%, transparent);
   }
   .list {
     display: flex;
@@ -52,8 +52,6 @@
     gap: 8px;
   }
   .card {
-    border: 1px solid color-mix(in srgb, #b8b4ae 28%, transparent);
-    background: color-mix(in srgb, #111 82%, transparent);
     padding: 10px;
   }
   .head {
@@ -70,13 +68,13 @@
   }
   .meta {
     font-size: 11px;
-    color: #b8b4ae;
+    color: var(--c-accent);
     margin-top: 2px;
   }
   .desc {
     margin-top: 6px;
     font-size: 11px;
-    color: #d8d2c9;
+    color: var(--c-primary);
   }
   .repo-link {
     display: inline-block;
@@ -90,34 +88,14 @@
     color: #c2e4fb;
     text-decoration: underline;
   }
-  .badge {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 2px 6px;
-    border: 1px solid;
-  }
-  .badge.verified {
-    color: #89e5b5;
-    border-color: color-mix(in srgb, #89e5b5 52%, transparent);
-  }
-  .badge.unverified {
+  /* Unverified trust state has no shared badge variant (amber is a distinct
+     third state alongside the shared ok/bad/neutral pills). */
+  .badge-unverified {
     color: #f0c77f;
-    border-color: color-mix(in srgb, #f0c77f 52%, transparent);
+    border-color: color-mix(in srgb, #f0c77f 45%, transparent);
+    background: color-mix(in srgb, #f0c77f 14%, transparent);
   }
   .actions {
     margin-top: 8px;
-  }
-  .btn {
-    border: 1px solid color-mix(in srgb, #b8b4ae 35%, transparent);
-    color: #e8e4de;
-    background: color-mix(in srgb, #171719 86%, transparent);
-    padding: 4px 8px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-  .btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
   }
 </style>

@@ -55,6 +55,12 @@ export async function findGameWindow(): Promise<WindowInfo | null> {
   return invoke<WindowInfo | null>('find_game_window');
 }
 
+/** Switch which game the overlay targets ("poe1" | "poe2"). Takes effect on the
+ *  next attach/status check. */
+export async function setActiveGame(game: 'poe1' | 'poe2'): Promise<void> {
+  await invoke('set_active_game', { game });
+}
+
 export async function attachToGame(): Promise<WindowInfo> {
   const info = await invoke<WindowInfo>('attach_to_game');
   await refreshStatus();

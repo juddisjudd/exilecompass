@@ -106,11 +106,11 @@
 </script>
 
 <div class="timer-root">
-  <div class="timer-header">
+  <div class="panel-header timer-header">
     <h3>{m.timer_title()}</h3>
     <div class="mode-toggle">
-      <button class="mode-btn" class:active={mode === 'manual'} onclick={() => (mode = 'manual')}>{m.timer_mode_manual()}</button>
-      <button class="mode-btn" class:active={mode === 'campaign'} onclick={() => (mode = 'campaign')}>{m.timer_mode_campaign()}</button>
+      <button class="btn" class:btn-primary={mode === 'manual'} class:btn-ghost={mode !== 'manual'} onclick={() => (mode = 'manual')}>{m.timer_mode_manual()}</button>
+      <button class="btn" class:btn-primary={mode === 'campaign'} class:btn-ghost={mode !== 'campaign'} onclick={() => (mode = 'campaign')}>{m.timer_mode_campaign()}</button>
     </div>
   </div>
 
@@ -133,8 +133,8 @@
           {m.timer_start()}
         {/if}
       </button>
-      <button class="ctrl-btn ctrl-split" onclick={split} disabled={timerState !== 'running'}>{m.timer_split()}</button>
-      <button class="ctrl-btn ctrl-reset" onclick={reset} disabled={timerState === 'idle' && splits.length === 0} title={m.timer_reset_title()}>{m.action_reset()}</button>
+      <button class="btn btn-ghost ctrl-btn ctrl-split" onclick={split} disabled={timerState !== 'running'}>{m.timer_split()}</button>
+      <button class="btn btn-danger ctrl-btn" onclick={reset} disabled={timerState === 'idle' && splits.length === 0} title={m.timer_reset_title()}>{m.action_reset()}</button>
     </div>
 
     {#if splits.length > 0}
@@ -160,7 +160,7 @@
         {campaignTimer.running ? m.timer_stop() : m.timer_start()}
       </button>
       {#if campaignTimer.startMs !== null}
-        <button class="ctrl-btn ctrl-reset" onclick={() => campaignTimer.reset()} title={m.timer_reset_title()}>{m.action_reset()}</button>
+        <button class="btn btn-danger ctrl-btn" onclick={() => campaignTimer.reset()} title={m.timer_reset_title()}>{m.action_reset()}</button>
       {/if}
     </div>
 
@@ -185,39 +185,17 @@
 <style>
   .timer-root { display: flex; flex-direction: column; gap: 6px; }
 
-  .timer-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    background: color-mix(in srgb, var(--c-bg) 86%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 38%, transparent);
-    border-radius: 3px;
-  }
   .timer-header h3 {
     margin: 0;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--c-primary);
     text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent);
   }
 
   /* Mode toggle */
-  .mode-toggle { display: flex; gap: 2px; }
-  .mode-btn {
-    padding: 2px 9px;
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 2px;
-    color: color-mix(in srgb, var(--c-muted) 80%, #fff 20%);
-    font-size: 10px; font-weight: 500; letter-spacing: 0.05em;
-    cursor: pointer; transition: all 0.12s;
-  }
-  .mode-btn.active {
-    background: color-mix(in srgb, var(--c-primary) 12%, transparent);
-    border-color: color-mix(in srgb, var(--c-primary) 45%, transparent);
-    color: var(--c-primary);
-  }
+  .mode-toggle { display: flex; gap: 4px; }
+  .mode-toggle .btn { height: 22px; padding: 0 10px; font-size: 10px; }
 
   .total-label {
     font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
@@ -230,53 +208,41 @@
     padding: 18px 12px;
     background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
     border: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
-    border-radius: 3px; transition: border-color 0.2s;
+    border-radius: var(--radius); transition: border-color 0.2s;
   }
-  .display.running { border-color: color-mix(in srgb, #4ade80 28%, transparent); }
+  .display.running { border-color: color-mix(in srgb, var(--c-success) 28%, transparent); }
   .display.paused { border-color: color-mix(in srgb, #f0c040 28%, transparent); }
 
   .time {
-    font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 32px; font-weight: 600; font-feature-settings: 'tnum'; letter-spacing: 0.04em;
     color: var(--c-primary);
     text-shadow: 0 0 20px color-mix(in srgb, var(--c-primary) 30%, transparent);
     transition: color 0.2s;
   }
-  .display.running .time { color: #4ade80; text-shadow: 0 0 20px color-mix(in srgb, #4ade80 35%, transparent); }
+  .display.running .time { color: var(--c-success); text-shadow: 0 0 20px color-mix(in srgb, var(--c-success) 35%, transparent); }
   .display.paused .time { color: #f0c040; text-shadow: 0 0 20px color-mix(in srgb, #f0c040 30%, transparent); }
 
   .controls { display: flex; gap: 4px; }
-  .ctrl-btn {
-    flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
-    padding: 7px 12px; border-radius: 3px;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+  .ctrl-btn { flex: 1; }
+  .ctrl-primary {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 7px 12px; border-radius: var(--radius);
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
     cursor: pointer; transition: all 0.12s; border: 1px solid;
+    background: color-mix(in srgb, var(--c-success) 12%, transparent); border-color: color-mix(in srgb, var(--c-success) 38%, transparent); color: var(--c-success);
   }
-  .ctrl-primary { background: color-mix(in srgb, #4ade80 12%, transparent); border-color: color-mix(in srgb, #4ade80 38%, transparent); color: #4ade80; }
-  .ctrl-primary:hover { background: color-mix(in srgb, #4ade80 18%, transparent); border-color: color-mix(in srgb, #4ade80 55%, transparent); }
+  .ctrl-primary:hover { background: color-mix(in srgb, var(--c-success) 18%, transparent); border-color: color-mix(in srgb, var(--c-success) 55%, transparent); }
   .ctrl-primary.is-pause { background: color-mix(in srgb, #f0c040 10%, transparent); border-color: color-mix(in srgb, #f0c040 34%, transparent); color: #f0c040; }
   .ctrl-primary.is-pause:hover { background: color-mix(in srgb, #f0c040 16%, transparent); border-color: color-mix(in srgb, #f0c040 50%, transparent); }
 
-  .ctrl-split, .ctrl-reset {
-    background: color-mix(in srgb, var(--c-accent) 8%, transparent);
-    border-color: color-mix(in srgb, var(--c-accent) 28%, transparent);
-    color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
-    flex: 0 0 auto; padding: 7px 14px;
-  }
-  .ctrl-split { flex: 1; }
-  .ctrl-split:hover:not(:disabled), .ctrl-reset:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--c-accent) 14%, transparent);
-    border-color: color-mix(in srgb, var(--c-accent) 45%, transparent);
-    color: var(--c-primary);
-  }
-  .ctrl-reset:hover:not(:disabled) { border-color: color-mix(in srgb, #f38d78 42%, transparent); color: #f38d78; }
-  .ctrl-split:disabled, .ctrl-reset:disabled { opacity: 0.3; cursor: default; }
+  .ctrl-split { padding: 0 14px; }
 
   .splits {
     display: flex; flex-direction: column;
     border: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent);
-    border-radius: 3px; overflow: hidden;
+    border-radius: var(--radius); overflow: hidden;
   }
   .split-row {
     display: flex; align-items: center; gap: 6px;
@@ -285,17 +251,17 @@
     background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
   }
   .split-row:last-child { border-bottom: none; }
-  .split-row.active { background: color-mix(in srgb, #4ade80 10%, transparent); }
-  .split-row.active .split-label { color: #4ade80; }
+  .split-row.active { background: color-mix(in srgb, var(--c-success) 10%, transparent); }
+  .split-row.active .split-label { color: var(--c-success); }
 
   .split-label { flex: 1; font-size: 11px; color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%); }
   .split-delta {
-    font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 10px; font-feature-settings: 'tnum';
     color: color-mix(in srgb, var(--c-muted) 90%, #fff 10%); min-width: 52px; text-align: right;
   }
   .split-time {
-    font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 10px; font-weight: 600; font-feature-settings: 'tnum';
     color: var(--c-primary); min-width: 52px; text-align: right;
   }

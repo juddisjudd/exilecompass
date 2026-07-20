@@ -46,7 +46,7 @@
 <div class="addons-root">
   <header class="addons-header">
     <h2>Add-ons Hub</h2>
-    <button class="install-file" type="button" onclick={installFromFile}>Install from file</button>
+    <button class="btn btn-primary" type="button" onclick={installFromFile}>Install from file</button>
   </header>
 
   {#if addonsHost.error}
@@ -107,28 +107,15 @@
     font-size: 13px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #d7ceb9;
-  }
-
-  .install-file {
-    border: 1px solid color-mix(in srgb, #b8b4ae 35%, transparent);
-    color: #e8e4de;
-    background: color-mix(in srgb, #171719 86%, transparent);
-    font-size: 11px;
-    padding: 4px 8px;
-    cursor: pointer;
-  }
-
-  .install-file:hover {
-    border-color: color-mix(in srgb, #e8d070 45%, transparent);
+    color: var(--c-primary);
   }
 
   .addons-error {
     font-size: 11px;
-    color: #f0c3b5;
+    color: var(--c-red-bright);
     padding: 6px 8px;
-    border: 1px solid color-mix(in srgb, #f0c3b5 40%, transparent);
-    background: color-mix(in srgb, #3a1812 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-red) 40%, transparent);
+    background: color-mix(in srgb, var(--c-red) 12%, transparent);
   }
 
   .section-tabs {
@@ -138,9 +125,9 @@
   }
 
   .section-tab {
-    border: 1px solid color-mix(in srgb, #b8b4ae 30%, transparent);
-    background: color-mix(in srgb, #141416 88%, transparent);
-    color: #b8b4ae;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent);
+    background: color-mix(in srgb, var(--c-mid) 88%, transparent);
+    color: var(--c-accent);
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -149,14 +136,14 @@
   }
 
   .section-tab:hover {
-    border-color: color-mix(in srgb, #e8d070 45%, transparent);
-    color: #ddd6c5;
+    border-color: color-mix(in srgb, var(--c-red) 45%, transparent);
+    color: var(--c-primary);
   }
 
   .section-tab.active {
-    border-color: color-mix(in srgb, #e8d070 60%, transparent);
-    color: #f0df9d;
-    background: color-mix(in srgb, #2a2618 72%, transparent);
+    border-color: var(--c-red);
+    color: var(--c-red-bright);
+    background: color-mix(in srgb, var(--c-red) 14%, transparent);
   }
 
   .addons-content {

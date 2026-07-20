@@ -12,6 +12,9 @@
   import PermanentRewards from '$lib/components/PermanentRewards.svelte';
   import StashRegex from '$lib/components/StashRegex.svelte';
   import CraftingGuide from '$lib/components/CraftingGuide.svelte';
+  import PoE1LevelingGuide from '$lib/components/PoE1LevelingGuide.svelte';
+  import PassiveTreeViewer from '$lib/components/PassiveTreeViewer.svelte';
+  import GemLinksViewer from '$lib/components/GemLinksViewer.svelte';
   import SpeedrunTimer from '$lib/components/SpeedrunTimer.svelte';
   import BuildOverview from '$lib/components/BuildOverview.svelte';
   import AddonsHub from '$lib/components/addons/AddonsHub.svelte';
@@ -39,6 +42,8 @@
   import { persistGet, persistSet, persistRemove } from '$lib/persist';
   import { campaignTimer } from '$lib/campaignTimer.svelte';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
+  import { levelingCompleteNext, levelingUndoLast, levelingRoute } from '$lib/levelingRoute.svelte';
+  import { importPoe1Build, clearPoe1Build } from '$lib/poe1Pob';
   import { m } from '$lib/paraglide/messages.js';
   import { getLocale, locales, setLocale } from '$lib/paraglide/runtime.js';
   import {
@@ -50,6 +55,8 @@
     toggleHidden,
     setHidden,
   } from '$lib/overlay.svelte';
+  import { gameMode, loadGameMode, setGameMode, type GameMode } from '$lib/gameMode.svelte';
+  import { theme, THEMES, loadTheme, setTheme } from '$lib/theme.svelte';
   import {
     configToChords,
     getDefaultTriggerConfig,
@@ -79,13 +86,30 @@
   import type { Update } from '@tauri-apps/plugin-updater';
 
   type AppLocale = (typeof locales)[number];
-  type SettingsTabId = 'hotkeys' | 'language' | 'logFile' | 'importBuilds' | 'about';
+  type SettingsTabId = 'hotkeys' | 'language' | 'appearance' | 'logFile' | 'importBuilds' | 'about';
 
   const KOFI_URL = 'https://ko-fi.com/ohitsjudd';
   const ADDONS_LABEL = 'Add-ons';
-  type MainViewId = 'campaign' | 'rewards' | 'stash' | 'crafting' | 'timer' | 'build' | 'addons';
+  type MainViewId =
+    | 'campaign'
+    | 'rewards'
+    | 'stash'
+    | 'crafting'
+    | 'timer'
+    | 'build'
+    | 'leveling'
+    | 'tree'
+    | 'gems'
+    | 'addons';
   // Pinned add-ons get their own top-level view, keyed `addon:<id>`.
   type ViewId = MainViewId | `addon:${string}`;
+
+  // PoE2 keeps every existing tab; PoE1 mode swaps to just its own leveling
+  // guide (+ addons, which are game-agnostic). "Timer" stays PoE2-only since
+  // its auto mode is wired to PoE2 log-scene parsing.
+  const POE2_TABS: MainViewId[] = ['campaign', 'rewards', 'stash', 'crafting', 'timer', 'build', 'addons'];
+  const POE1_TABS: MainViewId[] = ['leveling', 'gems', 'tree', 'addons'];
+  const visibleTabs = $derived<MainViewId[]>(gameMode.current === 'poe1' ? POE1_TABS : POE2_TABS);
 
   const LOG_FILE_STORAGE_KEY   = 'EXILECOMPASS_LOG_FILE_PATH_V1';
   const CT_OPACITY_KEY         = 'EXILECOMPASS_CT_OPACITY_V1';
@@ -94,6 +118,7 @@
   const SETTINGS_TABS: Array<{ group: 'GENERAL' | 'IMPORT' | 'ABOUT'; id: SettingsTabId }> = [
     { group: 'GENERAL', id: 'hotkeys' },
     { group: 'GENERAL', id: 'language' },
+    { group: 'GENERAL', id: 'appearance' },
     { group: 'GENERAL', id: 'logFile' },
     { group: 'IMPORT', id: 'importBuilds' },
     { group: 'ABOUT', id: 'about' },
@@ -118,6 +143,15 @@
     if (mainView.startsWith('addon:')) {
       const id = mainView.slice('addon:'.length);
       if (!pinnedAddons.some((a) => a.id === id)) mainView = 'addons';
+    }
+  });
+
+  // If the game mode changes and the current tab no longer applies (e.g. a
+  // PoE2 tab while in PoE1 mode), snap to that mode's first tab.
+  $effect(() => {
+    if (mainView.startsWith('addon:')) return;
+    if (!visibleTabs.includes(mainView as MainViewId)) {
+      mainView = visibleTabs[0];
     }
   });
   let hotkeyError = $state('');
@@ -164,6 +198,34 @@
   let pobSuccess = $state(false);
   let buildDragOver = $state(false);
 
+  // PoE1 PoB import (leveling guide gem rewards + passive tree)
+  let poe1Input = $state('');
+  let poe1Importing = $state(false);
+  let poe1Error = $state('');
+  let poe1Success = $state(false);
+
+  async function handlePoe1Import() {
+    if (!poe1Input.trim() || poe1Importing) return;
+    poe1Importing = true;
+    poe1Error = '';
+    poe1Success = false;
+    try {
+      await importPoe1Build(poe1Input);
+      poe1Success = true;
+      poe1Input = '';
+      setTimeout(() => (poe1Success = false), 3000);
+    } catch (e) {
+      poe1Error = String(e).replace(/^Error:\s*/, '');
+    } finally {
+      poe1Importing = false;
+    }
+  }
+
+  async function handlePoe1Clear() {
+    poe1Error = '';
+    await clearPoe1Build();
+  }
+
   // Build folder library — a folder of GGG `.build` files the user can pick from
   let buildFolder = $state('');
   let buildFiles = $state<BuildFileEntry[]>([]);
@@ -193,6 +255,7 @@
   function getSettingsTabLabel(tabId: SettingsTabId) {
     if (tabId === 'hotkeys') return m.settings_tab_hotkeys();
     if (tabId === 'language') return m.label_language();
+    if (tabId === 'appearance') return m.settings_tab_appearance();
     if (tabId === 'logFile') return m.settings_tab_log_file();
     if (tabId === 'importBuilds') return m.settings_tab_import_builds();
     return m.settings_tab_about();
@@ -229,6 +292,16 @@
     // Load installed add-ons up front so pinned panels can appear as top-level
     // tabs without first visiting the Add-ons hub.
     void initAddonsHost();
+
+    // Restore which game the overlay targets and sync it to Rust — before the
+    // first auto-attach poll fires below where possible (Rust already defaults
+    // to "poe2", matching this module's default, so a saved "poe1" choice just
+    // takes effect on the next poll tick if it doesn't win the race).
+    void loadGameMode();
+
+    // Apply the saved theme before anything else paints (onMount runs before
+    // the browser's first paint of this tree, so no default-theme flash).
+    loadTheme();
 
     hotkeyBindings = loadHotkeyBindings();
     hotkeyDrafts = { ...hotkeyBindings };
@@ -414,8 +487,16 @@
     toggleClickThrough: async () => { await toggleClickThrough(); await refreshStatus(); },
     toggleHidden: () => toggleHidden(),
     toggleCampaignTimer: () => campaignTimer.toggle(),
-    campaignCompleteNext: () => { campaignProgress.completeNext(); },
-    campaignUndoLast: () => { campaignProgress.undoLast(); },
+    // Same hotkeys drive whichever guide is active: PoE2's campaign progress,
+    // or PoE1's leveling progress.
+    campaignCompleteNext: () => {
+      if (gameMode.current === 'poe1') levelingCompleteNext();
+      else campaignProgress.completeNext();
+    },
+    campaignUndoLast: () => {
+      if (gameMode.current === 'poe1') levelingUndoLast();
+      else campaignProgress.undoLast();
+    },
   };
 
   // action id → currently registered accelerator
@@ -619,7 +700,7 @@
     logFileError = '';
     autoDetecting = true;
     try {
-      const detected = await invoke<string | null>('detect_log_file');
+      const detected = await invoke<string | null>('detect_log_file', { game: gameMode.current });
       if (detected) {
         await setLogFile(detected);
       } else {
@@ -833,6 +914,8 @@
 <svelte:window onkeydown={handleHotkey} />
 
 <div class="app-shell">
+  <div class="ec-grain"></div>
+
   <!-- Title bar sits above the frame -->
   <TitleBar title={m.app_title()} />
 
@@ -986,6 +1069,27 @@
               </select>
               <p class="field-help">{m.settings_language_help()}</p>
 
+            {:else if activeSettingsTab === 'appearance'}
+              <div class="settings-section-title">{m.settings_tab_appearance()}</div>
+              <div class="theme-list">
+                {#each THEMES as t (t.id)}
+                  <button
+                    class="theme-option"
+                    class:active={theme.current === t.id}
+                    onclick={() => setTheme(t.id)}
+                    type="button"
+                  >
+                    <span class="theme-swatches">
+                      {#each t.swatches as c (c)}
+                        <span class="swatch" style="background:{c}"></span>
+                      {/each}
+                    </span>
+                    <span class="theme-name">{t.label}</span>
+                  </button>
+                {/each}
+              </div>
+              <p class="field-help">{m.settings_theme_help()}</p>
+
             {:else if activeSettingsTab === 'logFile'}
               <div class="settings-section-title">{m.settings_log_file_title()}</div>
               <label class="field-label" for="log-file-path">{m.settings_log_file_label()}</label>
@@ -1009,6 +1113,45 @@
               {#if logFileError}
                 <p class="inline-error">{logFileError}</p>
               {/if}
+
+            {:else if activeSettingsTab === 'importBuilds' && gameMode.current === 'poe1'}
+              <!-- PoE1: PoB import feeds the leveling guide (gem rewards) and
+                   the passive tree. No GGG .build folder (PoE1 has none). -->
+              <div class="settings-section-title">{m.settings_import_builds_title()}</div>
+              <label class="field-label" for="poe1-pob-input">{m.settings_import_label()}</label>
+              <textarea
+                id="poe1-pob-input"
+                class="field-input pob-textarea"
+                bind:value={poe1Input}
+                placeholder={m.settings_import_placeholder()}
+                rows="4"
+                spellcheck="false"
+              ></textarea>
+              <div class="settings-actions">
+                <button
+                  class="btn btn-primary"
+                  onclick={handlePoe1Import}
+                  disabled={!poe1Input.trim() || poe1Importing}
+                >
+                  {poe1Importing ? m.action_importing() : poe1Success ? `✓ ${m.action_imported()}` : m.action_import_build()}
+                </button>
+                {#if levelingRoute.build}
+                  <button class="btn btn-ghost" onclick={handlePoe1Clear}>{m.action_clear()}</button>
+                {/if}
+              </div>
+              {#if poe1Error}
+                <p class="inline-error">{poe1Error}</p>
+              {/if}
+              {#if levelingRoute.build}
+                <div class="pob-current">
+                  <span class="pob-current-label">{m.label_imported()}</span>
+                  <span class="pob-current-name">
+                    {levelingRoute.build.characterClass} · {levelingRoute.build.bandit} · {levelingRoute.build.requiredGems.length} gems
+                  </span>
+                  <span class="pob-current-links">PoB</span>
+                </div>
+              {/if}
+              <p class="field-help">{m.settings_import_poe1_help()}</p>
 
             {:else if activeSettingsTab === 'importBuilds'}
               <div class="settings-section-title">{m.settings_build_folder_title()}</div>
@@ -1077,7 +1220,7 @@
                   <div class="about-eyebrow">Overlay Companion</div>
                   <div class="about-title-row">
                     <span class="about-name">ExileCompass</span>
-                    <span class="about-version-pill">{m.about_version()} {appVersion || '—'}</span>
+                    <span class="badge badge-neutral">{m.about_version()} {appVersion || '—'}</span>
                   </div>
                 </section>
 
@@ -1116,10 +1259,12 @@
         </div>
       </div>
     {:else if !overlayState.gameRunning && !overlayState.standalone}
-      <!-- Waiting for PoE2 (Windows only — standalone platforms skip this) -->
+      <!-- Waiting for the active game (Windows only — standalone platforms skip this) -->
       <div class="waiting-screen">
         <div class="waiting-spinner" aria-hidden="true"></div>
-        <p class="waiting-title">{m.waiting_title()}</p>
+        <p class="waiting-title">
+          {m.waiting_title({ game: gameMode.current === 'poe1' ? 'Path of Exile' : 'Path of Exile 2' })}
+        </p>
         <p class="waiting-sub">{m.waiting_sub()}</p>
         <button class="btn btn-ghost" onclick={() => (showSettings = true)}>{m.action_settings()}</button>
         {#if error}
@@ -1131,30 +1276,63 @@
       <div class="view-wrapper">
         <!-- Tab nav -->
         <div class="view-tabs">
-          <button
-            class="view-tab"
-            class:active={mainView === 'campaign'}
-            onclick={() => (mainView = 'campaign')}
-            type="button"
-          >{m.nav_campaign()}</button>
-          <button
-            class="view-tab"
-            class:active={mainView === 'rewards'}
-            onclick={() => (mainView = 'rewards')}
-            type="button"
-          >{m.nav_rewards()}</button>
-          <button
-            class="view-tab"
-            class:active={mainView === 'stash'}
-            onclick={() => (mainView = 'stash')}
-            type="button"
-          >{m.nav_stash()}</button>
-          <button
-            class="view-tab"
-            class:active={mainView === 'crafting'}
-            onclick={() => (mainView = 'crafting')}
-            type="button"
-          >{m.nav_crafting()}</button>
+          {#if visibleTabs.includes('campaign')}
+            <button
+              class="view-tab"
+              class:active={mainView === 'campaign'}
+              onclick={() => (mainView = 'campaign')}
+              type="button"
+            >{m.nav_campaign()}</button>
+          {/if}
+          {#if visibleTabs.includes('leveling')}
+            <button
+              class="view-tab"
+              class:active={mainView === 'leveling'}
+              onclick={() => (mainView = 'leveling')}
+              type="button"
+            >{m.nav_leveling()}</button>
+          {/if}
+          {#if visibleTabs.includes('gems')}
+            <button
+              class="view-tab"
+              class:active={mainView === 'gems'}
+              onclick={() => (mainView = 'gems')}
+              type="button"
+            >{m.nav_gems()}</button>
+          {/if}
+          {#if visibleTabs.includes('tree')}
+            <button
+              class="view-tab"
+              class:active={mainView === 'tree'}
+              onclick={() => (mainView = 'tree')}
+              type="button"
+            >{m.nav_tree()}</button>
+          {/if}
+          {#if visibleTabs.includes('rewards')}
+            <button
+              class="view-tab"
+              class:active={mainView === 'rewards'}
+              onclick={() => (mainView = 'rewards')}
+              type="button"
+            >{m.nav_rewards()}</button>
+          {/if}
+          {#if visibleTabs.includes('stash')}
+            <button
+              class="view-tab"
+              class:active={mainView === 'stash'}
+              onclick={() => (mainView = 'stash')}
+              type="button"
+            >{m.nav_stash()}</button>
+          {/if}
+          {#if visibleTabs.includes('crafting')}
+            <button
+              class="view-tab"
+              class:active={mainView === 'crafting'}
+              onclick={() => (mainView = 'crafting')}
+              type="button"
+            >{m.nav_crafting()}</button>
+          {/if}
+          {#if visibleTabs.includes('build')}
           <button
             class="view-tab view-tab-icon"
             class:active={mainView === 'build'}
@@ -1169,6 +1347,8 @@
               <path d="M26.489 35.429a53.723 53.723 0 0 1-2.479-2.743l-9.717 9.718a9.926 9.926 0 0 0-9.381 2.629c-3.883 3.88-3.882 10.174 0 14.055a9.934 9.934 0 0 0 14.054 0a9.939 9.939 0 0 0 2.631-9.384l10.004-10.003c-1.84-1.338-3.567-2.679-5.112-4.272M13.483 57.821l-5.761-1.544l-1.543-5.762l4.218-4.215l5.76 1.541l1.543 5.763l-4.217 4.217" />
             </svg>
           </button>
+          {/if}
+          {#if visibleTabs.includes('timer')}
           <button
             class="view-tab view-tab-icon"
             class:active={mainView === 'timer'}
@@ -1182,6 +1362,7 @@
               <polyline points="12 7 12 12 15.5 14" />
             </svg>
           </button>
+          {/if}
           <button
             class="view-tab view-tab-icon"
             class:active={mainView === 'addons'}
@@ -1203,7 +1384,12 @@
             onclick={() => (showSettings = !showSettings)}
             title={m.tooltip_settings_hotkeys()}
             aria-label={m.tooltip_settings_hotkeys()}
-          ></button>
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
         </div>
 
         <!-- Pinned add-on sub-nav (kept separate so it never squeezes core tabs) -->
@@ -1230,10 +1416,16 @@
         <!-- Tab content -->
         <div
           class="view-content"
-          class:hide-scrollbar={mainView === 'campaign' || mainView === 'rewards' || mainView === 'crafting'}
+          class:hide-scrollbar={mainView === 'campaign' || mainView === 'rewards' || mainView === 'crafting' || mainView === 'leveling'}
         >
           {#if mainView === 'campaign'}
             <CampaignGuide />
+          {:else if mainView === 'leveling'}
+            <PoE1LevelingGuide />
+          {:else if mainView === 'tree'}
+            <PassiveTreeViewer />
+          {:else if mainView === 'gems'}
+            <GemLinksViewer />
           {:else if mainView === 'rewards'}
             <PermanentRewards bind:this={rewardsComponent} />
           {:else if mainView === 'stash'}
@@ -1291,6 +1483,25 @@
   </main>
   </PoeFrame>
 
+  <!-- Slim footer: app version + which game the overlay targets -->
+  <footer class="app-footer">
+    <span class="app-version">{appVersion ? `v${appVersion}` : ''}</span>
+    <div class="game-switch" role="group" aria-label={m.game_switch_label()}>
+      <button
+        type="button"
+        class="game-switch-btn"
+        class:active={gameMode.current === 'poe2'}
+        onclick={() => setGameMode('poe2')}
+      >{m.game_switch_poe2()}</button>
+      <button
+        type="button"
+        class="game-switch-btn"
+        class:active={gameMode.current === 'poe1'}
+        onclick={() => setGameMode('poe1')}
+      >{m.game_switch_poe1()}</button>
+    </div>
+  </footer>
+
   {#if buildDragOver}
     <div class="build-drop-overlay">
       <div class="build-drop-box">
@@ -1323,85 +1534,176 @@
      showing in the corners. */
   :global(html.ec-opaque),
   :global(html.ec-opaque body) {
-    background: #080808;
+    background: var(--c-bg);
   }
 
   :global(body) {
-    font-family: 'Inter Tight', 'Inter', 'Segoe UI', sans-serif;
+    /* Inter for running/body text (best legibility at these small sizes);
+       Satoshi carries headings, labels, tabs, and buttons. */
+    font-family: 'Inter', 'Segoe UI', sans-serif;
     font-size: 13px;
-    color: #e8e4de;
+    color: var(--c-primary);
   }
 
   :global(::-webkit-scrollbar) { width: 5px; height: 5px; }
   :global(::-webkit-scrollbar-track) { background: transparent; }
   :global(::-webkit-scrollbar-thumb) {
-    background: color-mix(in srgb, #b8b4ae 38%, transparent);
-    border-radius: 3px;
+    background: color-mix(in srgb, var(--c-accent) 38%, transparent);
+    border-radius: var(--radius);
   }
   :global(::-webkit-scrollbar-thumb:hover) {
-    background: color-mix(in srgb, #b8b4ae 60%, transparent);
+    background: color-mix(in srgb, var(--c-accent) 60%, transparent);
   }
   :global(*) {
-    scrollbar-color: color-mix(in srgb, #b8b4ae 38%, transparent) transparent;
+    scrollbar-color: color-mix(in srgb, var(--c-accent) 38%, transparent) transparent;
     scrollbar-width: thin;
   }
 
   /* ── App shell ───────────────────────────────────────────────── */
   .app-shell {
-    --c-primary: #e8e4de;
-    --c-accent:  #b8b4ae;
-    --c-mid:     #1c1c1e;
-    --c-muted:   #48484c;
-    --c-bg:      #080808;
-
     display: flex;
     flex-direction: column;
     width: 100vw;
     height: 100vh;
 
-    /* Dark overlay (80%) over texture tile — makes seams imperceptible */
-    background-color: #080808;
-    background-image:
-      linear-gradient(rgba(6,6,8,0.80), rgba(6,6,8,0.80)),
-      url('/ui/background1.webp');
-    background-size: auto, 348px 348px;
-    background-repeat: no-repeat, repeat;
+    background: var(--c-bg);
 
-    /* Round the window corners so the square texture tucks behind the
-       ornate frame/titlebar corners (window is transparent). */
-    border-radius: 10px;
+    border-radius: 0;
     overflow: hidden;
 
     padding: 0;
   }
 
-  /* On an opaque window the rounded corners can't reveal the desktop, so square
-     them off — the window reads as a clean rectangle rather than a rounded shell
-     with mismatched corners. */
-  :global(html.ec-opaque) .app-shell {
-    border-radius: 0;
-  }
-
-  /* PoE2 options/settings button — sits at the right end of the tab row */
+  /* Settings/gear button — sits at the right end of the tab row */
   .tab-options-btn {
-    /* 96×84 image; match the 26px tab height (96*26/84 ≈ 30 wide) */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 30px;
     height: 26px;
-    border: none;
-    background: url('/ui/buttonoptionsnormal.webp') center/contain no-repeat;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--c-accent);
     cursor: pointer;
     opacity: 0.8;
-    transition: opacity 0.12s;
+    transition: opacity 0.12s, color 0.12s, border-color 0.12s;
     flex-shrink: 0;
     margin-left: 2px;
   }
   .tab-options-btn:hover {
-    background-image: url('/ui/buttonoptionshover.webp');
+    color: var(--c-red-bright);
     opacity: 1;
   }
   .tab-options-btn.active {
-    background-image: url('/ui/buttonoptionspressed.webp');
+    color: var(--c-red-bright);
+    border-color: color-mix(in srgb, var(--c-red) 45%, transparent);
     opacity: 1;
+  }
+
+  /* Slim footer bar — version on the left, game switch on the right. Sits
+     below the frame, always visible (so the switch stays reachable from the
+     "waiting for game" screen too). */
+  .app-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 26px;
+    padding: 0 10px 0 18px; /* left edge aligns with the content/tab padding */
+    background: var(--c-mid);
+    border-top: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent);
+    flex-shrink: 0;
+  }
+
+  .app-version {
+    font-family: 'Fira Mono', ui-monospace, monospace;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    color: color-mix(in srgb, var(--c-accent) 70%, transparent);
+    user-select: none;
+  }
+
+  .game-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 1px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
+    background: color-mix(in srgb, var(--c-bg) 60%, transparent);
+  }
+
+  .game-switch-btn {
+    padding: 2px 8px;
+    border: none;
+    background: transparent;
+    color: var(--c-accent);
+    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+
+  .game-switch-btn:hover {
+    color: var(--c-primary);
+  }
+
+  .game-switch-btn.active {
+    background: var(--c-red);
+    color: var(--c-on-accent);
+  }
+
+  /* Theme picker (Settings → Appearance) */
+  .theme-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 280px;
+  }
+
+  .theme-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    background: color-mix(in srgb, var(--c-mid) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
+    color: var(--c-accent);
+    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+  }
+
+  .theme-option:hover {
+    border-color: var(--c-red);
+    color: var(--c-primary);
+  }
+
+  .theme-option.active {
+    border-color: var(--c-red);
+    color: var(--c-primary);
+    background: color-mix(in srgb, var(--c-red) 10%, transparent);
+  }
+
+  .theme-swatches {
+    display: inline-flex;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .swatch {
+    width: 12px;
+    height: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .theme-name {
+    flex: 1;
+    text-align: left;
   }
 
   /* ── Main content area ───────────────────────────────────────── */
@@ -1421,7 +1723,7 @@
     flex-direction: column;
     height: 100%;
     border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 4px;
+    border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
     overflow: hidden;
   }
@@ -1437,7 +1739,7 @@
   }
 
   .settings-title {
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -1454,7 +1756,7 @@
     border: none;
     background: transparent;
     color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 0.08em;
@@ -1550,7 +1852,7 @@
   }
 
   .settings-section-title {
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -1577,11 +1879,11 @@
 
   .hotkey-input {
     padding: 4px 7px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     border: 1px solid color-mix(in srgb, var(--c-accent) 45%, transparent);
     background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
     color: var(--c-primary);
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 11px;
     transition: border-color 0.15s;
   }
@@ -1609,7 +1911,7 @@
   .field-select {
     width: 100%;
     padding: 6px 24px 6px 8px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     border: 1px solid color-mix(in srgb, var(--c-accent) 34%, transparent);
     background-color: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
     color: var(--c-primary);
@@ -1649,7 +1951,7 @@
     gap: 6px;
     padding: 10px 12px;
     border: 1px solid color-mix(in srgb, var(--c-accent) 26%, transparent);
-    border-radius: 3px;
+    border-radius: var(--radius);
     background:
       linear-gradient(125deg, color-mix(in srgb, var(--c-primary) 9%, transparent), transparent 45%),
       color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
@@ -1671,7 +1973,7 @@
   }
 
   .about-name {
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 15px;
     font-weight: 650;
     letter-spacing: 0.05em;
@@ -1679,17 +1981,8 @@
     text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 30%, transparent);
   }
 
-  .about-version-pill {
+  .about-title-row .badge {
     flex-shrink: 0;
-    padding: 3px 7px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 32%, transparent);
-    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: color-mix(in srgb, var(--c-accent) 86%, #fff 14%);
   }
 
   .about-panel {
@@ -1698,7 +1991,7 @@
     gap: 8px;
     padding: 10px 12px;
     border: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent);
-    border-radius: 3px;
+    border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
   }
 
@@ -1720,7 +2013,7 @@
     line-height: 1.45;
     padding: 5px 7px;
     border: 1px solid color-mix(in srgb, var(--c-accent) 14%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-bg) 95%, var(--c-mid));
   }
 
@@ -1753,34 +2046,19 @@
 
   .view-tab {
     flex: 1;
-    height: 26px;
+    height: 30px;
     padding: 0 6px;
-    border: none;
-    border-radius: 0;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--c-mid) 70%, transparent);
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: opacity 0.12s, color 0.12s;
-
-    /* Without this the button keeps the UA default (white) background, which
-       peeks through the gaps between the 3 slice images when a resize lands the
-       tab on a sub-pixel width. */
-    background-color: transparent;
-
-    background-image:
-      url('/ui/buttongenericnormalleft.webp'),
-      url('/ui/buttongenericnormalright.webp'),
-      url('/ui/buttongenericnormalmiddle.webp');
-    background-position: left center, right center, 0 0;
-    background-repeat:   no-repeat,   no-repeat,   no-repeat;
-    background-size:     auto 100%,   auto 100%,   100% 100%;
-
-    color: color-mix(in srgb, #c8b060 60%, transparent);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-    opacity: 0.7;
+    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    color: var(--c-accent);
   }
 
   /* Icon-only tab (timer): narrow + centred instead of taking a full flex share,
@@ -1818,10 +2096,10 @@
     height: 20px;
     padding: 0 9px;
     border: 1px solid color-mix(in srgb, var(--c-accent) 24%, transparent);
-    border-radius: 10px;
-    background: color-mix(in srgb, #141416 80%, transparent);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--c-mid) 80%, transparent);
     color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -1833,39 +2111,25 @@
   }
 
   .addon-subtab:hover {
-    color: #e8d070;
-    border-color: color-mix(in srgb, #e8d070 45%, transparent);
+    color: var(--c-red-bright);
+    border-color: color-mix(in srgb, var(--c-red) 45%, transparent);
   }
 
   .addon-subtab.active {
-    color: #1a1407;
-    background: color-mix(in srgb, #e8d070 86%, transparent);
-    border-color: color-mix(in srgb, #e8d070 70%, transparent);
+    color: var(--c-on-accent);
+    background: var(--c-red);
+    border-color: var(--c-red);
   }
 
   .view-tab:hover {
-    background-image:
-      url('/ui/buttongenerichoverleft.webp'),
-      url('/ui/buttongenerichoverright.webp'),
-      url('/ui/buttongenerichovermiddle.webp');
-    background-position: left center, right center, 0 0;
-    background-repeat:   no-repeat,   no-repeat,   no-repeat;
-    background-size:     auto 100%,   auto 100%,   100% 100%;
-    color: #c8b060;
-    opacity: 1;
+    border-color: var(--c-red);
+    color: var(--c-red-bright);
   }
 
   .view-tab.active {
-    background-image:
-      url('/ui/buttongenericpressedleft.webp'),
-      url('/ui/buttongenericpressedright.webp'),
-      url('/ui/buttongenericpressedmiddle.webp');
-    background-position: left center, right center, 0 0;
-    background-repeat:   no-repeat,   no-repeat,   no-repeat;
-    background-size:     auto 100%,   auto 100%,   100% 100%;
-    color: #e8d070;
-    opacity: 1;
-    text-shadow: 0 0 8px rgba(232,208,112,0.5), 0 1px 2px rgba(0,0,0,0.8);
+    background: var(--c-red);
+    border-color: var(--c-red);
+    color: var(--c-on-accent);
   }
 
   /* Content pane */
@@ -1892,20 +2156,20 @@
   .error-bar {
     flex-shrink: 0;
     padding: 5px 10px;
-    background: rgba(72, 22, 18, 0.72);
-    border: 1px solid rgba(194, 79, 66, 0.42);
-    border-radius: 2px;
-    color: #f8ccc2;
+    background: color-mix(in srgb, var(--c-red-deep) 55%, var(--c-bg));
+    border: 1px solid color-mix(in srgb, var(--c-red) 42%, transparent);
+    border-radius: var(--radius);
+    color: var(--c-red-bright);
     font-size: 11px;
   }
 
   .inline-error {
-    color: #f8ccc2;
+    color: var(--c-red-bright);
     font-size: 11px;
     padding: 4px 8px;
-    background: rgba(72, 22, 18, 0.72);
-    border-radius: 2px;
-    border: 1px solid rgba(194, 79, 66, 0.42);
+    background: color-mix(in srgb, var(--c-red-deep) 55%, var(--c-bg));
+    border-radius: var(--radius);
+    border: 1px solid color-mix(in srgb, var(--c-red) 42%, transparent);
   }
 
   /* ── Waiting screen ─────────────────────────────────────────── */
@@ -1947,126 +2211,14 @@
     line-height: 1.5;
   }
 
-  /* ── Shared button styles — 3-piece PoE2 game button ────────── */
-  /* Pieces are 44×80px; at 30px height each cap scales to ~16.5px wide */
-  .btn {
-    height: 30px;
-    padding: 0 20px;
-    border: none;
-    border-radius: 0;
-    flex-shrink: 0;
-    white-space: nowrap;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: opacity 0.12s, filter 0.12s;
-
-    /* 3-piece: caps scale to height, middle stretches — no tiling seams */
-    background-image:
-      url('/ui/buttongenericnormalleft.webp'),
-      url('/ui/buttongenericnormalright.webp'),
-      url('/ui/buttongenericnormalmiddle.webp');
-    background-position: left center, right center, 0 0;
-    background-repeat:   no-repeat,   no-repeat,   no-repeat;
-    background-size:     auto 100%,   auto 100%,   100% 100%;
-
-    color: #c8b060;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-  }
-
-  .btn:hover {
-    background-image:
-      url('/ui/buttongenerichoverleft.webp'),
-      url('/ui/buttongenerichoverright.webp'),
-      url('/ui/buttongenerichovermiddle.webp');
-    background-position: left center, right center, 0 0;
-    background-repeat:   no-repeat,   no-repeat,   no-repeat;
-    background-size:     auto 100%,   auto 100%,   100% 100%;
-    color: #e8d070;
-    filter: drop-shadow(0 0 4px rgba(200,176,60,0.3));
-  }
-
-  .btn:active {
-    background-image:
-      url('/ui/buttongenericpressedleft.webp'),
-      url('/ui/buttongenericpressedright.webp'),
-      url('/ui/buttongenericpressedmiddle.webp');
-    background-position: left center, right center, 0 0;
-    background-repeat:   no-repeat,   no-repeat,   no-repeat;
-    background-size:     auto 100%,   auto 100%,   100% 100%;
-    color: #a89040;
-    filter: none;
-  }
-
-  /* Primary and ghost both use the same game button; ghost is slightly dimmed */
-  .btn-primary { opacity: 1; }
-  .btn-ghost   { opacity: 0.78; }
-  .btn-ghost:hover { opacity: 1; }
-
-  /* Settings actions should feel lightweight and not use image-sliced game buttons. */
-  .settings-content .btn,
-  .settings-content .btn:hover,
-  .settings-content .btn:active {
-    height: auto;
-    min-height: 28px;
-    padding: 5px 9px;
-    border: 1px solid color-mix(in srgb, var(--c-accent) 36%, transparent);
-    border-radius: 2px;
-    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
-    background-image: none;
-    color: color-mix(in srgb, var(--c-accent) 92%, #fff 8%);
-    text-shadow: none;
-    filter: none;
-    opacity: 1;
-    letter-spacing: 0.06em;
-    transition: border-color 0.12s, color 0.12s, background 0.12s;
-  }
-
-  .settings-content .btn:hover {
-    border-color: color-mix(in srgb, var(--c-primary) 48%, transparent);
-    color: var(--c-primary);
-    background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
-  }
-
-  .settings-content .btn:active {
-    border-color: color-mix(in srgb, var(--c-primary) 62%, transparent);
-    background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid));
-  }
-
-  .settings-content .btn-primary {
-    border-color: color-mix(in srgb, var(--c-primary) 36%, transparent);
-    color: var(--c-primary);
-  }
-
-  .settings-content .btn-kofi {
-    border-color: color-mix(in srgb, #29abe0 48%, transparent);
-    background: color-mix(in srgb, #29abe0 12%, var(--c-bg));
-    color: #8ad8f4;
-  }
-
-  .settings-content .btn-kofi:hover {
-    border-color: color-mix(in srgb, #29abe0 68%, transparent);
-    background: color-mix(in srgb, #29abe0 20%, var(--c-bg));
-    color: #b6e9fa;
-  }
-
-  .settings-content .btn:disabled,
-  .settings-content .btn:disabled:hover,
-  .settings-content .btn:disabled:active {
-    opacity: 0.5;
-    cursor: not-allowed;
-    border-color: color-mix(in srgb, var(--c-accent) 20%, transparent);
-    color: color-mix(in srgb, var(--c-muted) 70%, transparent);
-    background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
-  }
+  /* .btn / .btn-primary / .btn-ghost come from the shared app.css button
+     system now — no local sliced-image overrides needed here or in
+     .settings-content. */
 
   .pob-textarea {
     resize: vertical;
     min-height: 70px;
-    font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 10px;
   }
 
@@ -2082,7 +2234,7 @@
     padding: 6px 8px;
     background: color-mix(in srgb, var(--c-primary) 6%, transparent);
     border: 1px solid color-mix(in srgb, var(--c-primary) 22%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
   }
 
   .pob-current-label {
@@ -2110,18 +2262,18 @@
     align-items: center;
     gap: 6px;
     padding: 5px 8px;
-    background: color-mix(in srgb, #4ade80 6%, transparent);
-    border: 1px solid color-mix(in srgb, #4ade80 22%, transparent);
-    border-radius: 2px;
+    background: color-mix(in srgb, var(--c-success) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-success) 22%, transparent);
+    border-radius: var(--radius);
     font-size: 10px;
-    color: color-mix(in srgb, #4ade80 75%, transparent);
+    color: color-mix(in srgb, var(--c-success) 75%, transparent);
   }
 
   .lws-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #4ade80;
+    background: var(--c-success);
     flex-shrink: 0;
     animation: lws-pulse 2s ease-in-out infinite;
   }
@@ -2149,10 +2301,10 @@
     -webkit-appearance: none;
     appearance: none;
     height: 4px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     background: linear-gradient(
       to right,
-      #c8a040 calc(var(--pct, 44) * 1%),
+      var(--c-red) calc(var(--pct, 44) * 1%),
       color-mix(in srgb, var(--c-mid) 80%, transparent) calc(var(--pct, 44) * 1%)
     );
     outline: none;
@@ -2164,32 +2316,32 @@
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: #c8a040;
-    border: 2px solid color-mix(in srgb, #c8a040 60%, #000 40%);
+    background: var(--c-red);
+    border: 2px solid var(--c-red-deep);
     cursor: pointer;
-    box-shadow: 0 0 6px rgba(200,160,64,0.5);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--c-red) 45%, transparent);
     transition: box-shadow 0.15s;
   }
   .ct-slider::-webkit-slider-thumb:hover {
-    box-shadow: 0 0 10px rgba(200,160,64,0.8);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--c-red) 70%, transparent);
   }
   .ct-slider::-moz-range-thumb {
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: #c8a040;
-    border: 2px solid color-mix(in srgb, #c8a040 60%, #000 40%);
+    background: var(--c-red);
+    border: 2px solid var(--c-red-deep);
     cursor: pointer;
   }
 
   .ct-slider-val {
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     font-feature-settings: 'tnum';
     min-width: 34px;
     text-align: right;
-    color: #c8a040;
+    color: var(--c-red-bright);
     letter-spacing: 0.04em;
   }
 
@@ -2212,13 +2364,13 @@
     align-items: center;
     gap: 5px;
     padding: 2px 4px 2px 8px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     border: 1px solid color-mix(in srgb, var(--c-accent) 40%, transparent);
     background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
   }
 
   .trigger-chip-key {
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 11px;
     color: var(--c-primary);
     letter-spacing: 0.02em;
@@ -2231,7 +2383,7 @@
     width: 16px;
     height: 16px;
     border: none;
-    border-radius: 2px;
+    border-radius: var(--radius);
     background: transparent;
     color: color-mix(in srgb, var(--c-muted) 90%, #fff 10%);
     font-size: 10px;
@@ -2240,8 +2392,8 @@
     transition: color 0.12s, background 0.12s;
   }
   .trigger-chip-remove:hover {
-    color: #f38d78;
-    background: color-mix(in srgb, #f38d78 10%, transparent);
+    color: var(--c-red-bright);
+    background: color-mix(in srgb, var(--c-red) 10%, transparent);
   }
 
   .trigger-add-row {
@@ -2261,8 +2413,8 @@
     gap: 10px;
     padding: 6px 12px;
     flex-shrink: 0;
-    background: color-mix(in srgb, #c8a040 14%, var(--c-bg));
-    border-bottom: 1px solid color-mix(in srgb, #c8a040 40%, transparent);
+    background: color-mix(in srgb, var(--c-red) 14%, var(--c-bg));
+    border-bottom: 1px solid color-mix(in srgb, var(--c-red) 40%, transparent);
   }
 
   .update-text {
@@ -2270,16 +2422,16 @@
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.03em;
-    color: #e2c98a;
+    color: var(--c-red-bright);
   }
 
   .update-btn {
     padding: 3px 12px;
-    background: color-mix(in srgb, #c8a040 20%, transparent);
-    border: 1px solid color-mix(in srgb, #c8a040 55%, transparent);
-    border-radius: 2px;
-    color: #e2c98a;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    background: color-mix(in srgb, var(--c-red) 20%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-red) 55%, transparent);
+    border-radius: var(--radius);
+    color: var(--c-red-bright);
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.06em;
@@ -2288,8 +2440,8 @@
     transition: all 0.12s;
   }
   .update-btn:hover {
-    background: color-mix(in srgb, #c8a040 30%, transparent);
-    border-color: #c8a040;
+    background: color-mix(in srgb, var(--c-red) 30%, transparent);
+    border-color: var(--c-red);
   }
 
   .update-dismiss {
@@ -2297,23 +2449,23 @@
     height: 20px;
     background: transparent;
     border: none;
-    color: color-mix(in srgb, #e2c98a 60%, transparent);
+    color: color-mix(in srgb, var(--c-red-bright) 60%, transparent);
     font-size: 11px;
     cursor: pointer;
     flex-shrink: 0;
   }
-  .update-dismiss:hover { color: #e2c98a; }
+  .update-dismiss:hover { color: var(--c-red-bright); }
 
   .update-progress {
     flex: 1;
     height: 4px;
     background: color-mix(in srgb, var(--c-mid) 70%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius);
     overflow: hidden;
   }
   .update-progress-fill {
     height: 100%;
-    background: #c8a040;
+    background: var(--c-red);
     transition: width 0.2s;
   }
 
@@ -2352,16 +2504,15 @@
     align-items: center;
     gap: 10px;
     padding: 28px 40px;
-    border: 2px dashed color-mix(in srgb, #c8a040 60%, transparent);
-    border-radius: 6px;
+    border: 2px dashed color-mix(in srgb, var(--c-red) 60%, transparent);
+    border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
-    color: #e2c98a;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    color: var(--c-red-bright);
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    text-shadow: 0 0 12px rgba(200,160,64,0.4);
   }
 
 

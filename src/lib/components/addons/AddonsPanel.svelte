@@ -38,11 +38,11 @@
   html, body { margin: 0; height: 100%; }
   body {
     font: 11px/1.45 system-ui, sans-serif;
-    color: #e8e4de;
+    color: #ede6d5;
     background: transparent;
     padding: 10px;
     box-sizing: border-box;
-    --c-primary: #f2dea0; --c-accent: #bfa980; --c-muted: #8c7c55;
+    --c-primary: #ede6d5; --c-accent: #a79a85; --c-muted: #4a4438;
   }
   #ec-root { height: 100%; }
 </style></head><body><div id="ec-root"></div>
@@ -219,7 +219,7 @@
 {:else if !addon.enabled}
   <div class="empty">{addon.name} is disabled. Enable it in Installed first.</div>
 {:else}
-  <section class="panel-shell" class:bare={!showHeader}>
+  <section class="ec-panel panel-shell" class:bare={!showHeader}>
     {#if showHeader}
       <header class="panel-head">
         <div>
@@ -227,7 +227,7 @@
           <p class="meta">{addon.id} • v{addon.version}</p>
         </div>
         {#if onClose}
-          <button class="btn" type="button" onclick={onClose}>Back to Installed</button>
+          <button class="btn btn-ghost" type="button" onclick={onClose}>Back to Installed</button>
         {/if}
       </header>
     {/if}
@@ -257,19 +257,17 @@
 <style>
   .empty {
     font-size: 12px;
-    color: #b8b4ae;
+    color: var(--c-accent);
     padding: 10px;
-    border: 1px dashed color-mix(in srgb, #b8b4ae 35%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--c-accent) 35%, transparent);
   }
 
   .empty.error {
-    color: #f0c3b5;
-    border-color: color-mix(in srgb, #f0c3b5 40%, transparent);
+    color: var(--c-red-bright);
+    border-color: color-mix(in srgb, var(--c-red) 40%, transparent);
   }
 
   .panel-shell {
-    border: 1px solid color-mix(in srgb, #b8b4ae 28%, transparent);
-    background: color-mix(in srgb, #111 84%, transparent);
     padding: 10px;
     display: flex;
     flex-direction: column;
@@ -295,13 +293,13 @@
     font-size: 12px;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: #ddd6c5;
+    color: var(--c-primary);
   }
 
   .meta {
     margin-top: 2px;
     font-size: 10px;
-    color: #b8b4ae;
+    color: var(--c-accent);
   }
 
   .frame-wrap {
@@ -313,8 +311,8 @@
   .panel-frame {
     width: 100%;
     height: 100%;
-    border: 1px solid color-mix(in srgb, #b8b4ae 26%, transparent);
-    background: color-mix(in srgb, #121214 90%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-accent) 26%, transparent);
+    background: var(--c-bg);
   }
 
   .panel-frame.loading {
@@ -328,19 +326,6 @@
     align-items: center;
     justify-content: center;
     font-size: 11px;
-    color: #b8b4ae;
-  }
-
-  .btn {
-    border: 1px solid color-mix(in srgb, #b8b4ae 35%, transparent);
-    color: #e8e4de;
-    background: color-mix(in srgb, #171719 86%, transparent);
-    padding: 4px 8px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-
-  .btn:hover {
-    border-color: color-mix(in srgb, #e8d070 52%, transparent);
+    color: var(--c-accent);
   }
 </style>

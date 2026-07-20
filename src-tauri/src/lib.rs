@@ -1,12 +1,32 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use overlay_core::{find_poe2_window, focus_window, is_window_alive, KeyChord, WindowInfo};
+use overlay_core::{
+    find_poe1_window, find_poe2_window, focus_window, is_window_alive, KeyChord, WindowInfo,
+};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
+
+/// Resolve the game-specific window finder for a `game` id ("poe1" | "poe2").
+/// Unrecognized ids fall back to PoE2 (the app's original/default game).
+fn find_window_for_game(game: &str) -> Option<WindowInfo> {
+    match game {
+        "poe1" => find_poe1_window(),
+        _ => find_poe2_window(),
+    }
+}
+
+fn game_display_name(game: &str) -> &'static str {
+    match game {
+        "poe1" => "Path of Exile",
+        _ => "Path of Exile 2",
+    }
+}
 
 struct OverlayState {
     game_hwnd: Mutex<Option<isize>>,
     click_through: Mutex<bool>,
+    /// Which game the overlay currently targets: "poe1" or "poe2".
+    active_game: Mutex<String>,
 }
 
 impl OverlayState {
@@ -14,6 +34,7 @@ impl OverlayState {
         Self {
             game_hwnd: Mutex::new(None),
             click_through: Mutex::new(false),
+            active_game: Mutex::new("poe2".to_string()),
         }
     }
 }
@@ -797,17 +818,17 @@ fn restore_window_bounds(app: &AppHandle, window: &WebviewWindow) {
 
 // ── Log file detection ────────────────────────────────────────────────────────
 
-/// Try to locate the Path of Exile 2 Client.txt log file automatically.
-/// On Windows, first checks the running process via wmic, then falls back to
-/// common install paths.  On Linux, checks common Steam/Wine paths.
+/// Try to locate the Client.txt log file automatically for the given game
+/// ("poe1" | "poe2"). On Windows, first checks the running process, then
+/// falls back to common install paths. On Linux, checks common Steam/Wine paths.
 #[tauri::command]
-fn detect_log_file() -> Option<String> {
+fn detect_log_file(game: String) -> Option<String> {
     #[cfg(target_os = "windows")]
-    if let Some(path) = detect_log_from_process_windows() {
+    if let Some(path) = detect_log_from_process_windows(&game) {
         return Some(path);
     }
 
-    for path in candidate_log_paths() {
+    for path in candidate_log_paths(&game) {
         if std::path::Path::new(&path).exists() {
             return Some(path);
         }
@@ -815,18 +836,22 @@ fn detect_log_file() -> Option<String> {
     None
 }
 
-/// Ask PowerShell for the executable path of any running PathOfExile process,
-/// then derive logs/Client.txt from the parent directory.
+/// Ask PowerShell for the executable path of a running PathOfExile process
+/// matching `game`, then derive logs/Client.txt from the parent directory.
 /// wmic is deprecated and removed in Windows 11 — PowerShell Get-Process is reliable.
+/// PoE2's process name starts with "PathOfExile2"; PoE1's doesn't, so filtering
+/// PoE1 down to names that *don't* match that prefix disambiguates the two when
+/// both happen to be running.
 #[cfg(target_os = "windows")]
-fn detect_log_from_process_windows() -> Option<String> {
+fn detect_log_from_process_windows(game: &str) -> Option<String> {
+    let script = if game == "poe1" {
+        "(Get-Process -Name 'PathOfExile*' -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike 'PathOfExile2*' } | Select-Object -First 1).Path"
+    } else {
+        "(Get-Process -Name 'PathOfExile2*' -ErrorAction SilentlyContinue | Select-Object -First 1).Path"
+    };
+
     let output = std::process::Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "(Get-Process -Name 'PathOfExile*' -ErrorAction SilentlyContinue | Select-Object -First 1).Path",
-        ])
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
         .output()
         .ok()?;
 
@@ -848,29 +873,36 @@ fn detect_log_from_process_windows() -> Option<String> {
     }
 }
 
-fn candidate_log_paths() -> Vec<String> {
+fn candidate_log_paths(game: &str) -> Vec<String> {
     let mut paths = Vec::new();
+    let name = game_display_name(game); // "Path of Exile" | "Path of Exile 2"
+    let steam_dir = if game == "poe1" {
+        "Path of Exile"
+    } else {
+        "Path of Exile 2"
+    };
 
     #[cfg(target_os = "windows")]
     {
         for var in &["PROGRAMFILES(X86)", "PROGRAMFILES"] {
             if let Ok(root) = std::env::var(var) {
                 paths.push(format!(
-                    r"{root}\Grinding Gear Games\Path of Exile 2\logs\Client.txt"
+                    r"{root}\Grinding Gear Games\{name}\logs\Client.txt"
                 ));
                 paths.push(format!(
-                    r"{root}\Steam\steamapps\common\Path of Exile 2\logs\Client.txt"
+                    r"{root}\Steam\steamapps\common\{steam_dir}\logs\Client.txt"
                 ));
             }
         }
         // Hard-coded fallbacks in case env vars are absent
-        for p in [
-            r"C:\Program Files (x86)\Grinding Gear Games\Path of Exile 2\logs\Client.txt",
-            r"C:\Program Files\Grinding Gear Games\Path of Exile 2\logs\Client.txt",
-            r"C:\Program Files (x86)\Steam\steamapps\common\Path of Exile 2\logs\Client.txt",
-            r"C:\Program Files\Steam\steamapps\common\Path of Exile 2\logs\Client.txt",
+        for base in [
+            r"C:\Program Files (x86)",
+            r"C:\Program Files",
         ] {
-            paths.push(p.to_string());
+            paths.push(format!(r"{base}\Grinding Gear Games\{name}\logs\Client.txt"));
+            paths.push(format!(
+                r"{base}\Steam\steamapps\common\{steam_dir}\logs\Client.txt"
+            ));
         }
     }
 
@@ -879,13 +911,18 @@ fn candidate_log_paths() -> Vec<String> {
         let home = std::env::var("HOME").unwrap_or_default();
         let data_home = std::env::var("XDG_DATA_HOME")
             .unwrap_or_else(|_| format!("{home}/.local/share"));
+        let wine_dir = if game == "poe1" {
+            "path-of-exile"
+        } else {
+            "path-of-exile-2"
+        };
 
         paths.extend([
-            format!("{data_home}/Steam/steamapps/common/Path of Exile 2/logs/Client.txt"),
-            format!("{home}/.steam/steam/steamapps/common/Path of Exile 2/logs/Client.txt"),
-            format!("{home}/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Path of Exile 2/logs/Client.txt"),
-            format!("{home}/Games/path-of-exile-2/drive_c/Program Files/Grinding Gear Games/Path of Exile 2/logs/Client.txt"),
-            format!("{home}/.wine/drive_c/Program Files/Grinding Gear Games/Path of Exile 2/logs/Client.txt"),
+            format!("{data_home}/Steam/steamapps/common/{steam_dir}/logs/Client.txt"),
+            format!("{home}/.steam/steam/steamapps/common/{steam_dir}/logs/Client.txt"),
+            format!("{home}/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/{steam_dir}/logs/Client.txt"),
+            format!("{home}/Games/{wine_dir}/drive_c/Program Files/Grinding Gear Games/{name}/logs/Client.txt"),
+            format!("{home}/.wine/drive_c/Program Files/Grinding Gear Games/{name}/logs/Client.txt"),
         ]);
     }
 
@@ -990,13 +1027,13 @@ fn list_build_files(dir: String) -> Result<Vec<BuildFileEntry>, String> {
 }
 
 /// Return the default GGG BuildPlanner folder
-/// (`<Documents>/My Games/Path of Exile 2/BuildPlanner`) if it exists.
+/// (`<Documents>/My Games/<game>/BuildPlanner`) if it exists.
 #[tauri::command]
-fn detect_build_folder(app: AppHandle) -> Option<String> {
+fn detect_build_folder(app: AppHandle, game: String) -> Option<String> {
     let docs = app.path().document_dir().ok()?;
     let folder = docs
         .join("My Games")
-        .join("Path of Exile 2")
+        .join(game_display_name(&game))
         .join("BuildPlanner");
     if folder.is_dir() {
         Some(folder.to_string_lossy().into_owned())
@@ -1035,16 +1072,25 @@ async fn fetch_pobb_code(build_id: String) -> Result<String, String> {
 
 // ── Commands ──────────────────────────────────────────────────────────────────
 
-/// Return the current PoE2 window info without attaching.
+/// Return the current game window info (for whichever game is active) without attaching.
 #[tauri::command]
-fn find_game_window() -> Option<WindowInfo> {
-    find_poe2_window()
+fn find_game_window(state: State<'_, OverlayState>) -> Option<WindowInfo> {
+    find_window_for_game(&state.active_game.lock().unwrap())
 }
 
-/// Find and remember the PoE2 window handle. Does not move or resize the overlay.
+/// Switch which game the overlay targets ("poe1" | "poe2"). Takes effect on the
+/// next attach/status check — does not itself move or detach anything.
+#[tauri::command]
+fn set_active_game(state: State<'_, OverlayState>, game: String) {
+    *state.active_game.lock().unwrap() = game;
+}
+
+/// Find and remember the active game's window handle. Does not move or resize the overlay.
 #[tauri::command]
 fn attach_to_game(state: State<'_, OverlayState>) -> Result<WindowInfo, String> {
-    let info = find_poe2_window().ok_or("Path of Exile 2 window not found")?;
+    let game = state.active_game.lock().unwrap().clone();
+    let info = find_window_for_game(&game)
+        .ok_or_else(|| format!("{} window not found", game_display_name(&game)))?;
     *state.game_hwnd.lock().unwrap() = Some(info.hwnd);
     // Auto-hide triggers only fire while this window is foreground.
     overlay_core::set_hook_foreground_target(info.hwnd);
@@ -1134,7 +1180,7 @@ fn get_overlay_status(state: State<'_, OverlayState>) -> serde_json::Value {
         "clickThrough": click_through,
         // In no-detect mode we force the frontend out of the "waiting for game"
         // gate and skip auto-attach polling, so UI tools can be tested standalone.
-        "gameRunning": no_detect || find_poe2_window().is_some(),
+        "gameRunning": no_detect || find_window_for_game(&state.active_game.lock().unwrap()).is_some(),
         // Only Windows can enumerate and attach to the PoE2 window. Elsewhere the
         // overlay runs standalone: the frontend skips the "waiting for game" gate
         // and the auto-attach polling, showing the tools immediately.
@@ -1314,6 +1360,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             find_game_window,
+            set_active_game,
             attach_to_game,
             detach_from_game,
             set_click_through,

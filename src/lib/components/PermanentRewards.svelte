@@ -105,14 +105,14 @@
   }
 
   function valueColor(r: Reward): string {
-    if ('element' in r && r.element) return ELEMENT_COLOR[r.element as string] ?? '#e8e4de';
+    if ('element' in r && r.element) return ELEMENT_COLOR[r.element as string] ?? 'var(--c-primary)';
     const group = REWARDS_DATA.groups.find(g => g.rewards.some(x => x.id === r.id))!;
     return group.color;
   }
 </script>
 
 <div class="rewards">
-  <div class="rewards-header">
+  <div class="rewards-header ec-panel">
     <h3>{m.rewards_passive_boosts()}</h3>
     <ConfirmReset
       label={m.action_reset()}
@@ -126,7 +126,7 @@
     {@const max = groupMax(group)}
     {@const hasNumeric = max > 0}
     {@const expanded = expandedGroups.has(group.id)}
-    <div class="group" style="--g-color: {group.color}">
+    <div class="group ec-panel" style="--g-color: {group.color}">
       <button class="group-header" type="button" onclick={() => toggleGroup(group.id)}>
         <span class="group-left">
           <span class="toggle-icon" class:expanded={expanded}>▶</span>
@@ -145,7 +145,7 @@
           <label class="reward-row" class:done>
             <input
               type="checkbox"
-              class="reward-check"
+              class="reward-check ec-checkbox"
               checked={done}
               onchange={() => toggle(reward.id)}
             />
@@ -154,7 +154,7 @@
               <span class="reward-location">{trReward(reward.id, 'location', reward.location)} · {reward.act}</span>
             </span>
             {#if autoDetected.has(reward.id)}
-              <span class="auto-badge" title={m.rewards_auto_badge_title()}>{m.rewards_auto_badge()}</span>
+              <span class="badge badge-ok auto-badge" title={m.rewards_auto_badge_title()}>{m.rewards_auto_badge()}</span>
             {/if}
             <span class="reward-value" style="color: {valueColor(reward)}; border-color: color-mix(in srgb, {valueColor(reward)} 28%, transparent); background: color-mix(in srgb, {valueColor(reward)} 8%, transparent)">
               {valueLabel(reward)}
@@ -178,15 +178,12 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    background: color-mix(in srgb, var(--c-bg) 86%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 38%, transparent);
-    border-radius: 3px;
     margin-bottom: 2px;
   }
 
   .rewards-header h3 {
     margin: 0;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -196,8 +193,7 @@
   }
 
   .group {
-    border: 1px solid color-mix(in srgb, var(--g-color, var(--c-accent)) 20%, transparent);
-    border-radius: 3px;
+    border-color: color-mix(in srgb, var(--g-color, var(--c-accent)) 20%, transparent);
     overflow: hidden;
   }
 
@@ -240,7 +236,7 @@
   }
 
   .group-label {
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -256,7 +252,7 @@
     color: color-mix(in srgb, var(--c-muted) 80%, #fff 20%);
     letter-spacing: 0.04em;
   }
-  .group-total.complete { color: #4ade80; }
+  .group-total.complete { color: var(--c-success); }
 
   .reward-row {
     display: flex;
@@ -272,22 +268,8 @@
   .reward-row.done { opacity: 0.45; }
 
   .reward-check {
-    flex-shrink: 0;
-    appearance: none;
-    width: 18px;
-    height: 18px;
-    border: none;
-    border-radius: 0;
-    background: url('/ui/checkboxunchecked.webp') center/contain no-repeat;
-    cursor: pointer;
     align-self: center;
-    transition: opacity 0.12s;
   }
-  .reward-check:hover { opacity: 0.85; }
-  .reward-check:checked {
-    background-image: url('/ui/checkboxchecked.webp');
-  }
-  .reward-check:checked::after { display: none; }
 
   .reward-info {
     display: flex;
@@ -317,15 +299,6 @@
 
   .auto-badge {
     flex-shrink: 0;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 1px 4px;
-    border-radius: 2px;
-    border: 1px solid color-mix(in srgb, #4ade80 30%, transparent);
-    background: color-mix(in srgb, #4ade80 8%, transparent);
-    color: color-mix(in srgb, #4ade80 80%, transparent);
     white-space: nowrap;
   }
 
@@ -335,7 +308,7 @@
     font-weight: 600;
     letter-spacing: 0.04em;
     padding: 2px 6px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     border: 1px solid;
     white-space: nowrap;
   }

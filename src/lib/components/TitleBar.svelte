@@ -10,8 +10,8 @@
 
   let { title = 'ExileCompass', extra, controlsLeft }: Props = $props();
 
-  // Wordmark: render the "Exile" half white, keep "Compass" gold. Falls back to
-  // the plain gold title for any name that doesn't end in "Compass".
+  // Wordmark: render the "Exile" half bone-white, keep "Compass" red. Falls back
+  // to the plain red title for any name that doesn't end in "Compass".
   const wordmark = $derived.by(() => {
     const m = title.match(/^(.*?)(compass)$/i);
     return m ? { lead: m[1], rest: m[2] } : { lead: '', rest: title };
@@ -24,6 +24,7 @@
 
 <header class="titlebar" data-tauri-drag-region>
   <div class="titlebar-left">
+    <span class="brand-mark" aria-hidden="true"></span>
     <span class="app-title">{#if wordmark.lead}<span class="title-lead">{wordmark.lead}</span>{/if}{wordmark.rest}</span>
   </div>
 
@@ -38,77 +39,69 @@
       {@render controlsLeft()}
     {/if}
 
-    <!-- PoE2 close button image -->
-    <button class="ctrl-btn ctrl-close" onclick={close} title="Close" aria-label="Close"></button>
+    <button class="ctrl-btn ctrl-close" onclick={close} title="Close" aria-label="Close">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <line x1="5" y1="5" x2="19" y2="19" />
+        <line x1="19" y1="5" x2="5" y2="19" />
+      </svg>
+    </button>
   </div>
 </header>
 
 <style>
   .titlebar {
-    --c-primary: #e8e4de;
-    --c-mid:     #1c1c1e;
-    --c-accent:  #b8b4ae;
-    --c-muted:   #48484c;
-    --c-bg:      #080808;
-
     display: flex;
     align-items: center;
     justify-content: space-between;
-    /* Height at ~55% of natural 88px — gives the ornaments enough room */
     height: 48px;
-    padding: 0 4px 0 10px;
+    /* 18px left aligns the wordmark with the content area's padding (the nav
+       tabs sit at 18px); 11px right puts the close icon's optical edge at
+       ~18px too (28px button, 14px icon → 7px inset inside the button). */
+    padding: 0 11px 0 18px;
 
-    /* Must sit above the PoeFrame overlay (z-index: 100) */
+    /* Must sit above the PoeFrame overlay */
     position: relative;
     z-index: 200;
 
-    /* 3-piece horizontal bar — caps scale to height, middle STRETCHES to fill */
-    background-image:
-      url('/ui/windowtitlebarleft.webp'),
-      url('/ui/windowtitlebarright.webp'),
-      url('/ui/windowtitlebarmiddle.webp');
-    background-position: left center, right center, 0 0;
-    background-repeat:   no-repeat,  no-repeat,   no-repeat;
-    background-size:     auto 100%,  auto 100%,   100% 100%;
+    background: var(--c-mid);
+    border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent);
 
     user-select: none;
     -webkit-user-select: none;
     flex-shrink: 0;
-    position: relative;
   }
 
   .titlebar-left {
     display: flex;
     align-items: center;
-    /* clear the left gear ornament, shifted ~20px further left */
-    padding-left: 62px;
+    gap: 8px;
+  }
+
+  /* Brand compass — the shared white-on-transparent mark used as a CSS mask
+     so it follows the active theme's accent (same asset as the site/app icon). */
+  .brand-mark {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    background: var(--c-red-bright);
+    -webkit-mask: url('/compass-mark.png') center / contain no-repeat;
+    mask: url('/compass-mark.png') center / contain no-repeat;
   }
 
   .app-title {
-    /* Centred over the whole bar (not flex-centred) so the left ornament
-       clearance and the right close button don't shift it off-centre.
-       pointer-events: none lets a drag on the title still move the window. */
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-
-    font-family: 'Inter Tight', 'Inter', sans-serif;
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    /* Warm parchment — matches PoE2 panel title colour */
-    color: #e2c98a;
+    /* Satoshi Black — the heaviest cut of the UI face gives the wordmark its
+       display weight without a separate font family. */
+    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: var(--c-red-bright);
     text-transform: uppercase;
-    text-shadow:
-      0 0 14px rgba(210,185,110,0.55),
-      0 1px 4px rgba(0,0,0,0.95);
   }
 
-  /* "Exile" half of the wordmark in white; "Compass" keeps the gold above */
+  /* "Exile" half of the wordmark in bone; "Compass" keeps the red above */
   .title-lead {
-    color: #ffffff;
+    color: var(--c-primary);
   }
 
   .titlebar-center {
@@ -122,8 +115,6 @@
     display: flex;
     align-items: center;
     gap: 2px;
-    /* close button pushed toward the right corner */
-    padding-right: 14px;
   }
 
   .ctrl-btn {
@@ -134,31 +125,16 @@
     height: 28px;
     border: none;
     background: transparent;
-    color: #c8b060;
+    color: var(--c-accent);
     cursor: pointer;
-    transition: all 0.15s;
-    border-radius: 2px;
+    transition: color 0.15s, opacity 0.15s;
+    border-radius: var(--radius);
     opacity: 0.7;
   }
 
   .ctrl-btn:hover { opacity: 1; }
 
-
-
-  /* Close button uses the PoE2 bronze X image */
-  .ctrl-close {
-    width: 28px;
-    height: 28px;
-    background-image: url('/ui/buttonclosenormal.webp');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    color: transparent;
-    font-size: 0;
-    opacity: 0.8;
-  }
   .ctrl-close:hover {
-    background-image: url('/ui/buttonclosehover.webp');
-    opacity: 1;
+    color: var(--c-red-bright);
   }
 </style>

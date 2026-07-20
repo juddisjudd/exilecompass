@@ -218,7 +218,7 @@
       </div>
       <p class="empty-title">{m.build_empty_title()}</p>
       <p class="empty-sub">{m.build_empty_sub()}</p>
-      <button class="btn-import" onclick={onOpenImport}>{m.action_import_build()}</button>
+      <button class="btn btn-primary" onclick={onOpenImport}>{m.action_import_build()}</button>
     </div>
   {:else}
     <!-- Build header -->
@@ -235,7 +235,7 @@
         {#if build.level > 0}
           <span class="build-level">{m.build_level_prefix()} {build.level}</span>
         {/if}
-        <button class="btn-clear" onclick={handleClear}>{m.action_clear()}</button>
+        <button class="btn btn-danger btn-sm" onclick={handleClear}>{m.action_clear()}</button>
       </div>
     </div>
 
@@ -274,7 +274,7 @@
     <!-- Equipment -->
     {#if itemSet && itemSet.items.length > 0}
       <div class="section">
-        <div class="section-label">
+        <div class="panel-header section-label">
           {m.build_section_equipment()}
           {#if multiItem}<span class="section-hint">{itemSet.name}</span>{/if}
         </div>
@@ -310,7 +310,7 @@
     <!-- Skill links -->
     {#if skillSet && skillSet.skillGroups.length > 0}
       <div class="section">
-        <div class="section-label">
+        <div class="panel-header section-label">
           {m.build_section_skills()}
           {#if multiSkill}<span class="section-hint">{skillSet.name}</span>{/if}
           <span class="gem-legend">
@@ -348,9 +348,11 @@
     <!-- Notes -->
     {#if hasNotes}
       <div class="section">
-        <button class="notes-toggle" onclick={() => (notesExpanded = !notesExpanded)} type="button">
-          <span class="toggle-icon" class:expanded={notesExpanded}>▶</span>
-          <span class="section-label">{m.build_section_notes()}</span>
+        <button class="panel-header notes-toggle" onclick={() => (notesExpanded = !notesExpanded)} type="button">
+          <span class="notes-toggle-label">
+            <span class="toggle-icon" class:expanded={notesExpanded}>▶</span>
+            {m.build_section_notes()}
+          </span>
         </button>
         {#if notesExpanded}
           <pre class="notes-body">{cleanNotes}</pre>
@@ -410,22 +412,20 @@
   .build-overview { display: flex; flex-direction: column; gap: 6px; }
 
   /* ── Empty state ──────────────────────────────────────── */
-  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px 16px; text-align: center; border: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent); border-radius: 3px; background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid)); }
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px 16px; text-align: center; border: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent); border-radius: var(--radius); background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid)); }
   .empty-icon { color: color-mix(in srgb, var(--c-muted) 50%, transparent); }
   .empty-title { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%); }
   .empty-sub { font-size: 11px; color: color-mix(in srgb, var(--c-muted) 80%, transparent); max-width: 240px; line-height: 1.5; }
-  .btn-import { margin-top: 4px; padding: 5px 16px; border-radius: 2px; cursor: pointer; background: color-mix(in srgb, var(--c-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c-primary) 40%, transparent); color: var(--c-primary); font-family:'Inter Tight','Inter',sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; transition: all 0.15s; }
-  .btn-import:hover { background: color-mix(in srgb, var(--c-primary) 20%, transparent); border-color: color-mix(in srgb, var(--c-primary) 60%, transparent); }
+  .empty-state .btn { margin-top: 4px; }
 
   /* ── Build header ──────────────────────────────────────── */
-  .build-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: color-mix(in srgb, var(--c-bg) 86%, var(--c-mid)); border: 1px solid color-mix(in srgb, var(--c-accent) 38%, transparent); border-radius: 3px; }
+  .build-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: color-mix(in srgb, var(--c-bg) 86%, var(--c-mid)); border: 1px solid color-mix(in srgb, var(--c-accent) 38%, transparent); border-radius: var(--radius); }
   .build-identity { display: flex; align-items: baseline; gap: 6px; }
-  .build-class { font-family:'Inter Tight','Inter',sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; color: var(--c-primary); text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent); }
+  .build-class { font-family: 'Satoshi', 'Inter', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; color: var(--c-primary); text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent); }
   .build-base-class { font-size: 10px; color: color-mix(in srgb, var(--c-muted) 80%, transparent); letter-spacing: 0.04em; }
   .build-meta { display: flex; align-items: center; gap: 8px; }
-  .build-level { font-family:'Inter Tight',sans-serif; font-size: 11px; font-weight: 600; font-feature-settings:'tnum'; color: color-mix(in srgb, var(--c-accent) 75%, #fff 25%); letter-spacing: 0.04em; }
-  .btn-clear { padding: 2px 8px; background: transparent; border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent); border-radius: 2px; color: color-mix(in srgb, var(--c-muted) 90%, #fff 10%); font-size: 10px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
-  .btn-clear:hover { border-color: color-mix(in srgb, #f38d78 40%, transparent); color: #f38d78; }
+  .build-level { font-family: 'Satoshi', 'Inter', sans-serif; font-size: 11px; font-weight: 600; font-feature-settings:'tnum'; color: color-mix(in srgb, var(--c-accent) 75%, #fff 25%); letter-spacing: 0.04em; }
+  .btn-sm { height: auto; padding: 2px 8px; font-size: 10px; font-weight: 500; letter-spacing: 0.06em; }
 
   /* ── Set selectors (skill set / item set dropdowns) ────── */
   .set-selectors {
@@ -447,7 +447,7 @@
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: color-mix(in srgb, #c8a040 70%, transparent);
+    color: color-mix(in srgb, var(--c-red) 70%, transparent);
     flex-shrink: 0;
   }
 
@@ -456,10 +456,10 @@
     min-width: 0;
     padding: 4px 20px 4px 6px;
     background-color: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, #c8a040 32%, transparent);
-    border-radius: 2px;
-    color: #e2c98a;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    border: 1px solid color-mix(in srgb, var(--c-red) 32%, transparent);
+    border-radius: var(--radius);
+    color: var(--c-red-bright);
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -469,11 +469,11 @@
   }
   .set-select select:hover,
   .set-select select:focus {
-    border-color: color-mix(in srgb, #c8a040 55%, transparent);
+    border-color: color-mix(in srgb, var(--c-red) 55%, transparent);
   }
   .set-select option {
-    background: #14130f;
-    color: #e2c98a;
+    background: var(--c-bg);
+    color: var(--c-red-bright);
   }
 
   /* ── Build library picker ──────────────────────────────── */
@@ -487,10 +487,10 @@
     min-width: 0;
     padding: 4px 20px 4px 6px;
     background-color: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, #c8a040 32%, transparent);
-    border-radius: 2px;
-    color: #e2c98a;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    border: 1px solid color-mix(in srgb, var(--c-red) 32%, transparent);
+    border-radius: var(--radius);
+    color: var(--c-red-bright);
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -500,11 +500,11 @@
   }
   .build-library select:hover,
   .build-library select:focus {
-    border-color: color-mix(in srgb, #c8a040 55%, transparent);
+    border-color: color-mix(in srgb, var(--c-red) 55%, transparent);
   }
   .build-library option {
-    background: #14130f;
-    color: #e2c98a;
+    background: var(--c-bg);
+    color: var(--c-red-bright);
   }
   .library-refresh {
     flex-shrink: 0;
@@ -515,23 +515,23 @@
     align-items: center;
     justify-content: center;
     background: transparent;
-    border: 1px solid color-mix(in srgb, #c8a040 32%, transparent);
-    border-radius: 2px;
-    color: #e2c98a;
+    border: 1px solid color-mix(in srgb, var(--c-red) 32%, transparent);
+    border-radius: var(--radius);
+    color: var(--c-red-bright);
     font-size: 13px;
     line-height: 1;
     cursor: pointer;
     transition: border-color 0.12s, color 0.12s;
   }
   .library-refresh:hover {
-    border-color: color-mix(in srgb, #c8a040 55%, transparent);
+    border-color: color-mix(in srgb, var(--c-red) 55%, transparent);
     color: var(--c-primary);
   }
 
   /* ── Section ───────────────────────────────────────────── */
-  .section { display: flex; flex-direction: column; border: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent); border-radius: 3px; overflow: hidden; }
-  .section-label { font-family:'Inter Tight','Inter',sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: color-mix(in srgb, var(--c-accent) 70%, transparent); padding: 5px 10px; background: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid)); border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 12%, transparent); display: flex; align-items: center; gap: 6px; }
-  .section-hint { font-size: 9px; font-weight: 400; letter-spacing: 0.04em; text-transform: none; color: color-mix(in srgb, #c8a040 60%, transparent); }
+  .section { display: flex; flex-direction: column; border: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent); border-radius: var(--radius); overflow: hidden; }
+  .section-label { gap: 6px; }
+  .section-hint { font-size: 9px; font-weight: 400; letter-spacing: 0.04em; text-transform: none; color: color-mix(in srgb, var(--c-red) 60%, transparent); }
 
   /* ── Equipment grid ────────────────────────────────────── */
   .equip-grid { display: grid; grid-template-columns: 1fr 1fr; background: color-mix(in srgb, var(--c-bg) 96%, var(--c-mid)); }
@@ -542,25 +542,26 @@
 
   /* Per-item "find upgrades" action — reveals on cell hover/focus so it doesn't
      clutter the grid. Builds a stash search from the item's mods. */
-  .slot-search { position: absolute; top: 4px; right: 6px; width: 18px; height: 18px; padding: 0; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid)); border: 1px solid color-mix(in srgb, var(--c-primary) 30%, transparent); border-radius: 3px; color: color-mix(in srgb, var(--c-primary) 75%, var(--c-accent)); cursor: pointer; opacity: 0; transition: opacity 0.12s, border-color 0.12s, color 0.12s, background 0.12s; }
+  .slot-search { position: absolute; top: 4px; right: 6px; width: 18px; height: 18px; padding: 0; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid)); border: 1px solid color-mix(in srgb, var(--c-primary) 30%, transparent); border-radius: var(--radius); color: color-mix(in srgb, var(--c-primary) 75%, var(--c-accent)); cursor: pointer; opacity: 0; transition: opacity 0.12s, border-color 0.12s, color 0.12s, background 0.12s; }
   .slot-search svg { width: 12px; height: 12px; }
   .slot-cell:hover .slot-search,
   .slot-search:focus-visible { opacity: 1; }
   .slot-search:hover { color: var(--c-primary); border-color: color-mix(in srgb, var(--c-primary) 60%, transparent); background: color-mix(in srgb, var(--c-primary) 12%, transparent); }
 
   /* Confirmation toast for the find-upgrades action */
-  .search-toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 9999; padding: 7px 14px; background: #0a0a0c; border: 1px solid color-mix(in srgb, var(--c-primary) 40%, transparent); border-radius: 4px; color: color-mix(in srgb, var(--c-primary) 90%, #fff 10%); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; box-shadow: 0 8px 24px rgba(0,0,0,0.7); pointer-events: none; }
+  .search-toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 9999; padding: 7px 14px; background: var(--c-mid); border: 1px solid color-mix(in srgb, var(--c-primary) 40%, transparent); border-radius: var(--radius); color: color-mix(in srgb, var(--c-primary) 90%, #fff 10%); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; box-shadow: 0 8px 24px rgba(0,0,0,0.7); pointer-events: none; }
   .slot-tag  { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: color-mix(in srgb, var(--c-muted) 55%, transparent); }
   .slot-name { font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
   .slot-base { font-size: 9px; color: color-mix(in srgb, var(--c-muted) 65%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* ── Hovercard ─────────────────────────────────────────── */
-  .hovercard { position: fixed; z-index: 9999; pointer-events: none; padding: 10px 12px; background: #0a0a0c; border: 1px solid color-mix(in srgb, var(--rc, #888) 45%, transparent); border-top: 2px solid color-mix(in srgb, var(--rc, #888) 70%, transparent); border-radius: 3px; box-shadow: 0 8px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow: hidden; }
+  .hovercard { position: fixed; z-index: 9999; pointer-events: none; padding: 10px 12px; background: var(--c-mid); border: 1px solid color-mix(in srgb, var(--rc, #888) 45%, transparent); border-top: 2px solid color-mix(in srgb, var(--rc, #888) 70%, transparent); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow: hidden; }
   .hc-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
   .hc-name { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; line-height: 1.3; }
   .hc-base { font-size: 10px; color: color-mix(in srgb, var(--c-accent) 65%, transparent); margin-top: 2px; }
   .hc-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
-  .hc-rarity { font-size: 8px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 5px; border-radius: 2px; border: 1px solid; white-space: nowrap; }
+  .hc-rarity { font-size: 8px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 5px; border-radius: var(--radius); border: 1px solid; white-space: nowrap; }
+  /* Item-rarity colors mirror in-game rarity (Normal/Magic/Rare/Unique) — left as-is intentionally. */
   .hc-normal  { color: #b8b4ae; border-color: rgba(184,180,174,.3); background: rgba(184,180,174,.08); }
   .hc-magic   { color: #8ba4e8; border-color: rgba(139,164,232,.3); background: rgba(139,164,232,.08); }
   .hc-rare    { color: #e8d56e; border-color: rgba(232,213,110,.3); background: rgba(232,213,110,.08); }
@@ -572,7 +573,7 @@
   .hc-footer { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .hc-req { font-size: 9px; color: color-mix(in srgb, var(--c-muted) 75%, transparent); }
   .hc-ilv { font-size: 9px; color: color-mix(in srgb, var(--c-muted) 55%, transparent); }
-  .hc-corrupted { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #f38d78; }
+  .hc-corrupted { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-red-bright); }
 
   /* ── Skill groups ──────────────────────────────────────── */
   .skill-groups { display: flex; flex-direction: column; gap: 1px; background: color-mix(in srgb, var(--c-bg) 96%, var(--c-mid)); }
@@ -603,14 +604,14 @@
   .gem-spirit  { color: #c4b5fd; }
 
   /* Gem hovercard */
-  .gem-hovercard { position: fixed; z-index: 9999; pointer-events: none; padding: 7px 10px; background: #0a0a0c; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-left: 2px solid currentColor; border-radius: 3px; box-shadow: 0 8px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 2px; }
+  .gem-hovercard { position: fixed; z-index: 9999; pointer-events: none; padding: 7px 10px; background: var(--c-mid); border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-left: 2px solid currentColor; border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 2px; }
   .ghc-name { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; color: color-mix(in srgb, var(--c-accent) 88%, #fff 12%); }
   .ghc-type { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: currentColor; }
 
   /* ── Notes ─────────────────────────────────────────────── */
-  .notes-toggle { display: flex; align-items: center; gap: 6px; width: 100%; background: transparent; border: none; cursor: pointer; text-align: left; padding: 0; }
-  .notes-toggle .section-label { flex: 1; border-bottom: none; }
-  .notes-toggle .toggle-icon { font-size: 8px; color: color-mix(in srgb, var(--c-accent) 70%, transparent); transition: transform 0.2s ease; margin-left: 6px; flex-shrink: 0; }
-  .notes-toggle .toggle-icon.expanded { transform: rotate(90deg); }
-  .notes-body { margin: 0; padding: 8px 10px; font-family:'Inter Tight','Inter',sans-serif; font-size: 11px; line-height: 1.55; color: color-mix(in srgb, var(--c-accent) 82%, #fff 18%); white-space: pre-wrap; overflow-wrap: break-word; background: color-mix(in srgb, var(--c-bg) 97%, var(--c-mid)); max-height: 240px; overflow-y: auto; }
+  .notes-toggle { width: 100%; border: none; cursor: pointer; text-align: left; }
+  .notes-toggle-label { display: flex; align-items: center; gap: 6px; }
+  .toggle-icon { font-size: 8px; color: color-mix(in srgb, var(--c-accent) 70%, transparent); transition: transform 0.2s ease; flex-shrink: 0; }
+  .toggle-icon.expanded { transform: rotate(90deg); }
+  .notes-body { margin: 0; padding: 8px 10px; font-family: 'Satoshi', 'Inter', sans-serif; font-size: 11px; line-height: 1.55; color: color-mix(in srgb, var(--c-accent) 82%, #fff 18%); white-space: pre-wrap; overflow-wrap: break-word; background: color-mix(in srgb, var(--c-bg) 97%, var(--c-mid)); max-height: 240px; overflow-y: auto; }
 </style>

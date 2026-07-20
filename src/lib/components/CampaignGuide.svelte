@@ -101,7 +101,7 @@
 </script>
 
 <div class="campaign-guide">
-  <div class="guide-header">
+  <div class="guide-header ec-panel">
     <h3>{m.campaign_guide_title()}</h3>
     <ConfirmReset
       label={m.action_reset()}
@@ -118,7 +118,7 @@
     {@const isRequired = progress.status === 'required'}
     {@const expanded = guideState.expandedActs.has(act.number)}
     <div
-      class="act-group"
+      class="act-group ec-panel"
       class:complete={isComplete}
       class:required={isRequired}
       class:complete-collapsed={isComplete && !expanded}
@@ -129,7 +129,9 @@
           onclick={() => toggleAct(act.number)}
           type="button"
         >
-          <span class="toggle-icon" class:expanded>▶</span>
+          <span class="toggle-icon" class:expanded>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </span>
           <span class="act-title">{trAct(act.number, act.name)}</span>
           {#if act.temporary}
             <span class="badge-interlude">{m.campaign_interlude_badge()}</span>
@@ -167,7 +169,7 @@
           {#each act.zones as zone (zone.id)}
             {@const zoneStatus = summarize(zone.objectives).status}
             <div
-              class="zone-group"
+              class="zone-group ec-panel"
               class:complete={zoneStatus === 'complete'}
               class:required={zoneStatus === 'required'}
             >
@@ -176,7 +178,9 @@
                 onclick={() => toggleZone(zone.id)}
                 type="button"
               >
-                <span class="toggle-icon" class:expanded={guideState.expandedZones.has(zone.id)}>▶</span>
+                <span class="toggle-icon" class:expanded={guideState.expandedZones.has(zone.id)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                </span>
                 <span class="zone-title">{trZone(zone.id, zone.name)}</span>
                 {#if zoneStatus === 'complete'}
                   <span class="zone-check" aria-hidden="true">✓</span>
@@ -193,7 +197,7 @@
                           type="checkbox"
                           checked={done}
                           onchange={() => toggleObjective(obj.id)}
-                          class="objective-checkbox"
+                          class="ec-checkbox objective-checkbox"
                         />
                         <span class="objective-text">{trObjective(obj.id, obj.text)}</span>
                         {#if obj.optional}
@@ -235,15 +239,12 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    background: color-mix(in srgb, var(--c-bg) 86%, var(--c-mid));
-    border: 1px solid color-mix(in srgb, var(--c-accent) 38%, transparent);
-    border-radius: 3px;
     margin-bottom: 2px;
   }
 
   .guide-header h3 {
     margin: 0;
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -254,15 +255,12 @@
 
   /* Act group */
   .act-group {
-    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
     overflow: hidden;
     transition: border-color 0.25s;
   }
 
   .act-group.complete {
-    border-color: color-mix(in srgb, #4ade80 28%, transparent);
+    border-color: color-mix(in srgb, var(--c-success) 28%, transparent);
   }
 
   /* All required objectives done, optional ones still pending → yellow. */
@@ -294,7 +292,7 @@
     background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
     border: none;
     color: var(--c-primary);
-    font-family: 'Inter Tight', 'Inter', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -321,15 +319,15 @@
     background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
     border: none;
     border-left: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
-    color: color-mix(in srgb, #4ade80 70%, var(--c-accent));
+    color: color-mix(in srgb, var(--c-success) 70%, var(--c-accent));
     font-size: 13px;
     line-height: 1;
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
   }
   .act-complete-btn:hover {
-    background: color-mix(in srgb, #4ade80 16%, transparent);
-    color: #86efac;
+    background: color-mix(in srgb, var(--c-success) 16%, transparent);
+    color: color-mix(in srgb, var(--c-success) 80%, white 20%);
   }
   .act-complete-btn.done {
     color: color-mix(in srgb, var(--c-muted) 80%, #fff 12%);
@@ -341,8 +339,8 @@
   }
 
   .complete .act-header {
-    color: color-mix(in srgb, #4ade80 80%, var(--c-primary) 20%);
-    text-shadow: 0 0 10px color-mix(in srgb, #4ade80 30%, transparent);
+    color: color-mix(in srgb, var(--c-success) 80%, var(--c-primary) 20%);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--c-success) 30%, transparent);
   }
 
   .required .act-header {
@@ -351,16 +349,21 @@
   }
 
   .toggle-icon {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 14px;
     height: 14px;
     flex-shrink: 0;
-    background: url('/ui/buttoncollapsenormal.webp') center/contain no-repeat;
-    /* The collapse image points UP; rotate 90° to point right (collapsed state) */
+    /* rotate 90° for the collapsed (pointing-right) state */
     transform: rotate(90deg);
     transition: transform 0.2s ease, opacity 0.15s;
     opacity: 0.6;
-    font-size: 0;
+  }
+  .toggle-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
   .toggle-icon.expanded {
     transform: rotate(180deg);
@@ -377,7 +380,7 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 1px 5px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     background: color-mix(in srgb, #a78bfa 10%, transparent);
     color: #c4b5fd;
     border: 1px solid color-mix(in srgb, #a78bfa 28%, transparent);
@@ -390,15 +393,15 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 1px 5px;
-    border-radius: 2px;
-    background: color-mix(in srgb, #4ade80 12%, transparent);
-    color: #86efac;
-    border: 1px solid color-mix(in srgb, #4ade80 34%, transparent);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--c-success) 12%, transparent);
+    color: color-mix(in srgb, var(--c-success) 80%, white 20%);
+    border: 1px solid color-mix(in srgb, var(--c-success) 34%, transparent);
     flex-shrink: 0;
   }
 
   .act-progress {
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', 'Inter', sans-serif;
     font-size: 10px;
     font-weight: 500;
     color: color-mix(in srgb, var(--c-accent) 70%, transparent);
@@ -409,7 +412,7 @@
   }
 
   .act-progress.complete {
-    color: #4ade80;
+    color: var(--c-success);
   }
 
   .act-progress.required {
@@ -429,7 +432,7 @@
   }
 
   .progress-bar-fill.complete {
-    background: linear-gradient(90deg, #4ade80, #86efac);
+    background: linear-gradient(90deg, var(--c-success-deep), var(--c-success));
   }
 
   .progress-bar-fill.required {
@@ -446,9 +449,6 @@
   }
 
   .zone-group {
-    border: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent);
-    border-radius: 2px;
-    background: color-mix(in srgb, var(--c-bg) 96%, transparent);
     overflow: hidden;
     transition: border-color 0.2s, background 0.2s;
   }
@@ -456,11 +456,11 @@
   /* Zone fully complete (incl. optional) → green; required-only done → yellow.
      A faint background tint keeps yellow distinct from the default gold accent. */
   .zone-group.complete {
-    border-color: color-mix(in srgb, #4ade80 30%, transparent);
-    background: color-mix(in srgb, #4ade80 6%, var(--c-bg));
+    border-color: color-mix(in srgb, var(--c-success) 30%, transparent);
+    background: color-mix(in srgb, var(--c-success) 6%, var(--c-bg));
   }
   .zone-group.complete .zone-header {
-    color: color-mix(in srgb, #4ade80 82%, #fff 18%);
+    color: color-mix(in srgb, var(--c-success) 82%, #fff 18%);
   }
 
   .zone-group.required {
@@ -473,7 +473,7 @@
 
   .zone-check {
     flex-shrink: 0;
-    color: #4ade80;
+    color: var(--c-success);
     font-size: 11px;
     line-height: 1;
   }
@@ -539,23 +539,9 @@
   }
 
   .objective-checkbox {
-    flex-shrink: 0;
-    appearance: none;
-    width: 16px;
-    height: 16px;
     margin-top: 1px;
-    border: none;
-    border-radius: 0;
-    background: url('/ui/checkboxsquareunchecked.webp') center/contain no-repeat;
-    cursor: pointer;
     align-self: flex-start;
-    transition: opacity 0.12s;
   }
-  .objective-checkbox:hover { opacity: 0.8; }
-  .objective-checkbox:checked {
-    background-image: url('/ui/checkboxsquarechecked.webp');
-  }
-  .objective-checkbox:checked::after { display: none; }
 
   .objective-text {
     font-size: 11px;
@@ -572,7 +558,7 @@
   .badge {
     display: inline-block;
     padding: 1px 5px;
-    border-radius: 2px;
+    border-radius: var(--radius);
     font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.04em;

@@ -15,7 +15,7 @@
 {:else}
   <div class="list">
     {#each failed as addon (addon.id)}
-      <article class="card">
+      <article class="ec-panel card">
         <h3>{addon.name}</h3>
         <p class="meta">{addon.id}</p>
         <p class="err">{addon.lastError}</p>
@@ -27,9 +27,9 @@
 <style>
   .empty {
     font-size: 12px;
-    color: #b8b4ae;
+    color: var(--c-accent);
     padding: 10px;
-    border: 1px dashed color-mix(in srgb, #b8b4ae 35%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--c-accent) 35%, transparent);
   }
   .list {
     display: flex;
@@ -37,8 +37,6 @@
     gap: 8px;
   }
   .card {
-    border: 1px solid color-mix(in srgb, #b8b4ae 28%, transparent);
-    background: color-mix(in srgb, #111 82%, transparent);
     padding: 10px;
   }
   h3 {
@@ -47,12 +45,12 @@
   }
   .meta {
     font-size: 11px;
-    color: #b8b4ae;
+    color: var(--c-accent);
     margin-top: 3px;
   }
   .err {
     font-size: 11px;
-    color: #f0c3b5;
+    color: var(--c-red-bright);
     margin-top: 7px;
   }
 </style>
