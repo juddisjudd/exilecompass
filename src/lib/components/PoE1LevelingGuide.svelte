@@ -223,6 +223,15 @@
         <span>{m.leveling_cfg_library()}</span>
       </label>
       {#if levelingRoute.build}
+        <label class="cfg-check" title={m.leveling_cfg_show_gems()}>
+          <input
+            type="checkbox"
+            class="ec-checkbox cfg-checkbox"
+            checked={levelingRoute.config.showGems}
+            onchange={(e) => setRouteConfig({ showGems: (e.currentTarget as HTMLInputElement).checked })}
+          />
+          <span>{m.leveling_cfg_show_gems()}</span>
+        </label>
         <span class="build-chip" title={m.leveling_build_imported()}>
           {levelingRoute.build.characterClass} · {levelingRoute.build.bandit}
         </span>

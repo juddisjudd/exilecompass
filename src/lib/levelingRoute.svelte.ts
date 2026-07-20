@@ -72,6 +72,8 @@ export type Bandit = 'None' | 'Oak' | 'Kraityn' | 'Alira';
 export interface LevelingRouteConfig {
   leagueStart: boolean;
   library: boolean;
+  /** Splice gem-reward steps from an imported build into the route. */
+  showGems: boolean;
 }
 
 /** Imported PoE1 build data relevant to the route (set by poe1Pob.ts). */
@@ -88,7 +90,7 @@ const CONFIG_KEY = 'EXILECOMPASS_POE1_ROUTE_CONFIG_V1';
 let _sections = $state<LevelingSection[]>([]);
 let _loading = $state(false);
 let _error = $state('');
-let _config = $state<LevelingRouteConfig>({ leagueStart: true, library: true });
+let _config = $state<LevelingRouteConfig>({ leagueStart: true, library: true, showGems: true });
 let _build = $state<LevelingBuild | null>(null);
 
 // Flat ordered list of checkable step ids (fragment + gem), rebuilt with the
@@ -136,6 +138,7 @@ export function loadRouteConfig() {
       _config = {
         leagueStart: parsed.leagueStart !== false,
         library: parsed.library !== false,
+        showGems: parsed.showGems !== false,
       };
     }
   } catch {
@@ -214,7 +217,7 @@ function buildSections(vendor: Vendor, sources: string[]): LevelingSection[] {
   const buildData = _build
     ? { characterClass: _build.characterClass, bandit: _build.bandit, leagueStart: _config.leagueStart, library: _config.library }
     : null;
-  const requiredGems = _build ? _build.requiredGems.map((g) => ({ ...g })) : [];
+  const requiredGems = _config.showGems && _build ? _build.requiredGems.map((g) => ({ ...g })) : [];
   const questGems = new Set<number>();
   const vendorGems = new Set<number>();
   if (buildData && requiredGems.length > 0) {
