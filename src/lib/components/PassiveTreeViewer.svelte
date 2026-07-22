@@ -87,10 +87,16 @@
     }
 
     try {
+      const activeTree = trees[build?.activeTreeIndex ?? 0];
+      const matchingTrees = trees.filter((t) => t.version === version);
       const decoded: UrlTreeData[] = [];
-      for (const t of trees.filter((t) => t.version === version)) {
+      let activeDecodedIndex = 0;
+      for (const t of matchingTrees) {
         const urlTree = decodeUrlTree(t, data);
-        if (urlTree.nodes.length > 0) decoded.push(urlTree);
+        if (urlTree.nodes.length > 0) {
+          if (t === activeTree) activeDecodedIndex = decoded.length;
+          decoded.push(urlTree);
+        }
       }
       if (decoded.length === 0) {
         status = 'no-build';
@@ -98,7 +104,7 @@
       }
       loaded = data;
       urlTrees = decoded;
-      specIndex = 0;
+      specIndex = Math.min(activeDecodedIndex, decoded.length - 1);
       status = 'ready';
       requestAnimationFrame(focusDelta);
     } catch (e) {
@@ -132,7 +138,10 @@
   }
 
   function step(dir: -1 | 1) {
-    const next = specIndex + dir;
+    jump(specIndex + dir);
+  }
+
+  function jump(next: number) {
     if (next < 0 || next >= urlTrees.length) return;
     specIndex = next;
     tip = null;
@@ -229,10 +238,21 @@
           title={m.tree_prev()}
           aria-label={m.tree_prev()}
         >‹</button>
-        <span class="spec-name">
-          {urlTrees[specIndex]?.name}
-          <span class="spec-count">{specIndex + 1}/{urlTrees.length}</span>
-        </span>
+        {#if urlTrees.length > 1}
+          <select
+            class="spec-select"
+            value={specIndex}
+            aria-label={m.tree_set_label()}
+            onchange={(e) => jump(+(e.currentTarget as HTMLSelectElement).value)}
+          >
+            {#each urlTrees as t, i (i)}
+              <option value={i}>{t.name}</option>
+            {/each}
+          </select>
+        {:else}
+          <span class="spec-name">{urlTrees[specIndex]?.name}</span>
+        {/if}
+        <span class="spec-count">{specIndex + 1}/{urlTrees.length}</span>
         <button
           class="spec-btn"
           type="button"
@@ -348,6 +368,27 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .spec-select {
+    max-width: 190px;
+    padding: 3px 18px 3px 6px;
+    background-color: color-mix(in srgb, var(--c-mid) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent);
+    border-radius: var(--radius);
+    color: var(--c-primary);
+    font-size: 11px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.12s;
+  }
+  .spec-select:hover,
+  .spec-select:focus {
+    border-color: var(--c-red);
+  }
+  .spec-select option {
+    background: var(--c-bg);
+    color: var(--c-primary);
   }
 
   .spec-count {

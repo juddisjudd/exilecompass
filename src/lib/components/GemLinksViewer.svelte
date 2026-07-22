@@ -7,12 +7,16 @@
   // (upstream exile-leveling's "Gems" sidebar tab). All display fields were
   // resolved at import time — no game data loads here.
   let build = $state<Poe1Build | null>(null);
+  let activeSet = $state(0);
 
   onMount(() => {
     build = loadPoe1Build();
+    activeSet = build?.activeSkillSet ?? 0;
   });
 
-  const groups = $derived(build?.gemLinks ?? []);
+  const skillSets = $derived(build?.skillSets ?? []);
+  const multiSet = $derived(skillSets.length > 1);
+  const groups = $derived(skillSets[activeSet]?.gemLinks ?? skillSets[0]?.gemLinks ?? []);
 
   function sourceTitle(gem: Poe1GemLinkGem): string | undefined {
     return gem.sources.length > 0 ? gem.sources.join('\n') : undefined;
@@ -26,6 +30,20 @@
       <span class="build-chip">{build.characterClass}</span>
     {/if}
   </div>
+
+  {#if multiSet}
+    <label class="set-select">
+      <span class="set-select-label">{m.gems_set_label()}</span>
+      <select
+        value={activeSet}
+        onchange={(e) => (activeSet = +(e.currentTarget as HTMLSelectElement).value)}
+      >
+        {#each skillSets as s, i (s.id)}
+          <option value={i}>{s.title}</option>
+        {/each}
+      </select>
+    </label>
+  {/if}
 
   {#if !build}
     <p class="gems-status">{m.tree_no_build()}</p>
@@ -96,6 +114,46 @@
     font-size: 11px;
     color: var(--c-accent);
     padding: 8px 2px;
+  }
+
+  .set-select {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .set-select-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--c-red) 70%, transparent);
+    flex-shrink: 0;
+  }
+
+  .set-select select {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 20px 4px 6px;
+    background-color: color-mix(in srgb, var(--c-bg) 88%, var(--c-mid));
+    border: 1px solid color-mix(in srgb, var(--c-red) 32%, transparent);
+    border-radius: var(--radius);
+    color: var(--c-red-bright);
+    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.12s;
+  }
+  .set-select select:hover,
+  .set-select select:focus {
+    border-color: color-mix(in srgb, var(--c-red) 55%, transparent);
+  }
+  .set-select option {
+    background: var(--c-bg);
+    color: var(--c-red-bright);
   }
 
   .group {

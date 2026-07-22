@@ -34,13 +34,25 @@ export interface Poe1GemLinkGroup {
   secondary: Poe1GemLinkGem[];
 }
 
+/** A named skill set (one PoB "SkillSet" tab — builds can have several,
+ *  switched independently of item/tree loadouts). */
+export interface Poe1SkillSet {
+  id: string;
+  title: string;
+  gemLinks: Poe1GemLinkGroup[];
+}
+
 export interface Poe1Build extends LevelingBuild {
   buildTrees: Poe1BuildTree[];
-  gemLinks: Poe1GemLinkGroup[];
+  /** Index into buildTrees matching PoB's <Tree activeSpec>. */
+  activeTreeIndex: number;
+  skillSets: Poe1SkillSet[];
+  /** Index into skillSets matching PoB's <Skills activeSkillSet>. */
+  activeSkillSet: number;
   importedAt: number;
 }
 
-const KEY = 'EXILECOMPASS_POE1_POB_V1';
+const KEY = 'EXILECOMPASS_POE1_POB_V2';
 
 // PoB exports a handful of gem ids that don't match the wiki-derived data —
 // verbatim from upstream (sourced from PoB's skills.lua).
@@ -99,7 +111,6 @@ export async function importPoe1Build(raw: string): Promise<Poe1Build> {
   };
 
   const requiredGems: Poe1Build['requiredGems'] = [];
-  const gemLinks: Poe1GemLinkGroup[] = [];
 
   // Where a gem can be bought for this class — "Quest — NPC (Act N)". Faithful
   // to upstream's gemIdToGemLink: vendor reward offers only.
@@ -130,7 +141,11 @@ export async function importPoe1Build(raw: string): Promise<Poe1Build> {
     };
   };
 
-  const processSkills = (parent: Element, parentTitle: string | undefined) => {
+  // Returns this set's own gem-link groups; also accumulates into the shared
+  // requiredGems union above (every set's gems are worth grabbing while
+  // leveling, regardless of which set ends up active).
+  const processSkills = (parent: Element, parentTitle: string | undefined): Poe1GemLinkGroup[] => {
+    const setGemLinks: Poe1GemLinkGroup[] = [];
     let recentEmptySkillLabel: string | undefined;
     for (const skillEl of Array.from(parent.getElementsByTagName('Skill'))) {
       const enabled = skillEl.getAttribute('enabled');
@@ -161,44 +176,64 @@ export async function importPoe1Build(raw: string): Promise<Poe1Build> {
       // Upstream quirk preserved: a support-only group promotes its supports.
       const title = cleanPobText(parentTitle || recentEmptySkillLabel || 'Default');
       if (primaryIds.length > 0) {
-        gemLinks.push({
+        setGemLinks.push({
           title,
           primary: primaryIds.map(toLinkGem),
           secondary: secondaryIds.map(toLinkGem),
         });
       } else if (secondaryIds.length > 0) {
-        gemLinks.push({ title, primary: secondaryIds.map(toLinkGem), secondary: [] });
+        setGemLinks.push({ title, primary: secondaryIds.map(toLinkGem), secondary: [] });
       }
     }
+    return setGemLinks;
   };
 
-  const skillSets = Array.from(doc.getElementsByTagName('SkillSet'));
-  if (skillSets.length > 0) {
-    for (const setEl of skillSets) {
-      processSkills(setEl, setEl.getAttribute('title') ?? undefined);
-    }
-  } else {
-    processSkills(doc.documentElement, undefined);
-  }
+  const skillsEl = doc.getElementsByTagName('Skills')[0];
+  const activeSkillSetId = skillsEl?.getAttribute('activeSkillSet') ?? '1';
+  const skillSetEls = Array.from(doc.getElementsByTagName('SkillSet'));
+
+  const skillSets: Poe1SkillSet[] =
+    skillSetEls.length > 0
+      ? skillSetEls.map((setEl, i) => ({
+          id: setEl.getAttribute('id') ?? String(i + 1),
+          title: cleanPobText(setEl.getAttribute('title') || `Skill Set ${i + 1}`),
+          gemLinks: processSkills(setEl, setEl.getAttribute('title') ?? undefined),
+        }))
+      : [{ id: '1', title: 'Default', gemLinks: processSkills(doc.documentElement, undefined) }];
+
+  const activeSkillSet = Math.max(
+    0,
+    skillSets.findIndex((s) => s.id === activeSkillSetId),
+  );
+
+  // PoB's <Tree activeSpec> is a 1-based position among ALL <Spec> elements —
+  // track which one lands at which index in buildTrees as specs missing a
+  // url/version get dropped.
+  const treeEl = doc.getElementsByTagName('Tree')[0];
+  const activeSpecPos = parseInt(treeEl?.getAttribute('activeSpec') ?? '1', 10) - 1;
 
   const buildTrees: Poe1BuildTree[] = [];
-  for (const specEl of Array.from(doc.getElementsByTagName('Spec'))) {
+  let activeTreeIndex = 0;
+  Array.from(doc.getElementsByTagName('Spec')).forEach((specEl, i) => {
     const url = specEl.getElementsByTagName('URL')[0]?.textContent?.trim();
     const version = specEl.getAttribute('treeVersion');
-    if (!url || !version) continue;
+    if (!url || !version) return;
+    if (i === activeSpecPos) activeTreeIndex = buildTrees.length;
     buildTrees.push({
       name: cleanPobText(specEl.getAttribute('title') || 'Default'),
       version,
       url,
     });
-  }
+  });
 
   const build: Poe1Build = {
     characterClass,
     bandit,
     requiredGems,
     buildTrees,
-    gemLinks,
+    activeTreeIndex,
+    skillSets,
+    activeSkillSet,
     importedAt: Date.now(),
   };
 
