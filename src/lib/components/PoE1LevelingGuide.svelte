@@ -6,6 +6,7 @@
     ensureRouteLoaded,
     loadRouteConfig,
     setRouteConfig,
+    jumpToEdge,
     poe1GemProgress,
     type LevelingPart,
     type LevelingStep,
@@ -73,6 +74,34 @@
     return step.kind === 'gem' ? poe1GemProgress.has(step.gemId) : poe1LevelingProgress.has(step.id);
   }
 
+  // ── Auto-progress: "you are here" marker + auto-scroll/expand ─────────────
+  // Position tracking only — never touches completion state above.
+  const stepRefs: Record<string, HTMLElement> = {};
+
+  function trackStepRef(node: HTMLElement, id: string) {
+    stepRefs[id] = node;
+    return {
+      destroy() {
+        if (stepRefs[id] === node) delete stepRefs[id];
+      },
+    };
+  }
+
+  $effect(() => {
+    const activeId = levelingRoute.activeStepId;
+    if (!activeId || !levelingRoute.config.autoProgress) return;
+
+    const owningSection = levelingRoute.sections.find((s) => s.steps.some((step) => step.id === activeId));
+    if (owningSection && !guideState.expandedSections.has(owningSection.id)) {
+      guideState.expandedSections.add(owningSection.id);
+      saveState();
+    }
+
+    requestAnimationFrame(() => {
+      stepRefs[activeId]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  });
+
   function toggleStep(step: LevelingStep) {
     if (step.kind === 'gem') poe1GemProgress.toggle(step.gemId);
     else poe1LevelingProgress.toggle(step.id);
@@ -135,6 +164,10 @@
 
 {#snippet iconDot()}
   <svg class="frag-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor" /></svg>
+{/snippet}
+
+{#snippet iconPosition(active: boolean)}
+  <svg class="pos-ico" class:active viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7" /></svg>
 {/snippet}
 
 {#snippet iconArrow(dirIndex: number)}
@@ -222,6 +255,15 @@
         />
         <span>{m.leveling_cfg_library()}</span>
       </label>
+      <label class="cfg-check" title={m.leveling_cfg_auto_progress()}>
+        <input
+          type="checkbox"
+          class="ec-checkbox cfg-checkbox"
+          checked={levelingRoute.config.autoProgress}
+          onchange={(e) => setRouteConfig({ autoProgress: (e.currentTarget as HTMLInputElement).checked })}
+        />
+        <span>{m.leveling_cfg_auto_progress()}</span>
+      </label>
       {#if levelingRoute.build}
         <label class="cfg-check" title={m.leveling_cfg_show_gems()}>
           <input
@@ -293,8 +335,27 @@
         <div class="steps-container">
           {#each section.steps as step (step.id)}
             {@const done = stepDone(step)}
-            <div class="step-row" class:done class:gem-row={step.kind === 'gem'}>
+            {@const edgeIndex = step.kind === 'fragment' ? levelingRoute.edgeIndexForStep(step.id) : null}
+            {@const isActiveStep = step.id === levelingRoute.activeStepId}
+            <div
+              class="step-row"
+              class:done
+              class:gem-row={step.kind === 'gem'}
+              class:active-step={levelingRoute.config.autoProgress && isActiveStep}
+              use:trackStepRef={step.id}
+            >
               <label class="step-label">
+                {#if levelingRoute.config.autoProgress && edgeIndex !== null}
+                  <button
+                    type="button"
+                    class="pos-marker"
+                    onclick={(e) => { e.preventDefault(); jumpToEdge(edgeIndex); }}
+                    title={m.leveling_auto_progress_jump()}
+                    aria-label={m.leveling_auto_progress_jump()}
+                  >
+                    {@render iconPosition(isActiveStep)}
+                  </button>
+                {/if}
                 <input
                   type="checkbox"
                   checked={done}
@@ -602,6 +663,41 @@
 
   .step-row.done {
     opacity: 0.5;
+  }
+
+  /* Auto-progress "you are here" — position tracking only, never affects
+     .done/completion styling above. */
+  .step-row.active-step {
+    background: color-mix(in srgb, var(--c-red) 10%, transparent);
+    border-left-color: var(--c-red);
+  }
+
+  .pos-marker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    margin-top: 1px;
+    border: none;
+    background: transparent;
+    color: var(--c-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .pos-marker:hover {
+    color: var(--c-red-bright);
+  }
+
+  .pos-ico {
+    width: 10px;
+    height: 10px;
+  }
+
+  .pos-ico.active {
+    color: var(--c-red-bright);
   }
 
   .step-label {

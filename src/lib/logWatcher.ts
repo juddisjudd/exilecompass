@@ -1,33 +1,39 @@
 import { invoke } from '@tauri-apps/api/core';
 import { persistGet, persistSet, persistRemove } from '$lib/persist';
+import type { GameMode } from '$lib/gameMode.svelte';
 
 // ── Storage (disk-backed for restart reliability) ───────────────────────────────
+// Keyed per game — PoE1 and PoE2 log files are watched independently, so
+// switching the active game (footer switch) doesn't clobber the other one's
+// offset/setup-time.
 
-export const LOG_WATCHER_KEY = 'EXILECOMPASS_LOG_WATCHER_V1';
+function logWatcherKey(game: GameMode): string {
+  return `EXILECOMPASS_${game.toUpperCase()}_LOG_WATCHER_V1`;
+}
 
 export interface LogWatcherState {
   offset: number;    // byte offset already processed
   setupTime: string; // ISO timestamp — only process log lines after this
 }
 
-export async function loadWatcherState(): Promise<LogWatcherState | null> {
+export async function loadWatcherState(game: GameMode): Promise<LogWatcherState | null> {
   try {
-    const raw = await persistGet(LOG_WATCHER_KEY);
+    const raw = await persistGet(logWatcherKey(game));
     return raw ? (JSON.parse(raw) as LogWatcherState) : null;
   } catch { return null; }
 }
 
-async function saveWatcherState(state: LogWatcherState) {
-  await persistSet(LOG_WATCHER_KEY, JSON.stringify(state));
+async function saveWatcherState(state: LogWatcherState, game: GameMode) {
+  await persistSet(logWatcherKey(game), JSON.stringify(state));
 }
 
-export async function clearWatcherState() {
-  await persistRemove(LOG_WATCHER_KEY);
+export async function clearWatcherState(game: GameMode) {
+  await persistRemove(logWatcherKey(game));
 }
 
 /** Call when the user sets a new log file. Records the current file size so
  *  only lines written AFTER setup are processed. */
-export async function initWatcherForFile(logPath: string): Promise<LogWatcherState> {
+export async function initWatcherForFile(logPath: string, game: GameMode): Promise<LogWatcherState> {
   // Read with a huge offset to get file_size without reading any lines
   const result = await invoke<{ lines: string[]; file_size: number }>(
     'read_log_tail', { path: logPath, fromByte: Number.MAX_SAFE_INTEGER }
@@ -36,7 +42,7 @@ export async function initWatcherForFile(logPath: string): Promise<LogWatcherSta
     offset: result.file_size,
     setupTime: new Date().toISOString(),
   };
-  await saveWatcherState(state);
+  await saveWatcherState(state, game);
   return state;
 }
 
@@ -78,6 +84,27 @@ function parseLogDate(line: string): Date | null {
 function extractScene(line: string): string | null {
   const m = line.match(/\[SCENE\] Set Source \[(.+?)\]/);
   return m ? m[1] : null;
+}
+
+// PoE's internal area id (e.g. "1_1_2", "1_1_2a") — logged once per zone load
+// as "Generating level <n> area "<id>" with seed <seed>". Unlike the
+// human-readable [SCENE] name above, this is the exact key Act-Decoder's
+// bundled zone layout images are filed under, so it needs its own extractor.
+const AREA_ID_RE = /Generating level \d+ area "([^"]+)"/;
+
+function extractAreaId(line: string): string | null {
+  const m = line.match(AREA_ID_RE);
+  return m ? m[1] : null;
+}
+
+/** Latest area id entered within a batch of new log lines, if any. */
+function extractAreaIdChange(lines: string[]): string | null {
+  let last: string | null = null;
+  for (const line of lines) {
+    const id = extractAreaId(line);
+    if (id) last = id;
+  }
+  return last;
 }
 
 /** Process a batch of new log lines and return reward IDs to mark as collected.
@@ -231,7 +258,8 @@ export async function pollLog(
   state: LogWatcherState,
   collected: Set<string>,
   areaRef: { current: string },
-): Promise<{ ids: string[]; scenes: SceneEvent[]; state: LogWatcherState }> {
+  game: GameMode,
+): Promise<{ ids: string[]; scenes: SceneEvent[]; areaId: string | null; state: LogWatcherState }> {
   const result = await invoke<{ lines: string[]; file_size: number }>(
     'read_log_tail', { path: logPath, fromByte: state.offset }
   );
@@ -243,13 +271,14 @@ export async function pollLog(
   const setupTime = new Date(state.setupTime);
   const ids = extractNewRewardIds(result.lines, setupTime, collected, areaRef);
   const scenes = extractSceneEvents(result.lines);
+  const areaId = extractAreaIdChange(result.lines);
 
   const newState: LogWatcherState = { ...state, offset: newOffset };
   if (wasTruncated) {
     // File was reset — update setup time so stale entries aren't processed
     newState.setupTime = new Date().toISOString();
   }
-  await saveWatcherState(newState);
+  await saveWatcherState(newState, game);
 
-  return { ids, scenes, state: newState };
+  return { ids, scenes, areaId, state: newState };
 }

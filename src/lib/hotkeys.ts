@@ -5,7 +5,8 @@ export type HotkeyActionId =
   | 'toggleSettings'
   | 'toggleCampaignTimer'
   | 'campaignCompleteNext'
-  | 'campaignUndoLast';
+  | 'campaignUndoLast'
+  | 'toggleActDecoder';
 
 export interface HotkeyAction {
   id: HotkeyActionId;
@@ -21,6 +22,7 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: 'toggleCampaignTimer', description: 'Start/stop campaign timer', defaultCombo: 'Ctrl+Shift+T' },
   { id: 'campaignCompleteNext', description: 'Complete next campaign objective', defaultCombo: 'Ctrl+Shift+X' },
   { id: 'campaignUndoLast', description: 'Undo last campaign objective', defaultCombo: 'Ctrl+Shift+Z' },
+  { id: 'toggleActDecoder', description: 'Toggle Act-Decoder overlay', defaultCombo: 'Ctrl+Shift+D' },
 ];
 
 const STORAGE_KEY = 'EXILECOMPASS_HOTKEYS_V1';
@@ -123,6 +125,25 @@ function getEventKeyToken(event: KeyboardEvent): string {
   if (key.length === 1) return key.toUpperCase();
 
   return key;
+}
+
+/** Builds a normalized combo string from a live keydown event, for the "press
+ *  your hotkey" capture UI (as opposed to typing text and normalizing it).
+ *  Returns null while only a modifier is held — the capture UI should keep
+ *  listening rather than finalize on a bare Ctrl/Shift/Alt/Meta press. */
+export function comboFromKeyboardEvent(event: KeyboardEvent): string | null {
+  if (event.key === 'Control' || event.key === 'Shift' || event.key === 'Alt' || event.key === 'Meta') {
+    return null;
+  }
+
+  const parts: string[] = [];
+  if (event.ctrlKey) parts.push('Ctrl');
+  if (event.shiftKey) parts.push('Shift');
+  if (event.altKey) parts.push('Alt');
+  if (event.metaKey) parts.push('Meta');
+  parts.push(getEventKeyToken(event));
+
+  return parts.join('+');
 }
 
 export function hotkeyMatchesEvent(event: KeyboardEvent, combo: string): boolean {

@@ -11,7 +11,7 @@ export type GameMode = 'poe2' | 'poe1';
 const KEY = 'EXILECOMPASS_GAME_MODE_V1';
 
 let _mode = $state<GameMode>('poe2');
-let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
 
 export const gameMode = {
 	get current(): GameMode {
@@ -19,15 +19,20 @@ export const gameMode = {
 	}
 };
 
-/** Restore the saved mode (if any) and sync it to the Rust side. Call once on startup. */
-export async function loadGameMode(): Promise<void> {
-	if (_loaded) return;
-	_loaded = true;
-	const raw = await persistGet(KEY);
-	if (raw === 'poe1' || raw === 'poe2') {
-		_mode = raw;
-		await setActiveGame(_mode);
-	}
+/** Restore the saved mode (if any) and sync it to the Rust side. Call once on
+ *  startup — safe to call from multiple places: concurrent callers all await
+ *  the same in-flight load rather than racing (a caller that only checked a
+ *  "started" flag before the read actually resolved could otherwise see
+ *  `gameMode.current` still at its stale default). */
+export function loadGameMode(): Promise<void> {
+	_loadPromise ??= (async () => {
+		const raw = await persistGet(KEY);
+		if (raw === 'poe1' || raw === 'poe2') {
+			_mode = raw;
+			await setActiveGame(_mode);
+		}
+	})();
+	return _loadPromise;
 }
 
 export async function setGameMode(mode: GameMode): Promise<void> {

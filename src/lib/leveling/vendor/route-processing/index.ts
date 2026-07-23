@@ -60,6 +60,7 @@ export interface RouteState {
 interface ParseContext {
   state: RouteState;
   section: RouteData.Section;
+  route: RouteData.Route;
   conditionalStack: boolean[];
   logger: ScopedLogger;
 }
@@ -140,6 +141,7 @@ const ROUTE_PATTERNS: Pattern<ParseContext>[] = [
           type: "fragment_step",
           parts: fragments,
           subSteps: [],
+          edgeIndex: null,
         });
 
       return false;
@@ -148,7 +150,7 @@ const ROUTE_PATTERNS: Pattern<ParseContext>[] = [
   // FragmentStep
   {
     regex: /^( *)(.*)/g,
-    processor: (match, { state, section, conditionalStack, logger }) => {
+    processor: (match, { state, section, route, conditionalStack, logger }) => {
       const evaluateLine =
         conditionalStack.length == 0 ||
         conditionalStack[conditionalStack.length - 1];
@@ -158,12 +160,24 @@ const ROUTE_PATTERNS: Pattern<ParseContext>[] = [
       assertPadding(padding, conditionalStack.length, logger);
 
       const fragments = parseFragments(value.trim(), state, logger);
-      if (fragments.length > 0)
+      if (fragments.length > 0) {
+        // A fragment_step (not a substep) that arrives in a different area
+        // than the last one gets a new "edge" — the flat area-transition
+        // sequence auto-progress matches against live log lines to track
+        // where the player is (see levelingRoute.svelte.ts).
+        let edgeIndex: number | null = null;
+        if (state.currentAreaId !== route.edges[route.edges.length - 1]) {
+          edgeIndex = route.edges.length;
+          route.edges.push(state.currentAreaId);
+        }
+
         section.steps.push({
           type: "fragment_step",
           parts: fragments,
           subSteps: [],
+          edgeIndex,
         });
+      }
 
       return false;
     },
@@ -189,7 +203,7 @@ export function parseRoute(
 ) {
   const logger = new ScopedLogger();
 
-  const route: RouteData.Route = [];
+  const route: RouteData.Route = { sections: [], edges: [state.currentAreaId] };
   for (const routeFile of routeFiles) {
     const routeLines = routeFile.contents.split(/\r\n|\r|\n/g);
 
@@ -197,13 +211,14 @@ export function parseRoute(
       name: routeFile.name,
       steps: [],
     };
-    route.push(section);
+    route.sections.push(section);
 
     logger.pushScope(section.name);
 
     const context: ParseContext = {
       state,
       section,
+      route,
       conditionalStack: [],
       logger,
     };
@@ -234,6 +249,14 @@ export function parseRoute(
       logger.warn(
         `missing crafting area ${area.id}, ${area.crafting_recipes.join(", ")}`
       );
+  }
+
+  // route.edges[0] is the starting area (seeded above) — anchor the very
+  // first fragment_step to it so auto-progress has somewhere to point at
+  // before the player has moved anywhere.
+  const firstStep = route.sections[0]?.steps[0];
+  if (firstStep && firstStep.type === "fragment_step") {
+    firstStep.edgeIndex = 0;
   }
 
   logger.drain(console);

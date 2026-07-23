@@ -74,6 +74,10 @@ export interface LevelingRouteConfig {
   library: boolean;
   /** Splice gem-reward steps from an imported build into the route. */
   showGems: boolean;
+  /** Show a "you are here" indicator + auto-scroll as the log reports zone
+   *  entries matching the route's expected sequence. Never affects step
+   *  completion — that stays fully manual. */
+  autoProgress: boolean;
 }
 
 /** Imported PoE1 build data relevant to the route (set by poe1Pob.ts). */
@@ -84,18 +88,69 @@ export interface LevelingBuild {
 }
 
 const CONFIG_KEY = 'EXILECOMPASS_POE1_ROUTE_CONFIG_V1';
+const EDGE_KEY = 'EXILECOMPASS_POE1_AUTO_PROGRESS_EDGE_V1';
 
 // ── Reactive state ──────────────────────────────────────────────────────────
 
 let _sections = $state<LevelingSection[]>([]);
 let _loading = $state(false);
 let _error = $state('');
-let _config = $state<LevelingRouteConfig>({ leagueStart: true, library: true, showGems: true });
+let _config = $state<LevelingRouteConfig>({ leagueStart: true, library: true, showGems: true, autoProgress: true });
 let _build = $state<LevelingBuild | null>(null);
 
 // Flat ordered list of checkable step ids (fragment + gem), rebuilt with the
 // route — drives the completeNext/undoLast hotkeys.
 let _ordered: { id: string; kind: 'fragment' | 'gem'; gemId?: string }[] = [];
+
+// ── Auto-progress (position tracking, not completion) ───────────────────────
+// Mirrors upstream exile-leveling's `activeEdgeAtom`: `edges` is the parsed
+// route's flat, in-order sequence of PoE area ids representing zone
+// transitions; `_activeEdgeIndex` tracks how far along that sequence the
+// player has gotten, advanced by matching live log-detected area ids
+// (see advanceLevelingEdge). `_edgeSteps[i]` is our own step id for whichever
+// rendered step corresponds to edges[i], so the UI can show/scroll to it.
+// Entirely separate from completion state (poe1LevelingProgress/poe1GemProgress).
+let _edges: string[] = [];
+let _edgeSteps: (string | null)[] = [];
+let _activeEdgeIndex = $state(0);
+
+function loadActiveEdgeIndex() {
+  try {
+    const raw = window.localStorage.getItem(EDGE_KEY);
+    if (raw) _activeEdgeIndex = JSON.parse(raw).activeEdgeIndex ?? 0;
+  } catch {
+    /* ignore corrupt state */
+  }
+}
+
+function saveActiveEdgeIndex() {
+  try {
+    window.localStorage.setItem(EDGE_KEY, JSON.stringify({ activeEdgeIndex: _activeEdgeIndex }));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Called with the PoE area id from each newly-detected log line. Strictly
+ *  sequential, matching upstream: advances exactly one edge only if it's the
+ *  next one expected next in the route — no skip-ahead. No-ops if
+ *  auto-progress is turned off or the route has no more edges. */
+export function advanceLevelingEdge(areaId: string) {
+  if (!_config.autoProgress) return;
+  const nextIndex = _activeEdgeIndex + 1;
+  if (_edges[nextIndex] === areaId) {
+    _activeEdgeIndex = nextIndex;
+    saveActiveEdgeIndex();
+  }
+}
+
+/** Manual override — click a step's position marker to jump there directly.
+ *  Cheap escape hatch if live detection ever desyncs from the actual route. */
+export function jumpToEdge(index: number) {
+  if (index < 0 || index >= _edges.length) return;
+  _activeEdgeIndex = index;
+  saveActiveEdgeIndex();
+}
 
 export const levelingRoute = {
   get sections() {
@@ -112,6 +167,16 @@ export const levelingRoute = {
   },
   get build() {
     return _build;
+  },
+  /** The step id currently marked "you are here", or null before the route
+   *  has loaded / if the route has no edges. */
+  get activeStepId() {
+    return _edgeSteps[_activeEdgeIndex] ?? null;
+  },
+  /** Whether a given step id has an edge (and can be clicked to jump to). */
+  edgeIndexForStep(stepId: string): number | null {
+    const idx = _edgeSteps.indexOf(stepId);
+    return idx >= 0 ? idx : null;
   },
 };
 
@@ -139,11 +204,13 @@ export function loadRouteConfig() {
         leagueStart: parsed.leagueStart !== false,
         library: parsed.library !== false,
         showGems: parsed.showGems !== false,
+        autoProgress: parsed.autoProgress !== false,
       };
     }
   } catch {
     /* ignore corrupt state */
   }
+  loadActiveEdgeIndex();
 }
 
 export async function setRouteConfig(partial: Partial<LevelingRouteConfig>) {
@@ -226,6 +293,7 @@ function buildSections(vendor: Vendor, sources: string[]): LevelingSection[] {
 
   const ordered: typeof _ordered = [];
   const sections: LevelingSection[] = [];
+  const edgeSteps: (string | null)[] = baseRoute.edges.map(() => null);
 
   type AreaLike = { name: string; is_town_area: boolean; level: number | null; map_name?: string | null; act?: number };
   const resolveArea = (areaId: string) => {
@@ -307,7 +375,7 @@ function buildSections(vendor: Vendor, sources: string[]): LevelingSection[] {
     return 'Alchemy';
   };
 
-  baseRoute.forEach((section, sectionIdx) => {
+  baseRoute.sections.forEach((section, sectionIdx) => {
     const actId = `act${sectionIdx + 1}`;
     const steps: LevelingStep[] = [];
     let gemCounter = 0;
@@ -317,6 +385,7 @@ function buildSections(vendor: Vendor, sources: string[]): LevelingSection[] {
       // Id scheme matches the old static generator (act{n}-{i}) so existing
       // saved progress carries over for the default config.
       const id = `${actId}-${stepIdx}`;
+      if (baseStep.edgeIndex !== null) edgeSteps[baseStep.edgeIndex] = id;
 
       // Gem steps for this step's quest fragments (only when a build is set).
       const gemSteps: LevelingGemStep[] = [];
@@ -368,6 +437,12 @@ function buildSections(vendor: Vendor, sources: string[]): LevelingSection[] {
   });
 
   _ordered = ordered;
+  _edges = baseRoute.edges;
+  _edgeSteps = edgeSteps;
+  // A config change (bandit/league-start/library) rebuilds `edges` from
+  // scratch — clamp rather than reset, same limitation upstream has (the
+  // index is a raw position, not re-derived from semantic state).
+  if (_activeEdgeIndex >= _edges.length) _activeEdgeIndex = Math.max(0, _edges.length - 1);
   return sections;
 }
 

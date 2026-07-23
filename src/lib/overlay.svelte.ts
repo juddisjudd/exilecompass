@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { syncWidgetClickThrough } from '$lib/widgets';
 
 export interface WindowInfo {
   hwnd: number;
@@ -79,6 +80,9 @@ export async function setClickThrough(enabled: boolean): Promise<void> {
   // Also handle it directly via the Tauri API for the cursor events.
   await win.setIgnoreCursorEvents(enabled);
   _status = { ..._status, clickThrough: enabled };
+  // Widget windows (Act-Decoder, tree HUD, ...) have independent click-through
+  // state — keep them in lockstep with the main window under one hotkey.
+  await syncWidgetClickThrough(enabled);
 }
 
 export async function toggleClickThrough(): Promise<void> {

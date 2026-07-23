@@ -42,7 +42,7 @@
   import { persistGet, persistSet, persistRemove } from '$lib/persist';
   import { campaignTimer } from '$lib/campaignTimer.svelte';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
-  import { levelingCompleteNext, levelingUndoLast, levelingRoute } from '$lib/levelingRoute.svelte';
+  import { levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge } from '$lib/levelingRoute.svelte';
   import { importPoe1Build, clearPoe1Build } from '$lib/poe1Pob';
   import { m } from '$lib/paraglide/messages.js';
   import { getLocale, locales, setLocale } from '$lib/paraglide/runtime.js';
@@ -56,6 +56,7 @@
     setHidden,
   } from '$lib/overlay.svelte';
   import { gameMode, loadGameMode, setGameMode, type GameMode } from '$lib/gameMode.svelte';
+  import { toggleWidget, getWidgetOpacity, setWidgetOpacity } from '$lib/widgets';
   import { theme, THEMES, loadTheme, setTheme } from '$lib/theme.svelte';
   import {
     configToChords,
@@ -66,9 +67,10 @@
     type TriggerConfig,
     type TriggerMode,
   } from '$lib/triggers';
-  import { listen } from '@tauri-apps/api/event';
+  import { listen, emit } from '@tauri-apps/api/event';
   import {
     HOTKEY_ACTIONS,
+    comboFromKeyboardEvent,
     getDefaultHotkeyBindings,
     hotkeyMatchesEvent,
     loadHotkeyBindings,
@@ -111,7 +113,14 @@
   const POE1_TABS: MainViewId[] = ['leveling', 'gems', 'tree', 'addons'];
   const visibleTabs = $derived<MainViewId[]>(gameMode.current === 'poe1' ? POE1_TABS : POE2_TABS);
 
-  const LOG_FILE_STORAGE_KEY   = 'EXILECOMPASS_LOG_FILE_PATH_V1';
+  // Per-game so switching the footer game switch doesn't clobber the other
+  // game's saved log path. EXILECOMPASS_LOG_FILE_PATH_V1 (no game) is the old
+  // flat key from before PoE1 support — read once as a fallback for poe2.
+  const LOG_FILE_STORAGE_KEY_LEGACY = 'EXILECOMPASS_LOG_FILE_PATH_V1';
+  function logFileKey(game: GameMode): string {
+    return `EXILECOMPASS_${game.toUpperCase()}_LOG_FILE_PATH_V1`;
+  }
+  const ACT_DECODER_ZONE_KEY   = 'EXILECOMPASS_ACT_DECODER_ZONE_V1';
   const CT_OPACITY_KEY         = 'EXILECOMPASS_CT_OPACITY_V1';
   const WINDOW_BOUNDS_KEY      = 'EXILECOMPASS_WINDOW_BOUNDS_V1';
   const SETTINGS_GROUPS = ['GENERAL', 'IMPORT', 'ABOUT'] as const;
@@ -154,6 +163,44 @@
       mainView = visibleTabs[0];
     }
   });
+
+  // Log file path + watcher state are per-game (footer game switch) — reload
+  // whenever the active game changes. This also covers the very first load:
+  // `void gameMode.current` below only registers the reactive dependency —
+  // the actual game used is re-read after awaiting loadGameMode() (idempotent
+  // and now safe for concurrent callers, see gameMode.svelte.ts), so this
+  // never acts on the module's stale default before the persisted value
+  // settles. campaignTimer.load() is idempotent too, so calling it here
+  // preserves "timer restored before watcher state enables polling" without
+  // duplicating work.
+  $effect(() => {
+    void gameMode.current; // reactive dependency only — see note above
+    (async () => {
+      await loadGameMode();
+      const game = gameMode.current;
+      await campaignTimer.load();
+      let path = await persistGet(logFileKey(game));
+      if (!path && !legacyLogPathMigrated) {
+        // One-time migration from the pre-PoE1 flat key (shared by both
+        // games before this per-game split existed). Whichever game the
+        // legacy value actually belonged to isn't recorded anywhere, so the
+        // best signal available is "whichever game is active once gameMode
+        // has settled" — claimed synchronously (before any further await)
+        // so a second near-simultaneous effect run can't also adopt it.
+        legacyLogPathMigrated = true;
+        const legacy = await persistGet(LOG_FILE_STORAGE_KEY_LEGACY);
+        if (legacy) {
+          path = legacy;
+          await persistSet(logFileKey(game), legacy);
+          await persistRemove(LOG_FILE_STORAGE_KEY_LEGACY);
+        }
+      }
+      logFilePath = path ?? '';
+      logWatcherState = await loadWatcherState(game);
+      logWatcherArea.current = '';
+      lastAreaId = null;
+    })();
+  });
   let hotkeyError = $state('');
   let autoAttachInFlight = false;
   let lastAttached = false;
@@ -165,6 +212,12 @@
   let hotkeyBindings = $state<HotkeyBindings>(getDefaultHotkeyBindings());
   let hotkeyDrafts = $state<HotkeyBindings>(getDefaultHotkeyBindings());
 
+  // "Press your hotkey" capture — which action (if any) is currently
+  // listening for a keypress, and which modifiers are held so far (live
+  // preview while recording, before a non-modifier key finalizes the combo).
+  let recordingActionId = $state<HotkeyActionId | null>(null);
+  let recordingModifiers = $state({ ctrl: false, shift: false, alt: false, meta: false });
+
   // Auto-hide triggers (game keybinds that hide the overlay while playing)
   let triggerConfig = $state<TriggerConfig>(getDefaultTriggerConfig());
   let triggerDraft = $state('');
@@ -172,6 +225,14 @@
 
   // Click-through opacity (0.1 – 0.9, default 40%)
   let ctOpacity = $state(0.4);
+
+  // Act-Decoder widget opacity (Settings, not the widget's own chrome — see
+  // widgets.ts's getWidgetOpacity/setWidgetOpacity).
+  let actDecoderOpacity = $state(1);
+
+  async function handleActDecoderOpacityChange() {
+    await setWidgetOpacity('act-decoder', actDecoderOpacity);
+  }
 
   // Apply/remove transparency whenever click-through state or opacity changes
   $effect(() => {
@@ -191,6 +252,12 @@
   // Log watcher state
   let logWatcherState = $state<LogWatcherState | null>(null);
   let logWatcherArea = { current: '' };
+  // Last PoE internal area id seen — used to only emit act-decoder-zone to
+  // widget windows when the zone actually changes, not on every 2s poll.
+  let lastAreaId: string | null = null;
+  // Guards the one-time legacy log-file-path migration below against being
+  // claimed twice by near-simultaneous effect runs.
+  let legacyLogPathMigrated = false;
   let rewardsComponent = $state<{ autoMarkReward: (id: string) => void; getCollected: () => Set<string> } | null>(null);
   let pobInput = $state('');
   let pobImporting = $state(false);
@@ -246,6 +313,35 @@
   // About
   let appVersion = $state('');
 
+  // One-time "check your settings" reminder for existing users updating into
+  // this release (per-game log file split, new Act-Decoder hotkey) — never
+  // shown to fresh installs (nothing to re-check yet), dismissible, and
+  // never shows again once dismissed. See the onMount check below.
+  //
+  // "Existing install" is a presence check across several long-standing keys
+  // rather than one dedicated marker: a brand-new marker key wouldn't exist
+  // for ANY current user yet either (it would've had to ship before this
+  // reminder to be useful), which would wrongly treat every real existing
+  // install as "fresh" on their very next launch and delay the reminder by
+  // one extra launch. None of these individually is written unconditionally
+  // on every session (e.g. EXILECOMPASS_GAME_MODE_V1 only gets persisted the
+  // first time someone touches the game switch), so this checks several —
+  // false negative only for someone who's never moved/resized the window,
+  // used the campaign timer, set a build folder, or switched game mode.
+  let showSettingsNotice = $state(false);
+  const SETTINGS_NOTICE_KEY = 'EXILECOMPASS_NOTICE_POE1_SETTINGS_V1';
+  const EXISTING_INSTALL_SIGNAL_KEYS = [
+    'EXILECOMPASS_WINDOW_BOUNDS_V1',
+    'EXILECOMPASS_CAMPAIGN_TIMER_V1',
+    'EXILECOMPASS_BUILD_FOLDER_V1',
+    'EXILECOMPASS_GAME_MODE_V1',
+  ];
+
+  async function dismissSettingsNotice() {
+    showSettingsNotice = false;
+    await persistSet(SETTINGS_NOTICE_KEY, '1');
+  }
+
   function getSettingsGroupLabel(group: 'GENERAL' | 'IMPORT' | 'ABOUT') {
     if (group === 'GENERAL') return m.settings_group_general();
     if (group === 'IMPORT') return m.settings_group_import();
@@ -268,6 +364,7 @@
     if (actionId === 'toggleCampaignTimer') return m.hotkey_toggle_campaign_timer();
     if (actionId === 'campaignCompleteNext') return m.hotkey_campaign_complete_next();
     if (actionId === 'campaignUndoLast') return m.hotkey_campaign_undo_last();
+    if (actionId === 'toggleActDecoder') return m.hotkey_toggle_act_decoder();
     return m.hotkey_toggle_settings();
   }
 
@@ -311,17 +408,21 @@
     pobBuild = loadStoredBuild();
     const savedOpacity = window.localStorage.getItem(CT_OPACITY_KEY);
     if (savedOpacity) ctOpacity = parseFloat(savedOpacity);
+    void getWidgetOpacity('act-decoder').then((v) => (actDecoderOpacity = v));
 
     getVersion().then((v) => (appVersion = v)).catch(() => {});
 
-    // Log file path + watcher state are disk-backed (reliable across restarts).
-    // Restore the campaign timer BEFORE the watcher state enables polling, so a
-    // run in progress resumes before any new scene lines are processed.
+    // "Check your settings" reminder — only for people who've run the app
+    // before (fresh installs have nothing to re-check yet).
     (async () => {
-      await campaignTimer.load();
-      logFilePath = (await persistGet(LOG_FILE_STORAGE_KEY)) ?? '';
-      logWatcherState = await loadWatcherState();
+      const signals = await Promise.all(EXISTING_INSTALL_SIGNAL_KEYS.map((k) => persistGet(k)));
+      if (!signals.some((v) => v !== null)) return;
+      const dismissed = await persistGet(SETTINGS_NOTICE_KEY);
+      if (!dismissed) showSettingsNotice = true;
     })();
+
+    // Log file path + watcher state: see the gameMode-reactive $effect above
+    // (they're per-game, and that effect covers the initial load too).
 
     // Build folder library — restore the saved folder + last-loaded file, then
     // scan to populate the picker. The active build itself is restored above via
@@ -380,12 +481,26 @@
       if (cancelled || !logFilePath || !logWatcherState) return;
       try {
         const collected = rewardsComponent?.getCollected() ?? new Set<string>();
-        const { ids, scenes, state } = await pollLog(logFilePath, logWatcherState, collected, logWatcherArea);
+        const { ids, scenes, areaId, state } = await pollLog(logFilePath, logWatcherState, collected, logWatcherArea, gameMode.current);
         logWatcherState = state;
         // Feed scene transitions to the campaign timer (works even if the
         // rewards tab isn't mounted).
         for (const s of scenes) campaignTimer.handleScene(s.scene, s.timeMs);
         if (rewardsComponent) for (const id of ids) rewardsComponent.autoMarkReward(id);
+        // Act-Decoder widget window(s) can't share in-memory state with the
+        // main window — broadcast zone changes as a Tauri event, and persist
+        // the current zone too, since a widget opened *after* this fires
+        // would otherwise never learn the zone until the next change (events
+        // aren't replayed for late subscribers).
+        if (areaId && areaId !== lastAreaId) {
+          lastAreaId = areaId;
+          void persistSet(ACT_DECODER_ZONE_KEY, areaId);
+          void emit('ec-act-decoder-zone', { areaId });
+        }
+        // Leveling guide "you are here" position tracking — same-window
+        // state (unlike Act-Decoder), so this can call straight into
+        // levelingRoute.svelte.ts with no event/persist bridging needed.
+        if (areaId && gameMode.current === 'poe1') advanceLevelingEdge(areaId);
       } catch { /* file may not exist yet */ }
     };
     const logTimer = setInterval(syncLog, 2000);
@@ -497,6 +612,10 @@
       if (gameMode.current === 'poe1') levelingUndoLast();
       else campaignProgress.undoLast();
     },
+    // Act-Decoder's bundled layout images are PoE1-only for now.
+    toggleActDecoder: () => {
+      if (gameMode.current === 'poe1') void toggleWidget('act-decoder');
+    },
   };
 
   // action id → currently registered accelerator
@@ -591,6 +710,7 @@
   }
 
   async function handleHotkey(event: KeyboardEvent) {
+    if (recordingActionId) return; // hotkey capture below owns keydown while recording
     if (isTypingTarget(event.target)) return;
     if (hotkeyMatchesEvent(event, hotkeyBindings.refreshStatus)) {
       event.preventDefault();
@@ -605,6 +725,63 @@
 
   function updateHotkeyDraft(actionId: HotkeyActionId, value: string) {
     hotkeyDrafts = { ...hotkeyDrafts, [actionId]: value };
+  }
+
+  function startRecordingHotkey(actionId: HotkeyActionId) {
+    hotkeyError = '';
+    recordingActionId = actionId;
+    recordingModifiers = { ctrl: false, shift: false, alt: false, meta: false };
+  }
+
+  function cancelRecordingHotkey() {
+    recordingActionId = null;
+  }
+
+  // Bound only while recording (see the conditional <svelte:window> below) —
+  // captures the pressed combo instead of the user typing it out by hand.
+  function handleHotkeyCaptureKeydown(event: KeyboardEvent) {
+    if (!recordingActionId) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === 'Escape') {
+      cancelRecordingHotkey();
+      return;
+    }
+
+    recordingModifiers = {
+      ctrl: event.ctrlKey,
+      shift: event.shiftKey,
+      alt: event.altKey,
+      meta: event.metaKey,
+    };
+
+    const combo = comboFromKeyboardEvent(event);
+    if (combo) {
+      updateHotkeyDraft(recordingActionId, combo);
+      recordingActionId = null;
+    }
+  }
+
+  // Keeps the live "Ctrl+Shift+…" preview in sync as modifiers are released
+  // without a final key press yet (e.g. tapped Ctrl, let go, still deciding).
+  function handleHotkeyCaptureKeyup(event: KeyboardEvent) {
+    if (!recordingActionId) return;
+    recordingModifiers = {
+      ctrl: event.ctrlKey,
+      shift: event.shiftKey,
+      alt: event.altKey,
+      meta: event.metaKey,
+    };
+  }
+
+  function recordingPreviewText(): string {
+    const parts: string[] = [];
+    if (recordingModifiers.ctrl) parts.push('Ctrl');
+    if (recordingModifiers.shift) parts.push('Shift');
+    if (recordingModifiers.alt) parts.push('Alt');
+    if (recordingModifiers.meta) parts.push('Meta');
+    return parts.length > 0 ? `${parts.join('+')}+…` : m.hotkey_press_keys();
   }
 
   async function saveHotkeys() {
@@ -689,10 +866,11 @@
 
   async function setLogFile(path: string) {
     logFilePath = path;
-    await persistSet(LOG_FILE_STORAGE_KEY, path);
+    await persistSet(logFileKey(gameMode.current), path);
     try {
-      logWatcherState = await initWatcherForFile(path);
+      logWatcherState = await initWatcherForFile(path, gameMode.current);
       logWatcherArea.current = '';
+      lastAreaId = null;
     } catch { /* file access error — state stays null */ }
   }
 
@@ -739,8 +917,8 @@
     logFileError = '';
     logFilePath = '';
     logWatcherState = null;
-    void persistRemove(LOG_FILE_STORAGE_KEY);
-    void clearWatcherState();
+    void persistRemove(logFileKey(gameMode.current));
+    void clearWatcherState(gameMode.current);
   }
 
   async function runBuildImport(text: string) {
@@ -911,7 +1089,10 @@
   }
 </script>
 
-<svelte:window onkeydown={handleHotkey} />
+<svelte:window
+  onkeydown={(e) => (recordingActionId ? handleHotkeyCaptureKeydown(e) : handleHotkey(e))}
+  onkeyup={handleHotkeyCaptureKeyup}
+/>
 
 <div class="app-shell">
   <div class="ec-grain"></div>
@@ -933,6 +1114,17 @@
         {/if}
         <button class="update-dismiss" onclick={() => (updateDismissed = true)} aria-label={m.update_later()}>✕</button>
       {/if}
+    </div>
+  {/if}
+
+  {#if showSettingsNotice}
+    <div class="update-banner">
+      <span class="update-text">{m.notice_settings_reminder()}</span>
+      <button
+        class="update-btn"
+        onclick={() => { showSettings = true; activeSettingsTab = 'logFile'; void dismissSettingsNotice(); }}
+      >{m.notice_open_settings()}</button>
+      <button class="update-dismiss" onclick={dismissSettingsNotice} aria-label={m.notice_dismiss()}>✕</button>
     </div>
   {/if}
 
@@ -968,15 +1160,19 @@
           <div class="settings-content">
             {#if activeSettingsTab === 'hotkeys'}
               <div class="settings-section-title">{m.settings_tab_hotkeys()}</div>
+              <p class="field-help">{m.hotkey_capture_hint()}</p>
               <ul class="hotkey-list">
                 {#each HOTKEY_ACTIONS as hotkey (hotkey.id)}
+                  {@const recording = recordingActionId === hotkey.id}
                   <li class="hotkey-row">
-                    <input
-                      class="hotkey-input"
-                      value={hotkeyDrafts[hotkey.id]}
-                      oninput={(e) => updateHotkeyDraft(hotkey.id, (e.currentTarget as HTMLInputElement).value)}
+                    <button
+                      type="button"
+                      class="hotkey-input hotkey-capture-btn"
+                      class:recording
+                      onclick={() => startRecordingHotkey(hotkey.id)}
+                      onblur={() => { if (recording) cancelRecordingHotkey(); }}
                       aria-label={`${m.aria_hotkey_for()} ${getHotkeyDescription(hotkey.id)}`}
-                    />
+                    >{recording ? recordingPreviewText() : hotkeyDrafts[hotkey.id]}</button>
                     <span class="hotkey-desc">{getHotkeyDescription(hotkey.id)}</span>
                   </li>
                 {/each}
@@ -1090,9 +1286,32 @@
               </div>
               <p class="field-help">{m.settings_theme_help()}</p>
 
+              {#if gameMode.current === 'poe1'}
+                <div class="ct-opacity-section">
+                  <div class="settings-section-title" style="margin-top:4px">{m.settings_act_decoder_opacity_title()}</div>
+                  <div class="ct-slider-row">
+                    <input
+                      type="range"
+                      class="ct-slider"
+                      min="0.3"
+                      max="1"
+                      step="0.05"
+                      bind:value={actDecoderOpacity}
+                      oninput={handleActDecoderOpacityChange}
+                      style="--pct:{Math.round((actDecoderOpacity - 0.3) / 0.7 * 100)}"
+                      aria-label={m.settings_act_decoder_opacity_title()}
+                    />
+                    <span class="ct-slider-val">{Math.round(actDecoderOpacity * 100)}%</span>
+                  </div>
+                  <p class="field-help">{m.settings_act_decoder_opacity_help()}</p>
+                </div>
+              {/if}
+
             {:else if activeSettingsTab === 'logFile'}
               <div class="settings-section-title">{m.settings_log_file_title()}</div>
-              <label class="field-label" for="log-file-path">{m.settings_log_file_label()}</label>
+              <label class="field-label" for="log-file-path">
+                {m.settings_log_file_label({ gameName: gameMode.current === 'poe1' ? 'Path of Exile' : 'Path of Exile 2' })}
+              </label>
               <input id="log-file-path" class="field-input" value={logFilePath} readonly placeholder={m.settings_log_file_placeholder()} />
               <div class="settings-actions">
                 <button class="btn btn-primary" type="button" onclick={autoDetectLogFile} disabled={autoDetecting}>
@@ -1892,6 +2111,24 @@
     outline: none;
     border-color: color-mix(in srgb, var(--c-primary) 60%, transparent);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-accent) 28%, transparent);
+  }
+
+  .hotkey-capture-btn {
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .hotkey-capture-btn.recording {
+    color: var(--c-red-bright);
+    border-color: var(--c-red);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-red) 35%, transparent);
+    animation: hotkey-recording-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes hotkey-recording-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 
   .hotkey-desc {

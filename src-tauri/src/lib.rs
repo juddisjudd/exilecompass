@@ -1147,6 +1147,60 @@ fn set_click_through(
     Ok(())
 }
 
+// ── Secondary overlay widget windows ─────────────────────────────────────────
+//
+// Glanceable HUDs (Act-Decoder, PoB tree overlay, macro wheel, etc.) need to
+// float over the game independently of whichever tab is active in the main
+// window, and need their own independent click-through state — Tauri's
+// `set_ignore_cursor_events` is all-or-nothing per window, so one shared
+// overlay window can't do this. Each widget gets its own always-on-top,
+// borderless, transparent `WebviewWindow` pointed at the `/widget` route
+// (`?widget=<id>` tells the frontend which widget to render); labels must be
+// prefixed `widget-` to match the `widget-*` capability.
+
+/// Create (or no-op if already open) a secondary overlay widget window.
+/// `label` must be unique per widget instance (prefix `widget-`); `widget` is
+/// the id the frontend's `/widget` route reads to pick what to render.
+// `async fn` here is load-bearing, not cosmetic: this command is invoked from
+// the WebView2 IPC callback, which runs on the main UI thread. A plain `fn`
+// command executes inline on that same thread, and `WebviewWindowBuilder::build()`
+// needs the main thread's message loop free to pump WebView2's async
+// environment setup — calling it while already inside that thread's IPC
+// callback deadlocks (window frame appears, content never loads, no
+// panic/error). Marking this `async` dispatches it onto Tauri's async runtime
+// instead, off the UI thread, so `build()` can complete normally.
+#[tauri::command]
+async fn create_widget_window(
+    app: AppHandle,
+    label: String,
+    widget: String,
+    x: Option<f64>,
+    y: Option<f64>,
+) -> Result<(), String> {
+    if app.get_webview_window(&label).is_some() {
+        return Ok(());
+    }
+
+    let url = tauri::WebviewUrl::App(format!("widget?widget={widget}").into());
+    let mut builder = tauri::WebviewWindowBuilder::new(&app, &label, url)
+        .title("ExileCompass")
+        .inner_size(320.0, 260.0)
+        .decorations(false)
+        .transparent(want_transparent())
+        .always_on_top(true)
+        .resizable(true)
+        .shadow(false)
+        .skip_taskbar(true);
+
+    builder = match (x, y) {
+        (Some(x), Some(y)) => builder.position(x, y),
+        _ => builder.center(),
+    };
+
+    builder.build().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Bring the attached game window to the foreground.
 #[tauri::command]
 fn focus_game(state: State<'_, OverlayState>) -> bool {
@@ -1365,6 +1419,7 @@ pub fn run() {
             detach_from_game,
             set_click_through,
             set_overlay_triggers,
+            create_widget_window,
             focus_game,
             get_overlay_status,
             detect_log_file,
