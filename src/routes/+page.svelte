@@ -313,33 +313,20 @@
   // About
   let appVersion = $state('');
 
-  // One-time "check your settings" reminder for existing users updating into
-  // this release (per-game log file split, new Act-Decoder hotkey) — never
-  // shown to fresh installs (nothing to re-check yet), dismissible, and
-  // never shows again once dismissed. See the onMount check below.
-  //
-  // "Existing install" is a presence check across several long-standing keys
-  // rather than one dedicated marker: a brand-new marker key wouldn't exist
-  // for ANY current user yet either (it would've had to ship before this
-  // reminder to be useful), which would wrongly treat every real existing
-  // install as "fresh" on their very next launch and delay the reminder by
-  // one extra launch. None of these individually is written unconditionally
-  // on every session (e.g. EXILECOMPASS_GAME_MODE_V1 only gets persisted the
-  // first time someone touches the game switch), so this checks several —
-  // false negative only for someone who's never moved/resized the window,
-  // used the campaign timer, set a build folder, or switched game mode.
-  let showSettingsNotice = $state(false);
-  const SETTINGS_NOTICE_KEY = 'EXILECOMPASS_NOTICE_POE1_SETTINGS_V1';
-  const EXISTING_INSTALL_SIGNAL_KEYS = [
-    'EXILECOMPASS_WINDOW_BOUNDS_V1',
-    'EXILECOMPASS_CAMPAIGN_TIMER_V1',
-    'EXILECOMPASS_BUILD_FOLDER_V1',
-    'EXILECOMPASS_GAME_MODE_V1',
-  ];
+  // First-run (and one-time, for anyone updating from before this existed)
+  // setup wizard: forces a log file + a hotkey review before the rest of the
+  // UI is reachable. Gated on a single disk-backed flag rather than
+  // localStorage — same reliability tier as the game mode / log file path,
+  // since a lost flag would mean re-showing this every launch.
+  let showOnboarding = $state(false);
+  let onboardingStep = $state<'logFile' | 'hotkeys'>('logFile');
+  const ONBOARDING_COMPLETE_KEY = 'EXILECOMPASS_ONBOARDING_COMPLETE_V1';
 
-  async function dismissSettingsNotice() {
-    showSettingsNotice = false;
-    await persistSet(SETTINGS_NOTICE_KEY, '1');
+  async function finishOnboarding() {
+    await saveHotkeys();
+    if (hotkeyError) return;
+    showOnboarding = false;
+    await persistSet(ONBOARDING_COMPLETE_KEY, '1');
   }
 
   function getSettingsGroupLabel(group: 'GENERAL' | 'IMPORT' | 'ABOUT') {
@@ -412,13 +399,11 @@
 
     getVersion().then((v) => (appVersion = v)).catch(() => {});
 
-    // "Check your settings" reminder — only for people who've run the app
-    // before (fresh installs have nothing to re-check yet).
+    // First-run setup wizard — shows once, ever, for both new installs and
+    // anyone updating from before this flag existed.
     (async () => {
-      const signals = await Promise.all(EXISTING_INSTALL_SIGNAL_KEYS.map((k) => persistGet(k)));
-      if (!signals.some((v) => v !== null)) return;
-      const dismissed = await persistGet(SETTINGS_NOTICE_KEY);
-      if (!dismissed) showSettingsNotice = true;
+      const done = await persistGet(ONBOARDING_COMPLETE_KEY);
+      if (!done) showOnboarding = true;
     })();
 
     // Log file path + watcher state: see the gameMode-reactive $effect above
@@ -1117,21 +1102,78 @@
     </div>
   {/if}
 
-  {#if showSettingsNotice}
-    <div class="update-banner">
-      <span class="update-text">{m.notice_settings_reminder()}</span>
-      <button
-        class="update-btn"
-        onclick={() => { showSettings = true; activeSettingsTab = 'logFile'; void dismissSettingsNotice(); }}
-      >{m.notice_open_settings()}</button>
-      <button class="update-dismiss" onclick={dismissSettingsNotice} aria-label={m.notice_dismiss()}>✕</button>
-    </div>
-  {/if}
-
   <!-- Frame wraps only the content area below the title bar -->
   <PoeFrame>
   <main class="content">
-    {#if showSettings}
+    {#if showOnboarding}
+      <!-- First-run setup wizard: log file, then a hotkey review. No close/back
+           button out of this branch — completing (or being unable to complete)
+           the wizard is the only way out, by design. -->
+      <div class="settings-overlay onboarding-overlay">
+        <div class="settings-header-row">
+          <span class="settings-title">{m.onboarding_title()}</span>
+          <span class="onboarding-step-label">
+            {m.onboarding_step_label({ step: onboardingStep === 'logFile' ? '1' : '2' })}
+          </span>
+        </div>
+        <div class="settings-content onboarding-content">
+          {#if onboardingStep === 'logFile'}
+            <div class="settings-section-title">{m.onboarding_logfile_title()}</div>
+            <p class="field-help">{m.onboarding_logfile_help()}</p>
+            <label class="field-label" for="onboarding-log-file-path">
+              {m.settings_log_file_label({ gameName: gameMode.current === 'poe1' ? 'Path of Exile' : 'Path of Exile 2' })}
+            </label>
+            <input id="onboarding-log-file-path" class="field-input" value={logFilePath} readonly placeholder={m.settings_log_file_placeholder()} />
+            <div class="settings-actions">
+              <button class="btn btn-primary" type="button" onclick={autoDetectLogFile} disabled={autoDetecting}>
+                {autoDetecting ? '...' : m.action_auto_detect()}
+              </button>
+              <button class="btn btn-ghost" type="button" onclick={chooseLogFile}>{m.action_browse()}</button>
+              {#if logFilePath}
+                <button class="btn btn-ghost" type="button" onclick={clearLogFile}>{m.action_clear()}</button>
+              {/if}
+            </div>
+            {#if logFileError}
+              <p class="inline-error">{logFileError}</p>
+            {/if}
+            <div class="settings-actions onboarding-nav">
+              <button
+                class="btn btn-primary"
+                type="button"
+                disabled={!logFilePath}
+                onclick={() => (onboardingStep = 'hotkeys')}
+              >{m.action_next()}</button>
+            </div>
+          {:else}
+            <div class="settings-section-title">{m.onboarding_hotkeys_title()}</div>
+            <p class="field-help">{m.onboarding_hotkeys_help()}</p>
+            <ul class="hotkey-list">
+              {#each HOTKEY_ACTIONS as hotkey (hotkey.id)}
+                {@const recording = recordingActionId === hotkey.id}
+                <li class="hotkey-row">
+                  <button
+                    type="button"
+                    class="hotkey-input hotkey-capture-btn"
+                    class:recording
+                    onclick={() => startRecordingHotkey(hotkey.id)}
+                    onblur={() => { if (recording) cancelRecordingHotkey(); }}
+                    aria-label={`${m.aria_hotkey_for()} ${getHotkeyDescription(hotkey.id)}`}
+                  >{recording ? recordingPreviewText() : hotkeyDrafts[hotkey.id]}</button>
+                  <span class="hotkey-desc">{getHotkeyDescription(hotkey.id)}</span>
+                </li>
+              {/each}
+            </ul>
+            {#if hotkeyError}
+              <p class="inline-error">{hotkeyError}</p>
+            {/if}
+            <div class="settings-actions onboarding-nav">
+              <button class="btn btn-ghost" type="button" onclick={() => (onboardingStep = 'logFile')}>{m.action_back()}</button>
+              <button class="btn btn-primary" type="button" onclick={finishOnboarding}>{m.onboarding_finish()}</button>
+            </div>
+          {/if}
+        </div>
+      </div>
+    {:else if showSettings}
       <!-- Settings panel as overlay -->
       <div class="settings-overlay">
         <div class="settings-header-row">
@@ -2173,6 +2215,31 @@
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
+  }
+
+  /* ── Onboarding wizard ───────────────────────────────────────── */
+  .onboarding-step-label {
+    margin-left: auto;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--c-accent) 70%, transparent);
+    flex-shrink: 0;
+  }
+
+  .onboarding-content {
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+
+  .onboarding-nav {
+    margin-top: 4px;
+    justify-content: flex-end;
+  }
+
+  .onboarding-nav .btn-ghost {
+    margin-right: auto;
   }
 
   /* ── About tab ───────────────────────────────────────────────── */
