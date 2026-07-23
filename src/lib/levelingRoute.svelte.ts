@@ -136,21 +136,19 @@ function saveActiveEdgeIndex() {
  *  next one expected next in the route — no skip-ahead. No-ops if
  *  auto-progress is turned off or the route has no more edges.
  *
- *  Special case: `_edges[0]` is always "1_1_1" (The Twilight Strand), a
- *  one-time Act 1 zone a character can never regenerate once they've left
- *  it — seeing it again while tracking is already further along the route
- *  can only mean a brand-new character was just created. Snap back to the
- *  start instead of leaving the marker stuck wherever the previous
- *  character left off (there's no PoB-reimport signal to key off like
- *  upstream has, since position tracking here is driven by live log zone
- *  detection, not by re-processing a build). */
+ *  Deliberately does *not* auto-detect "new character" from log content
+ *  (an earlier version snapped back to edge 0 whenever it saw area id
+ *  "1_1_1", The Twilight Strand — assuming that's a one-time zone an
+ *  existing character can never regenerate). That assumption isn't
+ *  something this function can verify from a single area id in isolation,
+ *  and a wrong guess permanently desyncs the marker with no way back
+ *  except noticing and undoing it. Upstream doesn't auto-detect this
+ *  either — its equivalent reset only fires on an explicit user action
+ *  (clearing/re-importing a PoB build, see exile-leveling's pob/index.ts).
+ *  For a genuine new character here, use the manual "jump to here" marker
+ *  on the first step instead (see `jumpToEdge`). */
 export function advanceLevelingEdge(areaId: string) {
   if (!_config.autoProgress) return;
-  if (_activeEdgeIndex !== 0 && _edges[0] === areaId) {
-    _activeEdgeIndex = 0;
-    saveActiveEdgeIndex();
-    return;
-  }
   const nextIndex = _activeEdgeIndex + 1;
   if (_edges[nextIndex] === areaId) {
     _activeEdgeIndex = nextIndex;
