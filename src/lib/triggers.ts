@@ -32,7 +32,7 @@ export interface TriggerChord {
 const STORAGE_KEY = 'EXILECOMPASS_TRIGGERS_V1';
 
 export function getDefaultTriggerConfig(): TriggerConfig {
-  return { mode: 'hideOnly', keys: ['I', 'U', 'P', 'Ctrl+U', 'M'] };
+  return { mode: 'hideOnly', keys: [] };
 }
 
 /** Map a normalized key token (the last part of a combo) to a Windows VK code. */
