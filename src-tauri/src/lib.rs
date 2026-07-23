@@ -1362,6 +1362,18 @@ pub fn run() {
     }));
 
     let result = tauri::Builder::default()
+        // Must be registered before any other plugin: it needs to intercept a
+        // second launch before anything else (tray, global shortcuts, etc.)
+        // sets up and potentially collides with the first instance's state —
+        // e.g. the click-through global hotkey, which a second instance would
+        // otherwise fail to register since the first instance still holds it.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
