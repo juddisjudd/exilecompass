@@ -16,6 +16,7 @@
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
     "sync-guides": "node tools/sync-guides-fallback.mjs",
     "build:tree": "bun tools/build-poe1-tree.mjs",
+    "build:poe1-regex-data": "bun tools/build-poe1-regex-data.mjs",
     "build:act-decoder-manifest": "bun tools/build-act-decoder-manifest.mjs",
     "addon:scaffold": "node tools/addon-scaffold/create-addon.mjs",
     "check": "bun run paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

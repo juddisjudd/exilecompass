@@ -11,6 +11,7 @@
   import CampaignGuide from '$lib/components/CampaignGuide.svelte';
   import PermanentRewards from '$lib/components/PermanentRewards.svelte';
   import StashRegex from '$lib/components/StashRegex.svelte';
+  import PoE1Regex from '$lib/components/PoE1Regex.svelte';
   import CraftingGuide from '$lib/components/CraftingGuide.svelte';
   import PoE1LevelingGuide from '$lib/components/PoE1LevelingGuide.svelte';
   import PassiveTreeViewer from '$lib/components/PassiveTreeViewer.svelte';
@@ -110,7 +111,7 @@
   // guide (+ addons, which are game-agnostic). "Timer" stays PoE2-only since
   // its auto mode is wired to PoE2 log-scene parsing.
   const POE2_TABS: MainViewId[] = ['campaign', 'rewards', 'stash', 'crafting', 'timer', 'build', 'addons'];
-  const POE1_TABS: MainViewId[] = ['leveling', 'gems', 'tree', 'addons'];
+  const POE1_TABS: MainViewId[] = ['leveling', 'gems', 'tree', 'stash', 'addons'];
   const visibleTabs = $derived<MainViewId[]>(gameMode.current === 'poe1' ? POE1_TABS : POE2_TABS);
 
   // Per-game so switching the footer game switch doesn't clobber the other
@@ -1690,7 +1691,11 @@
           {:else if mainView === 'rewards'}
             <PermanentRewards bind:this={rewardsComponent} />
           {:else if mainView === 'stash'}
-            <StashRegex />
+            {#if gameMode.current === 'poe1'}
+              <PoE1Regex />
+            {:else}
+              <StashRegex />
+            {/if}
           {:else if mainView === 'crafting'}
             <CraftingGuide />
           {:else if mainView === 'timer'}
