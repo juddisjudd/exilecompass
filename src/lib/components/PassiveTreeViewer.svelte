@@ -3,6 +3,7 @@
   import { m } from '$lib/paraglide/messages.js';
   import { levelingRoute } from '$lib/levelingRoute.svelte';
   import { restorePoe1Build, loadPoe1Build } from '$lib/poe1Pob';
+  import { poe1ViewState, syncTreeSelectionToBuild } from '$lib/poe1ViewState.svelte';
   import {
     decodeUrlTree,
     buildUrlTreeDelta,
@@ -19,7 +20,6 @@
   let container = $state<HTMLDivElement>();
   let loaded = $state<LoadedTree | null>(null);
   let urlTrees = $state<UrlTreeData[]>([]);
-  let specIndex = $state(0);
   let status = $state<'loading' | 'ready' | 'no-build' | 'unsupported' | 'error'>('loading');
   let unsupportedVersion = $state('');
   let errorMsg = $state('');
@@ -50,6 +50,7 @@
 
   const currentDelta = $derived.by(() => {
     if (!loaded || urlTrees.length === 0) return null;
+    const specIndex = poe1ViewState.treeSpecIndex;
     const current = urlTrees[specIndex];
     const previous = specIndex > 0 ? urlTrees[specIndex - 1] : EMPTY_URL_TREE;
     return buildUrlTreeDelta(current, previous, loaded.skillTree);
@@ -57,7 +58,7 @@
 
   const deltaCss = $derived(
     currentDelta && loaded
-      ? buildDeltaStyles(STYLE_ID, currentDelta, urlTrees[specIndex]?.ascendancy?.id)
+      ? buildDeltaStyles(STYLE_ID, currentDelta, urlTrees[poe1ViewState.treeSpecIndex]?.ascendancy?.id)
       : '',
   );
 
@@ -104,7 +105,8 @@
       }
       loaded = data;
       urlTrees = decoded;
-      specIndex = Math.min(activeDecodedIndex, decoded.length - 1);
+      if (build) syncTreeSelectionToBuild(build.importedAt, activeDecodedIndex);
+      poe1ViewState.treeSpecIndex = Math.min(poe1ViewState.treeSpecIndex, decoded.length - 1);
       status = 'ready';
       requestAnimationFrame(focusDelta);
     } catch (e) {
@@ -138,12 +140,12 @@
   }
 
   function step(dir: -1 | 1) {
-    jump(specIndex + dir);
+    jump(poe1ViewState.treeSpecIndex + dir);
   }
 
   function jump(next: number) {
     if (next < 0 || next >= urlTrees.length) return;
-    specIndex = next;
+    poe1ViewState.treeSpecIndex = next;
     tip = null;
     requestAnimationFrame(focusDelta);
   }
@@ -233,7 +235,7 @@
         <button
           class="spec-btn"
           type="button"
-          disabled={specIndex === 0}
+          disabled={poe1ViewState.treeSpecIndex === 0}
           onclick={() => step(-1)}
           title={m.tree_prev()}
           aria-label={m.tree_prev()}
@@ -241,7 +243,7 @@
         {#if urlTrees.length > 1}
           <select
             class="spec-select"
-            value={specIndex}
+            value={poe1ViewState.treeSpecIndex}
             aria-label={m.tree_set_label()}
             onchange={(e) => jump(+(e.currentTarget as HTMLSelectElement).value)}
           >
@@ -250,13 +252,13 @@
             {/each}
           </select>
         {:else}
-          <span class="spec-name">{urlTrees[specIndex]?.name}</span>
+          <span class="spec-name">{urlTrees[poe1ViewState.treeSpecIndex]?.name}</span>
         {/if}
-        <span class="spec-count">{specIndex + 1}/{urlTrees.length}</span>
+        <span class="spec-count">{poe1ViewState.treeSpecIndex + 1}/{urlTrees.length}</span>
         <button
           class="spec-btn"
           type="button"
-          disabled={specIndex >= urlTrees.length - 1}
+          disabled={poe1ViewState.treeSpecIndex >= urlTrees.length - 1}
           onclick={() => step(1)}
           title={m.tree_next()}
           aria-label={m.tree_next()}

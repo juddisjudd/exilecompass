@@ -2,21 +2,23 @@
   import { onMount } from 'svelte';
   import { m } from '$lib/paraglide/messages.js';
   import { loadPoe1Build, type Poe1Build, type Poe1GemLinkGem } from '$lib/poe1Pob';
+  import { poe1ViewState, syncGemsSelectionToBuild } from '$lib/poe1ViewState.svelte';
 
   // Display-only reference view of the imported build's skill setups
   // (upstream exile-leveling's "Gems" sidebar tab). All display fields were
   // resolved at import time — no game data loads here.
   let build = $state<Poe1Build | null>(null);
-  let activeSet = $state(0);
 
   onMount(() => {
     build = loadPoe1Build();
-    activeSet = build?.activeSkillSet ?? 0;
+    if (build) syncGemsSelectionToBuild(build.importedAt, build.activeSkillSet);
   });
 
   const skillSets = $derived(build?.skillSets ?? []);
   const multiSet = $derived(skillSets.length > 1);
-  const groups = $derived(skillSets[activeSet]?.gemLinks ?? skillSets[0]?.gemLinks ?? []);
+  const groups = $derived(
+    skillSets[poe1ViewState.gemsActiveSet]?.gemLinks ?? skillSets[0]?.gemLinks ?? [],
+  );
 
   function sourceTitle(gem: Poe1GemLinkGem): string | undefined {
     return gem.sources.length > 0 ? gem.sources.join('\n') : undefined;
@@ -35,8 +37,8 @@
     <label class="set-select">
       <span class="set-select-label">{m.gems_set_label()}</span>
       <select
-        value={activeSet}
-        onchange={(e) => (activeSet = +(e.currentTarget as HTMLSelectElement).value)}
+        value={poe1ViewState.gemsActiveSet}
+        onchange={(e) => (poe1ViewState.gemsActiveSet = +(e.currentTarget as HTMLSelectElement).value)}
       >
         {#each skillSets as s, i (s.id)}
           <option value={i}>{s.title}</option>
