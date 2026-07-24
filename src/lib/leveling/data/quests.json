@@ -363,7 +363,6 @@
           },
           "Metadata/Items/Gems/SupportGemOnslaught": {
             "classes": [
-              "Scion",
               "Ranger"
             ],
             "npc": "Nessa"
@@ -1450,13 +1449,7 @@
             "npc": "Nessa"
           },
           "Metadata/Items/Gems/SupportGemFasterAttack": {
-            "classes": [
-              "Duelist",
-              "Marauder",
-              "Ranger",
-              "Shadow",
-              "Scion"
-            ],
+            "classes": [],
             "npc": "Nessa"
           },
           "Metadata/Items/Gems/SupportGemFlamewood": {
@@ -3009,6 +3002,14 @@
             "classes": [],
             "npc": "Yeena"
           },
+          "Metadata/Items/Gems/SkillGemManaInfusedStaff": {
+            "classes": [
+              "Templar",
+              "Shadow",
+              "Witch"
+            ],
+            "npc": "Yeena"
+          },
           "Metadata/Items/Gems/SkillGemMoltenShell": {
             "classes": [
               "Duelist",
@@ -3445,12 +3446,7 @@
             "npc": "Yeena"
           },
           "Metadata/Items/Gems/SupportGemFasterCast": {
-            "classes": [
-              "Scion",
-              "Shadow",
-              "Templar",
-              "Witch"
-            ],
+            "classes": [],
             "npc": "Yeena"
           },
           "Metadata/Items/Gems/SupportGemFreshMeat": {
@@ -6409,6 +6405,10 @@
             "npc": "Siosa"
           },
           "Metadata/Items/Gems/SupportGemManaLeech": {
+            "classes": [],
+            "npc": "Siosa"
+          },
+          "Metadata/Items/Gems/SkillGemManaInfusedStaff": {
             "classes": [],
             "npc": "Siosa"
           },
@@ -9432,6 +9432,10 @@
             "npc": "Lilly Roth"
           },
           "Metadata/Items/Gems/SupportGemManaLeech": {
+            "classes": [],
+            "npc": "Lilly Roth"
+          },
+          "Metadata/Items/Gems/SkillGemManaInfusedStaff": {
             "classes": [],
             "npc": "Lilly Roth"
           },
