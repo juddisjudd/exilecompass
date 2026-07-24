@@ -1,6 +1,14 @@
 <script lang="ts">
   import { m } from '$lib/paraglide/messages.js';
   import { campaignTimer } from '$lib/campaignTimer.svelte';
+  import { poe1CampaignTimer } from '$lib/poe1CampaignTimer.svelte';
+  import { gameMode } from '$lib/gameMode.svelte';
+
+  // PoE1 and PoE2 auto-splits are tracked by separate timer instances (PoE1's
+  // is driven by area-id act prefixes, PoE2's by [SCENE] names — see
+  // poe1CampaignTimer.svelte.ts) so switching games mid-run doesn't clobber
+  // either one's progress.
+  const timer = $derived(gameMode.current === 'poe1' ? poe1CampaignTimer : campaignTimer);
 
   type TimerState = 'idle' | 'running' | 'paused';
   type Mode = 'manual' | 'campaign';
@@ -11,7 +19,9 @@
     delta: number;
   }
 
-  const DEFAULT_LABELS = ['Act 1', 'Act 2', 'Act 3', 'Act 4', 'Act 5', 'Act 6'];
+  // PoE1 has 10 acts, PoE2 4 (+ interludes) — sized to the longer campaign;
+  // manual mode falls back to "Split N" once labels run out.
+  const DEFAULT_LABELS = Array.from({ length: 10 }, (_, i) => `Act ${i + 1}`);
 
   let mode = $state<Mode>('manual');
 
@@ -75,7 +85,7 @@
   // ── Campaign timer (auto, from log) ───────────────────────────
   let nowMs = $state(Date.now());
   $effect(() => {
-    if (mode === 'campaign' && campaignTimer.running) {
+    if (mode === 'campaign' && timer.running) {
       const id = setInterval(() => { nowMs = Date.now(); }, 250);
       return () => clearInterval(id);
     }
@@ -93,14 +103,14 @@
   }
 
   const campaignTotalMs = $derived.by(() => {
-    if (campaignTimer.startMs === null) return 0;
-    const end = campaignTimer.running ? nowMs : (campaignTimer.stopMs ?? campaignTimer.startMs);
-    return end - campaignTimer.startMs;
+    if (timer.startMs === null) return 0;
+    const end = timer.running ? nowMs : (timer.stopMs ?? timer.startMs);
+    return end - timer.startMs;
   });
 
   function segMs(seg: { start: number | null; end: number | null }): number | null {
     if (seg.start === null) return null;
-    const end = seg.end ?? (campaignTimer.running ? nowMs : seg.start);
+    const end = seg.end ?? (timer.running ? nowMs : seg.start);
     return end - seg.start;
   }
 </script>
@@ -151,24 +161,24 @@
   {:else}
     <!-- ── Campaign (auto) ──────────────────────────────────── -->
     <div class="total-label">{m.timer_total()}</div>
-    <div class="display" class:running={campaignTimer.running}>
+    <div class="display" class:running={timer.running}>
       <span class="time">{fmtClock(campaignTotalMs)}</span>
     </div>
 
     <div class="controls">
-      <button class="ctrl-btn ctrl-primary" class:is-pause={campaignTimer.running} onclick={() => campaignTimer.toggle()}>
-        {campaignTimer.running ? m.timer_stop() : m.timer_start()}
+      <button class="ctrl-btn ctrl-primary" class:is-pause={timer.running} onclick={() => timer.toggle()}>
+        {timer.running ? m.timer_stop() : m.timer_start()}
       </button>
-      {#if campaignTimer.startMs !== null}
-        <button class="btn btn-danger ctrl-btn" onclick={() => campaignTimer.reset()} title={m.timer_reset_title()}>{m.action_reset()}</button>
+      {#if timer.startMs !== null}
+        <button class="btn btn-danger ctrl-btn" onclick={() => timer.reset()} title={m.timer_reset_title()}>{m.action_reset()}</button>
       {/if}
     </div>
 
-    {#if campaignTimer.startMs !== null}
+    {#if timer.startMs !== null}
       <div class="splits">
-        {#each campaignTimer.segments as seg, i (seg.key)}
+        {#each timer.segments as seg, i (seg.key)}
           {@const ms = segMs(seg)}
-          <div class="split-row" class:active={campaignTimer.running && campaignTimer.currentIndex === i}>
+          <div class="split-row" class:active={timer.running && timer.currentIndex === i}>
             <span class="split-label">{seg.label}</span>
             <span class="split-time">{ms === null ? '—' : fmtClock(ms)}</span>
           </div>

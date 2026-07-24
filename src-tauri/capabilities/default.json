@@ -16,6 +16,7 @@
     "core:window:allow-set-size",
     "core:window:allow-hide",
     "core:window:allow-show",
+    "core:webview:allow-set-webview-zoom",
     "updater:default",
     "process:default"
   ]

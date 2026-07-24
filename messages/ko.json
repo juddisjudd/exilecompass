@@ -269,6 +269,8 @@
   "settings_theme_help": "테마는 오버레이의 색상만 바꿉니다 — 레이아웃과 내용은 그대로 유지됩니다.",
   "settings_act_decoder_opacity_title": "Act-Decoder 불투명도",
   "settings_act_decoder_opacity_help": "Act-Decoder 오버레이 창의 불투명도입니다.",
+  "settings_font_size_title": "글꼴 크기",
+  "settings_font_size_help": "앱 전체의 텍스트와 UI 요소 크기를 조정합니다.",
   "update_get": "업데이트 받기",
   "update_manual": "이 설치본에서는 자동 업데이트를 사용할 수 없습니다 — 릴리스 페이지에서 새 버전을 받거나, 패키지 관리자(예: apt 또는 AUR 헬퍼)를 통해 업데이트하세요.",
   "onboarding_title": "ExileCompass에 오신 것을 환영합니다",

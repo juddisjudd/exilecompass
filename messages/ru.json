@@ -269,6 +269,8 @@
   "settings_theme_help": "Темы перекрашивают оверлей — макет и содержимое остаются прежними.",
   "settings_act_decoder_opacity_title": "Непрозрачность Act-Decoder",
   "settings_act_decoder_opacity_help": "Непрозрачность окна оверлея Act-Decoder.",
+  "settings_font_size_title": "Размер шрифта",
+  "settings_font_size_help": "Настройте размер текста и элементов интерфейса во всём приложении.",
   "update_get": "Получить обновление",
   "update_manual": "Автоматические обновления недоступны для этой установки — скачайте новую версию со страницы релизов или обновите через менеджер пакетов (например, apt или ваш AUR-помощник).",
   "onboarding_title": "Добро пожаловать в ExileCompass",

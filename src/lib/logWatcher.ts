@@ -239,7 +239,7 @@ export interface SceneEvent {
 }
 
 /** Pull every [SCENE] Set Source transition (with its log timestamp) from a
- *  batch of lines — used by the campaign timer for automatic act splits. */
+ *  batch of lines — used by the PoE2 campaign timer for automatic act splits. */
 function extractSceneEvents(lines: string[]): SceneEvent[] {
   const events: SceneEvent[] = [];
   for (const line of lines) {
@@ -247,6 +247,26 @@ function extractSceneEvents(lines: string[]): SceneEvent[] {
     if (!scene) continue;
     const d = parseLogDate(line);
     if (d) events.push({ scene, timeMs: d.getTime() });
+  }
+  return events;
+}
+
+export interface AreaIdEvent {
+  areaId: string;
+  timeMs: number; // epoch ms from the log timestamp
+}
+
+/** Pull every "Generating level..." area id transition (with its log
+ *  timestamp) from a batch of lines — used by the PoE1 campaign timer for
+ *  automatic act splits (PoE1's area ids encode the act number directly,
+ *  e.g. "1_3_town" / "2_8_1", so no scene-name table is needed there). */
+function extractAreaIdEvents(lines: string[]): AreaIdEvent[] {
+  const events: AreaIdEvent[] = [];
+  for (const line of lines) {
+    const id = extractAreaId(line);
+    if (!id) continue;
+    const d = parseLogDate(line);
+    if (d) events.push({ areaId: id, timeMs: d.getTime() });
   }
   return events;
 }
@@ -259,7 +279,13 @@ export async function pollLog(
   collected: Set<string>,
   areaRef: { current: string },
   game: GameMode,
-): Promise<{ ids: string[]; scenes: SceneEvent[]; areaId: string | null; state: LogWatcherState }> {
+): Promise<{
+  ids: string[];
+  scenes: SceneEvent[];
+  areaId: string | null;
+  areaIdEvents: AreaIdEvent[];
+  state: LogWatcherState;
+}> {
   const result = await invoke<{ lines: string[]; file_size: number }>(
     'read_log_tail', { path: logPath, fromByte: state.offset }
   );
@@ -272,6 +298,7 @@ export async function pollLog(
   const ids = extractNewRewardIds(result.lines, setupTime, collected, areaRef);
   const scenes = extractSceneEvents(result.lines);
   const areaId = extractAreaIdChange(result.lines);
+  const areaIdEvents = extractAreaIdEvents(result.lines);
 
   const newState: LogWatcherState = { ...state, offset: newOffset };
   if (wasTruncated) {
@@ -280,5 +307,5 @@ export async function pollLog(
   }
   await saveWatcherState(newState, game);
 
-  return { ids, scenes, areaId, state: newState };
+  return { ids, scenes, areaId, areaIdEvents, state: newState };
 }

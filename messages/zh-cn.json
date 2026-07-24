@@ -269,6 +269,8 @@
   "settings_theme_help": "主题只会改变覆盖层的配色——布局和内容保持不变。",
   "settings_act_decoder_opacity_title": "Act-Decoder 不透明度",
   "settings_act_decoder_opacity_help": "Act-Decoder 叠加窗口的不透明度。",
+  "settings_font_size_title": "字体大小",
+  "settings_font_size_help": "调整整个应用中文本和界面元素的大小。",
   "update_get": "获取更新",
   "update_manual": "此安装方式不支持自动更新——请前往发布页面获取新版本，或通过包管理器（如 apt 或你的 AUR 助手）进行更新。",
   "onboarding_title": "欢迎使用 ExileCompass",

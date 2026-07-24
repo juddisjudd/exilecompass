@@ -269,6 +269,8 @@
   "settings_theme_help": "Los temas recolorean el overlay — el diseño y el contenido se mantienen igual.",
   "settings_act_decoder_opacity_title": "Opacidad de Act-Decoder",
   "settings_act_decoder_opacity_help": "Opacidad de la ventana de superposición de Act-Decoder.",
+  "settings_font_size_title": "Tamaño de fuente",
+  "settings_font_size_help": "Ajusta el tamaño del texto y los elementos de la interfaz en toda la aplicación.",
   "update_get": "Obtener actualización",
   "update_manual": "Las actualizaciones automáticas no están disponibles para esta instalación — descarga la nueva versión desde la página de releases, o actualiza mediante tu gestor de paquetes (por ejemplo, apt o tu ayudante de AUR).",
   "onboarding_title": "Bienvenido a ExileCompass",

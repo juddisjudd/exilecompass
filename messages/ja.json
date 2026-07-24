@@ -269,6 +269,8 @@
   "settings_theme_help": "テーマはオーバーレイの配色を変更します — レイアウトと内容はそのままです。",
   "settings_act_decoder_opacity_title": "Act-Decoderの不透明度",
   "settings_act_decoder_opacity_help": "Act-Decoderオーバーレイウィンドウの不透明度。",
+  "settings_font_size_title": "フォントサイズ",
+  "settings_font_size_help": "アプリ全体のテキストとUI要素のサイズを調整します。",
   "update_get": "アップデートを取得",
   "update_manual": "このインストールでは自動アップデートは利用できません。リリースページから新しいバージョンを取得するか、パッケージマネージャー（apt や AUR ヘルパーなど）経由で更新してください。",
   "onboarding_title": "ExileCompassへようこそ",

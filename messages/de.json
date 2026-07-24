@@ -269,6 +269,8 @@
   "settings_theme_help": "Themes färben das Overlay um — Layout und Inhalt bleiben gleich.",
   "settings_act_decoder_opacity_title": "Act-Decoder-Deckkraft",
   "settings_act_decoder_opacity_help": "Deckkraft des Act-Decoder-Overlay-Fensters.",
+  "settings_font_size_title": "Schriftgröße",
+  "settings_font_size_help": "Passt die Größe von Text und UI-Elementen in der gesamten App an.",
   "update_get": "Update holen",
   "update_manual": "Automatische Updates sind für diese Installation nicht verfügbar — lade die neue Version von der Releases-Seite herunter oder aktualisiere über deinen Paketmanager (z. B. apt oder deinen AUR-Helper).",
   "onboarding_title": "Willkommen bei ExileCompass",

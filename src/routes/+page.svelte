@@ -42,6 +42,7 @@
   } from '$lib/logWatcher';
   import { persistGet, persistSet, persistRemove } from '$lib/persist';
   import { campaignTimer } from '$lib/campaignTimer.svelte';
+  import { poe1CampaignTimer } from '$lib/poe1CampaignTimer.svelte';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
   import { levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge } from '$lib/levelingRoute.svelte';
   import { importPoe1Build, clearPoe1Build } from '$lib/poe1Pob';
@@ -59,6 +60,7 @@
   import { gameMode, loadGameMode, setGameMode, type GameMode } from '$lib/gameMode.svelte';
   import { toggleWidget, getWidgetOpacity, setWidgetOpacity } from '$lib/widgets';
   import { theme, THEMES, loadTheme, setTheme } from '$lib/theme.svelte';
+  import { uiScale, loadUiScale, setUiScale, UI_SCALE_MIN, UI_SCALE_MAX, UI_SCALE_STEP } from '$lib/uiScale.svelte';
   import {
     configToChords,
     getDefaultTriggerConfig,
@@ -108,10 +110,11 @@
   type ViewId = MainViewId | `addon:${string}`;
 
   // PoE2 keeps every existing tab; PoE1 mode swaps to just its own leveling
-  // guide (+ addons, which are game-agnostic). "Timer" stays PoE2-only since
-  // its auto mode is wired to PoE2 log-scene parsing.
+  // guide (+ addons, which are game-agnostic) plus its own auto-split timer
+  // (poe1CampaignTimer, driven by area-id act prefixes rather than PoE2's
+  // scene-name table — see SpeedrunTimer.svelte for the gameMode branch).
   const POE2_TABS: MainViewId[] = ['campaign', 'rewards', 'stash', 'crafting', 'timer', 'build', 'addons'];
-  const POE1_TABS: MainViewId[] = ['leveling', 'gems', 'tree', 'stash', 'addons'];
+  const POE1_TABS: MainViewId[] = ['leveling', 'gems', 'tree', 'stash', 'timer', 'addons'];
   const visibleTabs = $derived<MainViewId[]>(gameMode.current === 'poe1' ? POE1_TABS : POE2_TABS);
 
   // Per-game so switching the footer game switch doesn't clobber the other
@@ -171,15 +174,16 @@
   // the actual game used is re-read after awaiting loadGameMode() (idempotent
   // and now safe for concurrent callers, see gameMode.svelte.ts), so this
   // never acts on the module's stale default before the persisted value
-  // settles. campaignTimer.load() is idempotent too, so calling it here
-  // preserves "timer restored before watcher state enables polling" without
-  // duplicating work.
+  // settles. campaignTimer.load()/poe1CampaignTimer.load() are idempotent too,
+  // so calling them here preserves "timer restored before watcher state
+  // enables polling" without duplicating work.
   $effect(() => {
     void gameMode.current; // reactive dependency only — see note above
     (async () => {
       await loadGameMode();
       const game = gameMode.current;
       await campaignTimer.load();
+      await poe1CampaignTimer.load();
       let path = await persistGet(logFileKey(game));
       if (!path && !legacyLogPathMigrated) {
         // One-time migration from the pre-PoE1 flat key (shared by both
@@ -387,6 +391,7 @@
     // Apply the saved theme before anything else paints (onMount runs before
     // the browser's first paint of this tree, so no default-theme flash).
     loadTheme();
+    loadUiScale();
 
     hotkeyBindings = loadHotkeyBindings();
     hotkeyDrafts = { ...hotkeyBindings };
@@ -467,11 +472,16 @@
       if (cancelled || !logFilePath || !logWatcherState) return;
       try {
         const collected = rewardsComponent?.getCollected() ?? new Set<string>();
-        const { ids, scenes, areaId, state } = await pollLog(logFilePath, logWatcherState, collected, logWatcherArea, gameMode.current);
+        const { ids, scenes, areaId, areaIdEvents, state } = await pollLog(logFilePath, logWatcherState, collected, logWatcherArea, gameMode.current);
         logWatcherState = state;
-        // Feed scene transitions to the campaign timer (works even if the
-        // rewards tab isn't mounted).
-        for (const s of scenes) campaignTimer.handleScene(s.scene, s.timeMs);
+        // Feed transitions to whichever game's campaign timer is active (works
+        // even if the rewards/timer tab isn't mounted): PoE2 splits off
+        // [SCENE] names, PoE1 off area-id act prefixes (no scene-name table).
+        if (gameMode.current === 'poe1') {
+          for (const e of areaIdEvents) poe1CampaignTimer.handleAreaId(e.areaId, e.timeMs);
+        } else {
+          for (const s of scenes) campaignTimer.handleScene(s.scene, s.timeMs);
+        }
         if (rewardsComponent) for (const id of ids) rewardsComponent.autoMarkReward(id);
         // Act-Decoder widget window(s) can't share in-memory state with the
         // main window — broadcast zone changes as a Tauri event, and persist
@@ -587,7 +597,7 @@
   const GLOBAL_ACTIONS: Partial<Record<HotkeyActionId, () => void | Promise<void>>> = {
     toggleClickThrough: async () => { await toggleClickThrough(); await refreshStatus(); },
     toggleHidden: () => toggleHidden(),
-    toggleCampaignTimer: () => campaignTimer.toggle(),
+    toggleCampaignTimer: () => (gameMode.current === 'poe1' ? poe1CampaignTimer : campaignTimer).toggle(),
     // Same hotkeys drive whichever guide is active: PoE2's campaign progress,
     // or PoE1's leveling progress.
     campaignCompleteNext: () => {
@@ -1328,6 +1338,25 @@
                 {/each}
               </div>
               <p class="field-help">{m.settings_theme_help()}</p>
+
+              <div class="ct-opacity-section">
+                <div class="settings-section-title" style="margin-top:4px">{m.settings_font_size_title()}</div>
+                <div class="ct-slider-row">
+                  <input
+                    type="range"
+                    class="ct-slider"
+                    min={UI_SCALE_MIN}
+                    max={UI_SCALE_MAX}
+                    step={UI_SCALE_STEP}
+                    value={uiScale.current}
+                    oninput={(e) => setUiScale(parseFloat((e.currentTarget as HTMLInputElement).value))}
+                    style="--pct:{Math.round((uiScale.current - UI_SCALE_MIN) / (UI_SCALE_MAX - UI_SCALE_MIN) * 100)}"
+                    aria-label={m.settings_font_size_title()}
+                  />
+                  <span class="ct-slider-val">{Math.round(uiScale.current * 100)}%</span>
+                </div>
+                <p class="field-help">{m.settings_font_size_help()}</p>
+              </div>
 
               {#if gameMode.current === 'poe1'}
                 <div class="ct-opacity-section">

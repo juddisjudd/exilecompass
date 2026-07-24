@@ -60,6 +60,8 @@
   "settings_theme_help": "Themes recolor the overlay — layout and content stay the same.",
   "settings_act_decoder_opacity_title": "Act-Decoder Opacity",
   "settings_act_decoder_opacity_help": "Opacity of the Act-Decoder overlay window.",
+  "settings_font_size_title": "Font Size",
+  "settings_font_size_help": "Adjust the size of text and UI elements throughout the app.",
   "settings_tab_log_file": "Log File",
   "settings_tab_import_builds": "Import PoE Builds",
   "settings_language_help": "Change the UI language for the overlay.",

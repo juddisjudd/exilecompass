@@ -135,6 +135,12 @@
   function resetProgress() {
     poe1LevelingProgress.resetAll();
     poe1GemProgress.resetAll();
+    // Collapse every act and snap the "you are here" marker back to the
+    // Act 1 start — a progress reset should look and feel like a fresh route,
+    // not leave stale expand state / position from the run being cleared.
+    guideState.expandedSections = new SvelteSet<string>();
+    saveState();
+    jumpToEdge(0);
   }
 
   async function copyText(text: string) {
