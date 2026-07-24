@@ -17,8 +17,15 @@ import { buildSkillTree } from './poe1-tree-source/tree.ts';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, '../src/lib/leveling/tree');
 
-// Latest first; add older versions if builds need them.
+// Latest first; add older versions if builds need them. Keep old entries
+// around even after adding a newer one — builds imported before the patch
+// bump are still tagged with the old treeVersion (poe1Pob.ts) and need their
+// matching JSON to keep rendering correctly (see PassiveTreeViewer.svelte).
 const PASSIVE_TREE_JSON = {
+	'3_29':
+		// "3.29.0 preview 2" — not yet a final numbered release; re-sync if a
+		// later commit lands before league launch.
+		'https://raw.githubusercontent.com/grindinggear/skilltree-export/b13a09fe8b8f3bec06c4440bdf90ab20988d327f/data.json',
 	'3_28':
 		'https://raw.githubusercontent.com/grindinggear/skilltree-export/648e492b17d49d7213c63f4c1e0aa561617d5ad1/data.json',
 };

@@ -45,7 +45,16 @@
   import { poe1CampaignTimer } from '$lib/poe1CampaignTimer.svelte';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
   import { levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge } from '$lib/levelingRoute.svelte';
-  import { importPoe1Build, clearPoe1Build } from '$lib/poe1Pob';
+  import {
+    importPoe1Build,
+    clearPoe1Build,
+    listPoe1Builds,
+    activePoe1BuildId,
+    setActivePoe1Build,
+    removePoe1Build,
+    type StoredPoe1Build,
+  } from '$lib/poe1Pob';
+  import ConfirmReset from '$lib/components/ConfirmReset.svelte';
   import { m } from '$lib/paraglide/messages.js';
   import { getLocale, locales, setLocale } from '$lib/paraglide/runtime.js';
   import {
@@ -270,11 +279,20 @@
   let pobSuccess = $state(false);
   let buildDragOver = $state(false);
 
-  // PoE1 PoB import (leveling guide gem rewards + passive tree)
+  // PoE1 PoB import (leveling guide gem rewards + passive tree). Builds can
+  // be stored plural — see poe1Pob.ts's build store — so this section also
+  // tracks the saved-builds list rather than just the single active one.
   let poe1Input = $state('');
   let poe1Importing = $state(false);
   let poe1Error = $state('');
   let poe1Success = $state(false);
+  let poe1Builds = $state<StoredPoe1Build[]>([]);
+  let poe1ActiveId = $state<string | null>(null);
+
+  function refreshPoe1Builds() {
+    poe1Builds = listPoe1Builds();
+    poe1ActiveId = activePoe1BuildId();
+  }
 
   async function handlePoe1Import() {
     if (!poe1Input.trim() || poe1Importing) return;
@@ -285,6 +303,7 @@
       await importPoe1Build(poe1Input);
       poe1Success = true;
       poe1Input = '';
+      refreshPoe1Builds();
       setTimeout(() => (poe1Success = false), 3000);
     } catch (e) {
       poe1Error = String(e).replace(/^Error:\s*/, '');
@@ -296,6 +315,24 @@
   async function handlePoe1Clear() {
     poe1Error = '';
     await clearPoe1Build();
+    refreshPoe1Builds();
+  }
+
+  async function handlePoe1SetActive(id: string) {
+    poe1Error = '';
+    await setActivePoe1Build(id);
+    refreshPoe1Builds();
+  }
+
+  function handlePoe1Remove(id: string) {
+    removePoe1Build(id);
+    refreshPoe1Builds();
+  }
+
+  function poe1BuildLabel(build: StoredPoe1Build['build']): string {
+    const date = new Date(build.importedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const bandit = build.bandit !== 'None' ? ` · ${build.bandit}` : '';
+    return `${build.characterClass}${bandit} (${date})`;
   }
 
   // Build folder library — a folder of GGG `.build` files the user can pick from
@@ -399,6 +436,7 @@
     void pushTriggers();
     selectedLocale = getLocale() as AppLocale;
     pobBuild = loadStoredBuild();
+    refreshPoe1Builds();
     const savedOpacity = window.localStorage.getItem(CT_OPACITY_KEY);
     if (savedOpacity) ctOpacity = parseFloat(savedOpacity);
     void getWidgetOpacity('act-decoder').then((v) => (actDecoderOpacity = v));
@@ -1433,16 +1471,32 @@
               {#if poe1Error}
                 <p class="inline-error">{poe1Error}</p>
               {/if}
-              {#if levelingRoute.build}
-                <div class="pob-current">
-                  <span class="pob-current-label">{m.label_imported()}</span>
-                  <span class="pob-current-name">
-                    {levelingRoute.build.characterClass} · {levelingRoute.build.bandit} · {levelingRoute.build.requiredGems.length} gems
-                  </span>
-                  <span class="pob-current-links">PoB</span>
+              <p class="field-help">{m.settings_import_poe1_help()}</p>
+
+              <div class="settings-section-title" style="margin-top:10px">{m.settings_saved_builds_title()}</div>
+              {#if poe1Builds.length === 0}
+                <p class="field-help">{m.settings_saved_builds_empty()}</p>
+              {:else}
+                <div class="saved-builds-list">
+                  {#each poe1Builds as sb (sb.id)}
+                    <div class="pob-current saved-build-row" class:active={sb.id === poe1ActiveId}>
+                      <span class="pob-current-name">
+                        {poe1BuildLabel(sb.build)} · {sb.build.requiredGems.length} gems
+                      </span>
+                      {#if sb.id === poe1ActiveId}
+                        <span class="badge badge-ok">{m.label_active()}</span>
+                      {:else}
+                        <button class="btn btn-ghost" onclick={() => handlePoe1SetActive(sb.id)}>{m.action_set_active()}</button>
+                      {/if}
+                      <ConfirmReset
+                        label={m.action_remove()}
+                        prompt={m.confirm_remove_build()}
+                        onconfirm={() => handlePoe1Remove(sb.id)}
+                      />
+                    </div>
+                  {/each}
                 </div>
               {/if}
-              <p class="field-help">{m.settings_import_poe1_help()}</p>
 
             {:else if activeSettingsTab === 'importBuilds'}
               <div class="settings-section-title">{m.settings_build_folder_title()}</div>
@@ -2593,6 +2647,17 @@
   .pob-current-links {
     font-size: 10px;
     color: color-mix(in srgb, var(--c-accent) 70%, transparent);
+  }
+
+  .saved-builds-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .saved-build-row.active {
+    border-color: color-mix(in srgb, var(--c-success) 40%, transparent);
+    background: color-mix(in srgb, var(--c-success) 6%, transparent);
   }
 
   .log-watcher-status {

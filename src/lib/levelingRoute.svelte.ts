@@ -88,7 +88,10 @@ export interface LevelingBuild {
 }
 
 const CONFIG_KEY = 'EXILECOMPASS_POE1_ROUTE_CONFIG_V1';
-const EDGE_KEY = 'EXILECOMPASS_POE1_AUTO_PROGRESS_EDGE_V1';
+// Exported (along with GEM_PROGRESS_KEY below) so poe1Pob.ts's legacy-build
+// migration can copy these exact base keys' values into a newly-migrated
+// build's scoped slots without duplicating the literal strings.
+export const EDGE_KEY = 'EXILECOMPASS_POE1_AUTO_PROGRESS_EDGE_V1';
 
 // ── Reactive state ──────────────────────────────────────────────────────────
 
@@ -114,18 +117,42 @@ let _edges: string[] = [];
 let _edgeSteps: (string | null)[] = [];
 let _activeEdgeIndex = $state(0);
 
-function loadActiveEdgeIndex() {
+// Scoped per active PoB build (see poe1Pob.ts's build store), same reasoning
+// as poe1LevelingProgress/poe1GemProgress below: each build tracks its own
+// "you are here" position. `null` (no build active) uses the unsuffixed
+// default key, matching this store's pre-multi-build behavior.
+function edgeKeyFor(buildId: string | null): string {
+  return buildId ? `${EDGE_KEY}_${buildId}` : EDGE_KEY;
+}
+
+let _edgeKey: string = EDGE_KEY;
+
+/** Point the active-edge tracker at a build's saved position (or the default
+ *  bucket when `buildId` is null) and load it. Call on startup and whenever
+ *  the active build changes (see poe1Pob.ts's setActivePoe1Build). */
+export function switchActiveEdgeScope(buildId: string | null) {
+  _edgeKey = edgeKeyFor(buildId);
   try {
-    const raw = window.localStorage.getItem(EDGE_KEY);
-    if (raw) _activeEdgeIndex = JSON.parse(raw).activeEdgeIndex ?? 0;
+    const raw = window.localStorage.getItem(_edgeKey);
+    _activeEdgeIndex = raw ? (JSON.parse(raw).activeEdgeIndex ?? 0) : 0;
   } catch {
-    /* ignore corrupt state */
+    _activeEdgeIndex = 0;
+  }
+}
+
+/** Delete a specific build's saved edge position — called when that build is
+ *  removed from the store (poe1Pob.ts). */
+export function deleteActiveEdgeProgressFor(buildId: string) {
+  try {
+    window.localStorage.removeItem(edgeKeyFor(buildId));
+  } catch {
+    /* ignore */
   }
 }
 
 function saveActiveEdgeIndex() {
   try {
-    window.localStorage.setItem(EDGE_KEY, JSON.stringify({ activeEdgeIndex: _activeEdgeIndex }));
+    window.localStorage.setItem(_edgeKey, JSON.stringify({ activeEdgeIndex: _activeEdgeIndex }));
   } catch {
     /* ignore */
   }
@@ -240,7 +267,6 @@ export function loadRouteConfig() {
   } catch {
     /* ignore corrupt state */
   }
-  loadActiveEdgeIndex();
 }
 
 export async function setRouteConfig(partial: Partial<LevelingRouteConfig>) {
@@ -483,25 +509,32 @@ function buildSections(vendor: Vendor, sources: string[]): LevelingSection[] {
 
 import { poe1LevelingProgress } from '$lib/poe1LevelingProgress.svelte';
 
-const GEM_PROGRESS_KEY = 'EXILECOMPASS_POE1_GEM_PROGRESS_V1';
+export const GEM_PROGRESS_KEY = 'EXILECOMPASS_POE1_GEM_PROGRESS_V1';
+
+// Scoped per active PoB build, same reasoning as poe1LevelingProgress.svelte.ts.
+function gemProgressKeyFor(buildId: string | null): string {
+  return buildId ? `${GEM_PROGRESS_KEY}_${buildId}` : GEM_PROGRESS_KEY;
+}
 
 class Poe1GemProgress {
   completed = $state(new SvelteSet<string>());
-  #loaded = false;
+  #currentKey: string = GEM_PROGRESS_KEY;
 
-  load() {
-    if (this.#loaded) return;
-    this.#loaded = true;
+  /** Point this store at a build's gem progress (or the default bucket when
+   *  `buildId` is null) and load whatever's saved there. Safe to call
+   *  repeatedly — on startup, and again any time the active build changes. */
+  switchScope(buildId: string | null) {
+    this.#currentKey = gemProgressKeyFor(buildId);
     try {
-      const raw = window.localStorage.getItem(GEM_PROGRESS_KEY);
-      if (raw) this.completed = new SvelteSet<string>(JSON.parse(raw));
+      const raw = window.localStorage.getItem(this.#currentKey);
+      this.completed = raw ? new SvelteSet<string>(JSON.parse(raw)) : new SvelteSet<string>();
     } catch {
-      /* ignore corrupt state */
+      this.completed = new SvelteSet<string>();
     }
   }
 
   #save() {
-    window.localStorage.setItem(GEM_PROGRESS_KEY, JSON.stringify([...this.completed]));
+    window.localStorage.setItem(this.#currentKey, JSON.stringify([...this.completed]));
   }
 
   has(gemId: string): boolean {
@@ -529,6 +562,16 @@ class Poe1GemProgress {
 }
 
 export const poe1GemProgress = new Poe1GemProgress();
+
+/** Delete a specific build's stored gem progress — called when that build is
+ *  removed from the store (poe1Pob.ts). */
+export function deletePoe1GemProgressFor(buildId: string) {
+  try {
+    window.localStorage.removeItem(gemProgressKeyFor(buildId));
+  } catch {
+    /* ignore */
+  }
+}
 
 function isDone(entry: (typeof _ordered)[number]): boolean {
   return entry.kind === 'gem'

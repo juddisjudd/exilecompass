@@ -34,11 +34,12 @@
   let lastCopied = $state<string | null>(null);
 
   onMount(() => {
-    poe1LevelingProgress.load();
-    poe1GemProgress.load();
     loadRouteConfig();
-    // Restore a stored PoB build first (its rebuild parses the route); then
-    // ensure the route exists even with no stored build.
+    // Restore the active stored build first — this also scopes
+    // poe1LevelingProgress/poe1GemProgress/the auto-progress edge tracker to
+    // that build (or the default bucket if none is active), see poe1Pob.ts.
+    // Its rebuild parses the route; then ensure the route exists even with no
+    // stored build.
     void (async () => {
       await restorePoe1Build();
       await ensureRouteLoaded();

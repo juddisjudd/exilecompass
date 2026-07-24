@@ -10,7 +10,11 @@ const ANGLES_40: number[] = [
   300, 310, 315, 320, 330, 340, 350,
 ];
 
-// https://github.com/PathOfBuildingCommunity/PathOfBuilding/blob/abafbf757bf759e16bdefc16e6dbcbb49cf42608/fix_ascendancy_positions.py#L22
+// https://github.com/PathOfBuildingCommunity/PathOfBuilding/blob/3aae428529a6dd2cc064c0fbbf349c4330223986/fix_ascendancy_positions.py#L22
+// Re-synced for 3.29 (adds Luminary — Scion's 3rd ascendancy — and the
+// Abyssal/Brinerot alternate ascendancies; PoB also shifted Necromantic to
+// make room). Every id in a version's `classes[].ascendancies` and
+// `alternate_ascendancies` needs an entry here or buildSkillTree throws.
 const ASCENDANCY_OFFSETS: Record<string, SkillTree.Coord> = {
   ["Juggernaut"]: { x: -10400, y: 5200 },
   ["Berserker"]: { x: -10400, y: 3700 },
@@ -32,6 +36,7 @@ const ASCENDANCY_OFFSETS: Record<string, SkillTree.Coord> = {
   ["Saboteur"]: { x: 10200, y: -2200 },
   ["Ascendant"]: { x: -7800, y: 7200 },
   ["Reliquarian"]: { x: -7800, y: 8900 },
+  ["Luminary"]: { x: -7800, y: 10600 },
   ["Warden"]: { x: 8250, y: 8350 },
   ["Primalist"]: { x: 7200, y: 9400 },
   ["Warlock"]: { x: 9300, y: 7300 },
@@ -45,7 +50,9 @@ const ASCENDANCY_OFFSETS: Record<string, SkillTree.Coord> = {
   ["KingInTheMists"]: { x: 3750, y: 12000 },
   ["Olroth"]: { x: 5250, y: 12000 },
   ["Oshabi"]: { x: 6750, y: 12000 },
-  ["Necromantic"]: { x: 8250, y: 12000 },
+  ["Necromantic"]: { x: 9750, y: 12000 },
+  ["Abyssal"]: { x: -750, y: 13600 },
+  ["Brinerot"]: { x: 750, y: 13600 },
 };
 
 const TWO_PI = Math.PI * 2;

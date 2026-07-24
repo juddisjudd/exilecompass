@@ -7,7 +7,18 @@
 // The heavy gem/quest data loads lazily through the leveling vendor module.
 
 import { resolveCode, zlibInflate } from '$lib/pob';
-import { setLevelingBuild, type Bandit, type LevelingBuild } from '$lib/levelingRoute.svelte';
+import {
+  setLevelingBuild,
+  poe1GemProgress,
+  switchActiveEdgeScope,
+  deletePoe1GemProgressFor,
+  deleteActiveEdgeProgressFor,
+  GEM_PROGRESS_KEY,
+  EDGE_KEY,
+  type Bandit,
+  type LevelingBuild,
+} from '$lib/levelingRoute.svelte';
+import { poe1LevelingProgress, LEVELING_PROGRESS_KEY, deletePoe1LevelingProgressFor } from '$lib/poe1LevelingProgress.svelte';
 
 export interface Poe1BuildTree {
   name: string;
@@ -51,8 +62,6 @@ export interface Poe1Build extends LevelingBuild {
   activeSkillSet: number;
   importedAt: number;
 }
-
-const KEY = 'EXILECOMPASS_POE1_POB_V2';
 
 // PoB exports a handful of gem ids that don't match the wiki-derived data —
 // verbatim from upstream (sourced from PoB's skills.lua).
@@ -237,42 +246,170 @@ export async function importPoe1Build(raw: string): Promise<Poe1Build> {
     importedAt: Date.now(),
   };
 
-  savePoe1Build(build);
-  await setLevelingBuild(build);
+  addPoe1Build(build);
   return build;
 }
 
-// ── Persistence ─────────────────────────────────────────────────────────────
+// ── Persistence: multi-build store ──────────────────────────────────────────
+//
+// Users can import and keep several builds (different characters/leagues) and
+// switch which one is "active". Each stored build tracks its own leveling
+// progress, gem progress, and auto-progress position (see
+// poe1LevelingProgress.svelte.ts / levelingRoute.svelte.ts's poe1GemProgress +
+// switchActiveEdgeScope) — switching the active build swaps all three scopes
+// together via setActivePoe1Build, so checkmarks never bleed between builds.
+// The unsuffixed default bucket those stores fall back to when no build is
+// active is the same key they always used before multi-build support existed,
+// so someone who's never imported a build keeps working exactly as before.
 
-export function savePoe1Build(build: Poe1Build) {
+export interface StoredPoe1Build {
+  id: string;
+  build: Poe1Build;
+}
+
+interface Poe1BuildStore {
+  builds: StoredPoe1Build[]; // newest first
+  activeId: string | null;
+}
+
+const STORE_KEY = 'EXILECOMPASS_POE1_POB_STORE_V1';
+const LEGACY_KEY = 'EXILECOMPASS_POE1_POB_V2';
+
+// Keep stored builds bounded — importing past this evicts the oldest entry
+// (the newly-imported one is always newest, so it's never the one evicted).
+const MAX_STORED_BUILDS = 20;
+
+function emptyStore(): Poe1BuildStore {
+  return { builds: [], activeId: null };
+}
+
+/** One-time migration from the pre-multi-build single-build key. Wraps the
+ *  legacy build as the store's first entry and copies (not moves — the
+ *  unsuffixed keys keep serving as the "no active build" default bucket
+ *  afterward) its flat progress/gem/edge state into that build's scoped
+ *  slots, so an existing user doesn't lose anything on upgrade. No-op if
+ *  there's no legacy build (fresh install) or the store already exists. */
+function migrateLegacyIfNeeded() {
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(build));
+    if (window.localStorage.getItem(STORE_KEY)) return;
+    const legacyRaw = window.localStorage.getItem(LEGACY_KEY);
+    if (!legacyRaw) return;
+
+    const legacyBuild = JSON.parse(legacyRaw) as Poe1Build;
+    const id = crypto.randomUUID();
+
+    for (const base of [LEVELING_PROGRESS_KEY, GEM_PROGRESS_KEY, EDGE_KEY]) {
+      const val = window.localStorage.getItem(base);
+      if (val !== null) window.localStorage.setItem(`${base}_${id}`, val);
+    }
+
+    saveStore({ builds: [{ id, build: legacyBuild }], activeId: id });
+    window.localStorage.removeItem(LEGACY_KEY);
+  } catch {
+    /* ignore corrupt legacy state — start fresh */
+  }
+}
+
+function loadStore(): Poe1BuildStore {
+  migrateLegacyIfNeeded();
+  try {
+    const raw = window.localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw) as Poe1BuildStore;
+  } catch {
+    /* ignore corrupt state */
+  }
+  return emptyStore();
+}
+
+function saveStore(store: Poe1BuildStore) {
+  try {
+    window.localStorage.setItem(STORE_KEY, JSON.stringify(store));
   } catch {
     /* storage full / blocked */
   }
 }
 
+/** Every stored build, newest first — for the Settings "Saved Builds" list. */
+export function listPoe1Builds(): StoredPoe1Build[] {
+  return loadStore().builds;
+}
+
+export function activePoe1BuildId(): string | null {
+  return loadStore().activeId;
+}
+
+/** The currently active build's data, or null if none is active. */
 export function loadPoe1Build(): Poe1Build | null {
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as Poe1Build;
-  } catch {
-    return null;
-  }
+  const store = loadStore();
+  return store.builds.find((b) => b.id === store.activeId)?.build ?? null;
 }
 
-/** Restore the stored build into the route store on startup (PoE1 flows). */
+/** Point the route + all three per-build progress scopes at `id` (or the
+ *  default bucket when `id` is null). Persists the choice as the active
+ *  build. Central switch point so every side effect of "changing which build
+ *  is active" happens together. */
+export async function setActivePoe1Build(id: string | null): Promise<void> {
+  const store = loadStore();
+  if (id !== null && !store.builds.some((b) => b.id === id)) return;
+  store.activeId = id;
+  saveStore(store);
+
+  const build = store.builds.find((b) => b.id === id)?.build ?? null;
+  await setLevelingBuild(build);
+  poe1LevelingProgress.switchScope(id);
+  poe1GemProgress.switchScope(id);
+  switchActiveEdgeScope(id);
+}
+
+/** Add a newly-imported build as a new entry and make it active — never
+ *  silently overwrites a previous build. */
+function addPoe1Build(build: Poe1Build): void {
+  const store = loadStore();
+  const id = crypto.randomUUID();
+  store.builds.unshift({ id, build });
+
+  // builds is newest-first, so the oldest entry (which is never the one just
+  // added) is always last — evict it and its progress state if over the cap.
+  if (store.builds.length > MAX_STORED_BUILDS) {
+    const evicted = store.builds.pop();
+    if (evicted) {
+      deletePoe1LevelingProgressFor(evicted.id);
+      deletePoe1GemProgressFor(evicted.id);
+      deleteActiveEdgeProgressFor(evicted.id);
+    }
+  }
+
+  store.activeId = id;
+  saveStore(store);
+  void setActivePoe1Build(id);
+}
+
+/** Remove a stored build and its per-build progress/gem/edge state. If it was
+ *  active, falls back to no active build (the default progress bucket). */
+export function removePoe1Build(id: string): void {
+  const store = loadStore();
+  store.builds = store.builds.filter((b) => b.id !== id);
+  const wasActive = store.activeId === id;
+  if (wasActive) store.activeId = null;
+  saveStore(store);
+
+  deletePoe1LevelingProgressFor(id);
+  deletePoe1GemProgressFor(id);
+  deleteActiveEdgeProgressFor(id);
+
+  if (wasActive) void setActivePoe1Build(null);
+}
+
+/** Restore the active build into the route + progress stores on startup
+ *  (called from every PoE1 view's onMount — see PoE1LevelingGuide.svelte,
+ *  GemLinksViewer.svelte, PassiveTreeViewer.svelte). */
 export async function restorePoe1Build(): Promise<void> {
-  const build = loadPoe1Build();
-  if (build) await setLevelingBuild(build);
+  await setActivePoe1Build(activePoe1BuildId());
 }
 
+/** Deactivate the current build without deleting it from the store (distinct
+ *  from removePoe1Build, which deletes it entirely) — the Settings "Clear"
+ *  button next to Import. */
 export async function clearPoe1Build(): Promise<void> {
-  try {
-    window.localStorage.removeItem(KEY);
-  } catch {
-    /* ignore */
-  }
-  await setLevelingBuild(null);
+  await setActivePoe1Build(null);
 }
