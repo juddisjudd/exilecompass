@@ -131,10 +131,25 @@ function saveActiveEdgeIndex() {
   }
 }
 
-/** Called with the PoE area id from each newly-detected log line. Strictly
- *  sequential, matching upstream: advances exactly one edge only if it's the
- *  next one expected next in the route — no skip-ahead. No-ops if
- *  auto-progress is turned off or the route has no more edges.
+// How far ahead of the current edge to search for a match. The area id we
+// match against comes from logWatcher.ts's extractAreaId, which only fires
+// on "Generating level N area ...\" — logged once, the *first* time a PoE
+// instance is created. Backtracking into an already-generated instance (a
+// route leg that returns through recently-visited zones, e.g. Act 1's
+// Flooded Depths -> boat back through Submerged Passage/Ledge/Climb/Lower
+// Prison -> town -> Lower Prison again) produces zero log lines for those
+// edges, since none of them regenerate. Matching only the immediate next
+// edge would desync permanently at the first such backtrack, waiting on
+// edges that will never fire. Searching a bounded window ahead instead lets
+// the next genuinely-new instance (the next real regeneration event) resync
+// the marker past whatever revisits were silently missed, without risking a
+// wild jump from an unrelated coincidental id match far down the route.
+const EDGE_LOOKAHEAD = 20;
+
+/** Called with the PoE area id from each newly-detected log line. No-ops if
+ *  auto-progress is turned off or no upcoming edge (within EDGE_LOOKAHEAD)
+ *  matches. Never jumps backward — only ever advances toward the closest
+ *  matching edge ahead of the current position.
  *
  *  Deliberately does *not* auto-detect "new character" from log content
  *  (an earlier version snapped back to edge 0 whenever it saw area id
@@ -149,10 +164,13 @@ function saveActiveEdgeIndex() {
  *  on the first step instead (see `jumpToEdge`). */
 export function advanceLevelingEdge(areaId: string) {
   if (!_config.autoProgress) return;
-  const nextIndex = _activeEdgeIndex + 1;
-  if (_edges[nextIndex] === areaId) {
-    _activeEdgeIndex = nextIndex;
-    saveActiveEdgeIndex();
+  const end = Math.min(_activeEdgeIndex + 1 + EDGE_LOOKAHEAD, _edges.length);
+  for (let i = _activeEdgeIndex + 1; i < end; i++) {
+    if (_edges[i] === areaId) {
+      _activeEdgeIndex = i;
+      saveActiveEdgeIndex();
+      return;
+    }
   }
 }
 
