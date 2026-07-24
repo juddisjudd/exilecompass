@@ -56,7 +56,7 @@
       <div class="group ec-panel">
         <div class="group-title">{group.title}</div>
         <div class="group-body">
-          {#each group.primary as gem (gem.id)}
+          {#each group.primary as gem, gi (gem.id + '::' + gi)}
             <div class="gem primary" title={sourceTitle(gem)}>
               <span class="gem-dot" style="background: {gem.colour}" aria-hidden="true"></span>
               <span class="gem-name">{gem.name}</span>
@@ -64,7 +64,7 @@
           {/each}
           {#if group.secondary.length > 0}
             <div class="supports">
-              {#each group.secondary as gem (gem.id)}
+              {#each group.secondary as gem, gi (gem.id + '::' + gi)}
                 <div class="gem support" title={sourceTitle(gem)}>
                   <span class="gem-dot" style="background: {gem.colour}" aria-hidden="true"></span>
                   <span class="gem-name">{gem.name}</span>
