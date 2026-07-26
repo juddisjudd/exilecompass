@@ -141,6 +141,21 @@ paste a `pobb.in` link, fetching that build.
   `Ctrl + Shift + C` to toggle it back.
 - **Rewards aren't auto-checking** — Confirm the log file is set in
   Settings → Log File (use Auto Detect, or Browse to your `Client.txt`).
+- **Windows Defender / SmartScreen flags the installer or exe** — The Windows
+  build isn't code-signed yet, and an unsigned auto-updating app that reads the
+  game window's title (to find and attach to it) matches the heuristic profile
+  Defender uses for a lot of real malware, so it's a false positive that shows
+  up more for newer/less-downloaded releases. Two options:
+  - Report it to Microsoft as a false positive (fixes it for everyone, no local
+    changes needed): https://www.microsoft.com/en-us/wdsi/filesubmission —
+    submit the flagged `.exe`, category "Software developer", and it usually
+    clears within a day or two once reviewed.
+  - Or add a local exclusion yourself: run
+    [`scripts/add-defender-exclusion.ps1`](scripts/add-defender-exclusion.ps1)
+    from this repo (right-click → *Run with PowerShell as Administrator*) after
+    installing. It only excludes ExileCompass's own install folder/exe — review
+    the script before running it, as with any admin-elevated script from the
+    internet.
 
 ### Linux
 
