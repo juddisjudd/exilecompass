@@ -20,7 +20,7 @@ src-tauri/updater-key.txt
 src-tauri/updater-key.txt.pub
 ./src-tauri/updater-key.txt
 ./src-tauri/updater-key.txt.pub
-scripts
+scripts/*.mjs
 resources
 AGENTS.md
 docs
