@@ -331,8 +331,8 @@
 
   function poe1BuildLabel(build: StoredPoe1Build['build']): string {
     const date = new Date(build.importedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    const bandit = build.bandit !== 'None' ? ` · ${build.bandit}` : '';
-    return `${build.characterClass}${bandit} (${date})`;
+    const ascendancy = build.ascendClassName ? ` · ${build.ascendClassName}` : '';
+    return `${build.characterClass}${ascendancy} (${date})`;
   }
 
   // Build folder library — a folder of GGG `.build` files the user can pick from
@@ -1832,22 +1832,31 @@
   </main>
   </PoeFrame>
 
-  <!-- Slim footer: app version + which game the overlay targets -->
+  <!-- Slim footer: app version, imported PoE1 build identity, which game the overlay targets -->
   <footer class="app-footer">
     <span class="app-version">{appVersion ? `v${appVersion}` : ''}</span>
-    <div class="game-switch" role="group" aria-label={m.game_switch_label()}>
-      <button
-        type="button"
-        class="game-switch-btn"
-        class:active={gameMode.current === 'poe2'}
-        onclick={() => setGameMode('poe2')}
-      >{m.game_switch_poe2()}</button>
-      <button
-        type="button"
-        class="game-switch-btn"
-        class:active={gameMode.current === 'poe1'}
-        onclick={() => setGameMode('poe1')}
-      >{m.game_switch_poe1()}</button>
+    <div class="footer-right">
+      {#if gameMode.current === 'poe1' && levelingRoute.build}
+        <span class="footer-build-chip">
+          {levelingRoute.build.characterClass}{levelingRoute.build.ascendClassName
+            ? ` · ${levelingRoute.build.ascendClassName}`
+            : ''}
+        </span>
+      {/if}
+      <div class="game-switch" role="group" aria-label={m.game_switch_label()}>
+        <button
+          type="button"
+          class="game-switch-btn"
+          class:active={gameMode.current === 'poe2'}
+          onclick={() => setGameMode('poe2')}
+        >{m.game_switch_poe2()}</button>
+        <button
+          type="button"
+          class="game-switch-btn"
+          class:active={gameMode.current === 'poe1'}
+          onclick={() => setGameMode('poe1')}
+        >{m.game_switch_poe1()}</button>
+      </div>
     </div>
   </footer>
 
@@ -1969,6 +1978,34 @@
     letter-spacing: 0.05em;
     color: color-mix(in srgb, var(--c-accent) 70%, transparent);
     user-select: none;
+    flex-shrink: 0;
+  }
+
+  .footer-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  /* Imported PoE1 build's class/ascendancy, shown here so the leveling and
+     gems tabs don't each need their own copy of the same chip. Uses the
+     bright accent (not the muted --c-accent) so it actually stands out —
+     every theme defines --c-red-bright specifically to stay legible at
+     small sizes like this, so it reads well regardless of which theme is
+     active. */
+  .footer-build-chip {
+    font-family: 'Fira Mono', ui-monospace, monospace;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    color: var(--c-red-bright);
+    border: 1px solid color-mix(in srgb, var(--c-red) 40%, transparent);
+    padding: 2px 7px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+    min-width: 0;
   }
 
   .game-switch {

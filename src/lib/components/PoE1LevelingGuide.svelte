@@ -281,9 +281,6 @@
           />
           <span>{m.leveling_cfg_show_gems()}</span>
         </label>
-        <span class="build-chip" title={m.leveling_build_imported()}>
-          {levelingRoute.build.characterClass} · {levelingRoute.build.bandit}
-        </span>
       {/if}
       <ConfirmReset
         label={m.action_reset()}
@@ -457,16 +454,6 @@
   .cfg-checkbox {
     width: 13px;
     height: 13px;
-  }
-
-  .build-chip {
-    font-family: 'Fira Mono', ui-monospace, monospace;
-    font-size: 9px;
-    letter-spacing: 0.04em;
-    color: var(--c-red-bright);
-    border: 1px solid color-mix(in srgb, var(--c-red) 40%, transparent);
-    padding: 2px 7px;
-    white-space: nowrap;
   }
 
   .route-status {

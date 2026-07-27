@@ -103,6 +103,7 @@ export async function importPoe1Build(raw: string): Promise<Poe1Build> {
   if (!buildEl) throw new Error('Not a Path of Building export (no <Build> element)');
 
   const characterClass = buildEl.getAttribute('className') ?? 'None';
+  const ascendClassName = buildEl.getAttribute('ascendClassName') ?? '';
   const banditRaw = buildEl.getAttribute('bandit') || 'None';
   const bandit: Bandit = (BANDITS as string[]).includes(banditRaw) ? (banditRaw as Bandit) : 'None';
 
@@ -237,6 +238,7 @@ export async function importPoe1Build(raw: string): Promise<Poe1Build> {
 
   const build: Poe1Build = {
     characterClass,
+    ascendClassName,
     bandit,
     requiredGems,
     buildTrees,

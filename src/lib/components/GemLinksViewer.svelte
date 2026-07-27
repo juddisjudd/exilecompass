@@ -28,9 +28,6 @@
 <div class="gems-view">
   <div class="gems-header ec-panel">
     <h3>{m.nav_gems()}</h3>
-    {#if build}
-      <span class="build-chip">{build.characterClass}</span>
-    {/if}
   </div>
 
   {#if multiSet}
@@ -101,15 +98,6 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--c-primary);
-  }
-
-  .build-chip {
-    font-family: 'Fira Mono', ui-monospace, monospace;
-    font-size: 9px;
-    letter-spacing: 0.04em;
-    color: var(--c-red-bright);
-    border: 1px solid color-mix(in srgb, var(--c-red) 40%, transparent);
-    padding: 2px 7px;
   }
 
   .gems-status {

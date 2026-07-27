@@ -83,6 +83,8 @@ export interface LevelingRouteConfig {
 /** Imported PoE1 build data relevant to the route (set by poe1Pob.ts). */
 export interface LevelingBuild {
   characterClass: string;
+  /** Empty for a build with no ascendancy chosen yet. */
+  ascendClassName: string;
   bandit: Bandit;
   requiredGems: { id: string; note: string; count: number }[];
 }
