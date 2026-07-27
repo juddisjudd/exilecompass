@@ -237,6 +237,31 @@ bun run release    # build installers
 
 ---
 
+## Credits
+
+ExileCompass builds on data and code from other community projects:
+
+- **[exile-leveling](https://github.com/HeartofPhos/exile-leveling)**
+  (HeartofPhos) — the PoE1 leveling route data and DSL parser the leveling
+  guide is built on.
+- **[Exile-UI](https://github.com/Lailloken/Exile-UI)** (Lailloken) — the
+  Act-Decoder zone layout images.
+- **[poe-vendor-string](https://github.com/veiset/poe-vendor-string)** and
+  **[poe2.re](https://github.com/veiset/poe2.re)** (veiset) — the PoE1 regex
+  data and the PoE2 stash-search regex builder are ported from these.
+- **[Path of Building (PoE1)](https://github.com/PathOfBuildingCommunity/PathOfBuilding)**
+  — PoE1 build import relies on PoB's export format and gem data, and the
+  passive tree viewer's ascendancy positions are sourced from PoB's own
+  layout fix.
+- **[Path of Building (PoE2)](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2)**
+  — PoE2 build import relies on this fork's export format.
+- **[skilltree-export](https://github.com/grindinggear/skilltree-export)**
+  (Grinding Gear Games) — the official passive skill tree data.
+
+Thanks to all of the above for making this possible.
+
+---
+
 ## License
 
 Released under the [AGPL-3.0 license](LICENSE). Not affiliated with or endorsed by
