@@ -6,7 +6,7 @@
 // field markers matched against internal item search text; don't try to
 // "clean up" or regenerate them.
 import type { GemToken } from '../types';
-import type { VendorSettings } from '../settings';
+import { appendResultExtras, type VendorSettings } from '../settings';
 
 export function addExpression(str: string, textToAdd: string | undefined): string {
   if (textToAdd === undefined || textToAdd.length === 0) return str;
@@ -284,7 +284,7 @@ export function generateVendorRegex(s: VendorSettings, gemTokens: GemToken[]): s
     result = result.replaceAll('"', '');
     result = `"${result}"`;
   }
-  return result;
+  return appendResultExtras(result, s.resultSettings);
 }
 
 export function generateVendorWarnings(s: VendorSettings, gemTokens: GemToken[]): string[] {

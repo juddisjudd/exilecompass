@@ -4,7 +4,7 @@
 // manual multi-select instead — OR the selected tattoos' regex fragments,
 // quoted (matching upstream's quoted output).
 import type { NamedRegexEntry } from '../types';
-import type { TattooSettings } from '../settings';
+import { appendResultExtras, type TattooSettings } from '../settings';
 
 export function generateTattooRegex(tattoos: NamedRegexEntry[], settings: TattooSettings): string {
   const byName = new Map(tattoos.map((t) => [t.tattoo, t]));
@@ -12,5 +12,6 @@ export function generateTattooRegex(tattoos: NamedRegexEntry[], settings: Tattoo
     .map((name) => byName.get(name)?.regex)
     .filter((r): r is string => !!r)
     .join('|');
-  return regex ? `"${regex}"` : '';
+  const base = regex ? `"${regex}"` : '';
+  return appendResultExtras(base, settings.resultSettings);
 }

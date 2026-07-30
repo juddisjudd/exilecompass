@@ -4,7 +4,7 @@
 // two independent manual multi-selects OR'd together, quoted (matching
 // upstream's quoted output).
 import type { NamedRegexEntry } from '../types';
-import type { RunegraftSettings } from '../settings';
+import { appendResultExtras, type RunegraftSettings } from '../settings';
 
 export function generateRunegraftRegex(
   runegrafts: NamedRegexEntry[],
@@ -20,5 +20,6 @@ export function generateRunegraftRegex(
     : [];
 
   const regex = runegraftRegexes.concat(tattooRegexes).join('|');
-  return regex ? `"${regex}"` : '';
+  const base = regex ? `"${regex}"` : '';
+  return appendResultExtras(base, settings.resultSettings);
 }

@@ -3,7 +3,7 @@
 // a different quoting philosophy than Vendor/Expedition's literal-substring
 // approach, so don't reuse those categories' quoting helpers here.
 import type { HeistData } from '../types';
-import type { HeistSettings } from '../settings';
+import { appendResultExtras, type HeistSettings } from '../settings';
 
 function addExpression(str: string, textToAdd: string | undefined): string {
   if (textToAdd === undefined || textToAdd.length === 0) return str;
@@ -44,10 +44,10 @@ function targetValueRegex(data: HeistData, value: number): string {
 export function generateHeistRegex(data: HeistData, settings: HeistSettings): string {
   const contractStr = generateContractResultStr(data, settings.contractLevels);
   const valueStr = targetValueRegex(data, settings.targetValue);
-  if (settings.requireCoinValue) {
-    return `${contractStr} ${valueStr}`.trim();
-  }
-  return addExpression(contractStr, valueStr);
+  const base = settings.requireCoinValue
+    ? `${contractStr} ${valueStr}`.trim()
+    : addExpression(contractStr, valueStr);
+  return appendResultExtras(base, settings.resultSettings);
 }
 
 // The two "Gianna" presets from Heist.tsx — farming-route shortcuts for that

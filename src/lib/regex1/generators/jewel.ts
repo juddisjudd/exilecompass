@@ -2,7 +2,7 @@
 // Covers Regular + Abyss jewels only — Cluster Jewels are handled by the
 // Items category (they're itemized as ordinary basetypes there).
 import type { JewelRegex } from '../types';
-import type { JewelSettings } from '../settings';
+import { appendResultExtras, type JewelSettings } from '../settings';
 
 function generateMagicJewel(settings: JewelSettings, selectedMods: string[], lookup: Map<string, JewelRegex>): string {
   const openPrefix = settings.abyssJewel ? '^([a-z]+ ){2}J' : '^[a-z]+ J';
@@ -37,7 +37,8 @@ export function generateJewelRegex(settings: JewelSettings, jewelRegular: JewelR
   const pool = settings.abyssJewel ? jewelAbyss : jewelRegular;
   const lookup = new Map(pool.map((i) => [i.mod, i]));
 
-  return settings.magicOnly
+  const base = settings.magicOnly
     ? generateMagicJewel(settings, selectedMods, lookup)
     : generateJewel(settings, selectedMods, lookup);
+  return appendResultExtras(base, settings.resultSettings);
 }

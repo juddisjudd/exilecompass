@@ -1,6 +1,6 @@
 // Ported from poe-vendor-string's src/utils/MapNameOutput.ts.
 import type { MapNamesData } from '../types';
-import type { MapNamesSettings } from '../settings';
+import { appendResultExtras, type MapNamesSettings } from '../settings';
 
 export function generateMapNameRegex(data: MapNamesData, settings: MapNamesSettings): string {
   const modStr = settings.selected
@@ -8,6 +8,6 @@ export function generateMapNameRegex(data: MapNamesData, settings: MapNamesSetti
     .filter((s): s is string => !!s)
     .join('|')
     .replaceAll('"', '');
-  if (!modStr) return '';
-  return settings.mapTabSearch ? modStr : `"${modStr}"`;
+  const base = modStr ? (settings.mapTabSearch ? modStr : `"${modStr}"`) : '';
+  return appendResultExtras(base, settings.resultSettings);
 }

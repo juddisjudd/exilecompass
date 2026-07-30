@@ -5,7 +5,7 @@
 // currently selected base type.
 import { generateNumberRegex } from '$lib/regex/numberRegex';
 import type { ItemAffixRegex, ItemModsData } from '../types';
-import type { ItemsSettings } from '../settings';
+import { appendResultExtras, type ItemsSettings } from '../settings';
 
 export interface AffixMapEntry extends ItemAffixRegex {
   key: string;
@@ -112,7 +112,8 @@ export function generateMagicItemRegex(affixMap: Record<string, AffixMapEntry>, 
 }
 
 export function generateItemsRegex(affixMap: Record<string, AffixMapEntry>, settings: ItemsSettings): string {
-  return settings.rarity === 'magic'
+  const base = settings.rarity === 'magic'
     ? generateMagicItemRegex(affixMap, settings)
     : generateRareItemRegex(affixMap, settings);
+  return appendResultExtras(base, settings.resultSettings);
 }

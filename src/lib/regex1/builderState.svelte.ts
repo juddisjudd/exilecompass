@@ -274,3 +274,16 @@ export async function deleteFavorite1(id: number): Promise<void> {
   _favorites = _favorites.filter((f) => f.id !== id);
   await persistFavorites();
 }
+
+// PoE1 has no import/recognition module (unlike PoE2's applyFavorite ->
+// doImport, which re-toggles matching options), so "loading" a favorite here
+// resets the category and drops the saved regex verbatim into its customText
+// field — it reappears in the output for copying/tweaking, just not
+// re-selected as individual checkboxes.
+export function applyFavorite1(fav: Favorite): void {
+  _category = fav.category;
+  const fresh = defaultSettings();
+  const catSettings = fresh[fav.category];
+  catSettings.resultSettings.customText = fav.regex;
+  _settings[fav.category] = catSettings as never;
+}

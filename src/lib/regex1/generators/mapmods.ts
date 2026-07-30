@@ -5,7 +5,7 @@
 // themselves, not bundled by this app at all).
 import { generateNumberRegex } from '$lib/regex/numberRegex';
 import type { MapModsData } from '../types';
-import type { MapModsSettings } from '../settings';
+import { appendResultExtras, type MapModsSettings } from '../settings';
 
 const STATIC = {
   quantity: 'm q.*',
@@ -182,5 +182,5 @@ export function generateMapModRegex(settings: MapModsSettings, data: MapModsData
     .trim()
     .replaceAll(/\s{2,}/g, ' ');
 
-  return optimize(result);
+  return appendResultExtras(optimize(result), settings.resultSettings);
 }

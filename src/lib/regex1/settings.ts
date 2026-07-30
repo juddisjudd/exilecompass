@@ -4,8 +4,29 @@
 // are flat ORs, while Items/Jewel/Flasks/Map-mods have their own bespoke
 // prefix/suffix + numeric-threshold shapes. Each category's settings mirror
 // its own generator's needs directly rather than forcing a common shape.
+//
+// One thing every category *does* share with PoE2: a `resultSettings` free-text
+// custom-regex + exclude-keywords pair, reusing PoE2's `ResultSettings` type and
+// `formatExcludes` helper directly rather than re-deriving them.
 
 import type { Category } from './types';
+import { defaultResultSettings, formatExcludes, type ResultSettings } from '$lib/regex/settings';
+
+export type { ResultSettings };
+export { formatExcludes };
+
+// Appends a category's custom text + `!exclude` keywords to its generated
+// regex, in that order, space-joined — mirrors how PoE2's vendor.ts (etc.)
+// append `resultSettings` terms after the structural/grouped ones.
+export function appendResultExtras(base: string, resultSettings: ResultSettings): string {
+  const extras = [resultSettings.customText || null, formatExcludes(resultSettings.excludeKeywords) || null].filter(
+    (e): e is string => e !== null && e !== '',
+  );
+  return [base, ...extras]
+    .filter((s) => s !== '')
+    .join(' ')
+    .trim();
+}
 
 export interface VendorSettings {
   anyTwoLink: boolean;
@@ -38,6 +59,7 @@ export interface VendorSettings {
     claw: boolean; dagger: boolean; staff: boolean; wand: boolean; shield: boolean;
   };
   gems: number[];
+  resultSettings: ResultSettings;
 }
 
 export const defaultVendorSettings = (): VendorSettings => ({
@@ -60,6 +82,7 @@ export const defaultVendorSettings = (): VendorSettings => ({
   damage: { phys: false, firemult: false, coldmult: false, chaosmult: false },
   weapon: { sceptre: false, mace: false, axe: false, sword: false, bow: false, claw: false, dagger: false, staff: false, wand: false, shield: false },
   gems: [],
+  resultSettings: defaultResultSettings(),
 });
 
 // ── Items ────────────────────────────────────────────────────────────────────
@@ -80,6 +103,7 @@ export interface ItemsSettings {
   selectedMagicMods: Record<string, boolean>;
   rareMatchMode: ItemsMatchMode;
   magicMatchMode: MagicMatchMode;
+  resultSettings: ResultSettings;
 }
 
 export const defaultItemsSettings = (): ItemsSettings => ({
@@ -92,6 +116,7 @@ export const defaultItemsSettings = (): ItemsSettings => ({
   selectedMagicMods: {},
   rareMatchMode: 'all',
   magicMatchMode: 'any',
+  resultSettings: defaultResultSettings(),
 });
 
 // ── Jewel ────────────────────────────────────────────────────────────────────
@@ -103,6 +128,7 @@ export interface JewelSettings {
   matchOpenPrefixSuffix: boolean;
   selectedRegular: string[]; // mod label strings (JewelRegex.mod)
   selectedAbyss: string[];
+  resultSettings: ResultSettings;
 }
 
 export const defaultJewelSettings = (): JewelSettings => ({
@@ -113,6 +139,7 @@ export const defaultJewelSettings = (): JewelSettings => ({
   matchOpenPrefixSuffix: true,
   selectedRegular: [],
   selectedAbyss: [],
+  resultSettings: defaultResultSettings(),
 });
 
 // ── Map mods ─────────────────────────────────────────────────────────────────
@@ -136,7 +163,7 @@ export interface MapModsSettings {
   quality: { regular: string; currency: string; divination: string; rarity: string; packSize: string; scarab: string };
   optimizeQuality: boolean;
   anyQuality: boolean;
-  customText: string;
+  resultSettings: ResultSettings;
 }
 
 export const defaultMapModsSettings = (): MapModsSettings => ({
@@ -159,21 +186,30 @@ export const defaultMapModsSettings = (): MapModsSettings => ({
   quality: { regular: '', currency: '', divination: '', rarity: '', packSize: '', scarab: '' },
   optimizeQuality: true,
   anyQuality: false,
-  customText: '',
+  resultSettings: defaultResultSettings(),
 });
 
 // ── Map names ────────────────────────────────────────────────────────────────
 export interface MapNamesSettings {
   selected: string[]; // map name keys
   mapTabSearch: boolean;
+  resultSettings: ResultSettings;
 }
-export const defaultMapNamesSettings = (): MapNamesSettings => ({ selected: [], mapTabSearch: false });
+export const defaultMapNamesSettings = (): MapNamesSettings => ({
+  selected: [],
+  mapTabSearch: false,
+  resultSettings: defaultResultSettings(),
+});
 
 // ── Expedition ───────────────────────────────────────────────────────────────
 export interface ExpeditionSettings {
   selectedBaseTypes: string[];
+  resultSettings: ResultSettings;
 }
-export const defaultExpeditionSettings = (): ExpeditionSettings => ({ selectedBaseTypes: [] });
+export const defaultExpeditionSettings = (): ExpeditionSettings => ({
+  selectedBaseTypes: [],
+  resultSettings: defaultResultSettings(),
+});
 
 // ── Heist ────────────────────────────────────────────────────────────────────
 export interface HeistContractLevel {
@@ -184,11 +220,13 @@ export interface HeistSettings {
   contractLevels: Record<string, HeistContractLevel>; // key = contract type name
   targetValue: number;
   requireCoinValue: boolean;
+  resultSettings: ResultSettings;
 }
 export const defaultHeistSettings = (): HeistSettings => ({
   contractLevels: {},
   targetValue: 0,
   requireCoinValue: false,
+  resultSettings: defaultResultSettings(),
 });
 
 // ── Flasks ───────────────────────────────────────────────────────────────────
@@ -201,6 +239,7 @@ export interface FlaskSettings {
   ignoreEffectTiers: boolean;
   onlyMaxPrefixTierMod: boolean;
   onlyMaxSuffixTierMod: boolean;
+  resultSettings: ResultSettings;
 }
 export const defaultFlaskSettings = (): FlaskSettings => ({
   itemLevel: 85,
@@ -211,6 +250,7 @@ export const defaultFlaskSettings = (): FlaskSettings => ({
   ignoreEffectTiers: false,
   onlyMaxPrefixTierMod: false,
   onlyMaxSuffixTierMod: false,
+  resultSettings: defaultResultSettings(),
 });
 
 // ── Beast / Tattoo / Runegraft / Scarab (flat named-list picks) ─────────────
@@ -218,25 +258,39 @@ export interface BeastSettings {
   selected: string[]; // beast names
   includeHarvest: boolean;
   redBeastsOnly: boolean;
+  resultSettings: ResultSettings;
 }
-export const defaultBeastSettings = (): BeastSettings => ({ selected: [], includeHarvest: true, redBeastsOnly: false });
+export const defaultBeastSettings = (): BeastSettings => ({
+  selected: [],
+  includeHarvest: true,
+  redBeastsOnly: false,
+  resultSettings: defaultResultSettings(),
+});
 
 export interface TattooSettings {
   selected: string[]; // tattoo names
+  resultSettings: ResultSettings;
 }
-export const defaultTattooSettings = (): TattooSettings => ({ selected: [] });
+export const defaultTattooSettings = (): TattooSettings => ({ selected: [], resultSettings: defaultResultSettings() });
 
 export interface RunegraftSettings {
   selected: string[]; // runegraft names
   includeTattoos: boolean;
   selectedTattoos: string[];
+  resultSettings: ResultSettings;
 }
-export const defaultRunegraftSettings = (): RunegraftSettings => ({ selected: [], includeTattoos: false, selectedTattoos: [] });
+export const defaultRunegraftSettings = (): RunegraftSettings => ({
+  selected: [],
+  includeTattoos: false,
+  selectedTattoos: [],
+  resultSettings: defaultResultSettings(),
+});
 
 export interface ScarabSettings {
   selected: string[]; // scarab names
+  resultSettings: ResultSettings;
 }
-export const defaultScarabSettings = (): ScarabSettings => ({ selected: [] });
+export const defaultScarabSettings = (): ScarabSettings => ({ selected: [], resultSettings: defaultResultSettings() });
 
 // ── Aggregate ────────────────────────────────────────────────────────────────
 export interface Settings {

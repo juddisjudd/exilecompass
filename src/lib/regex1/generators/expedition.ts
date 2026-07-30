@@ -7,7 +7,7 @@
 // PoE's search box treating a quoted phrase as one literal continuous string
 // while still honoring `|` inside it — don't quote per-fragment instead.
 import type { ExpeditionData } from '../types';
-import type { ExpeditionSettings } from '../settings';
+import { appendResultExtras, type ExpeditionSettings } from '../settings';
 
 export function generateExpeditionRegex(data: ExpeditionData, settings: ExpeditionSettings): string {
   const unique = Array.from(new Set(settings.selectedBaseTypes));
@@ -16,6 +16,6 @@ export function generateExpeditionRegex(data: ExpeditionData, settings: Expediti
     .filter((r): r is string => !!r)
     .join('|')
     .replaceAll('"', '');
-  if (!regex) return '';
-  return `"${regex}"`;
+  const base = regex ? `"${regex}"` : '';
+  return appendResultExtras(base, settings.resultSettings);
 }

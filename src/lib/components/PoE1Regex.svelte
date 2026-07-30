@@ -7,6 +7,7 @@
     resetCategory,
     saveFavorite1,
     deleteFavorite1,
+    applyFavorite1,
     toggleInArray,
   } from '$lib/regex1/builderState.svelte';
   import type { Category } from '$lib/regex1/types';
@@ -152,6 +153,13 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                   {/if}
                 </button>
+                <button
+                  class="mini-btn"
+                  onclick={() => {
+                    applyFavorite1(fav);
+                    view = 'build';
+                  }}
+                >{m.regex_fav_load()}</button>
                 <button class="act-btn act-clear" onclick={() => deleteFavorite1(fav.id)} title="Delete">✕</button>
               </div>
             </div>
@@ -620,6 +628,30 @@
         {/if}
       {/if}
     </div>
+
+    <!-- Custom text + excludes (applies to the active category only) -->
+    <div class="bottom-section">
+      <div class="row-head">
+        <span class="section-label">{m.regex_exclude_text()}</span>
+      </div>
+      <input
+        class="custom-input"
+        value={settings[builder1.category].resultSettings.excludeKeywords}
+        oninput={(e) => (settings[builder1.category].resultSettings.excludeKeywords = e.currentTarget.value)}
+        placeholder={m.regex_exclude_placeholder()}
+        spellcheck="false"
+      />
+      <div class="row-head">
+        <span class="section-label">{m.regex_custom_text()}</span>
+      </div>
+      <input
+        class="custom-input"
+        value={settings[builder1.category].resultSettings.customText}
+        oninput={(e) => (settings[builder1.category].resultSettings.customText = e.currentTarget.value)}
+        placeholder={m.regex_custom_placeholder()}
+        spellcheck="false"
+      />
+    </div>
   {/if}
 </div>
 
@@ -775,6 +807,10 @@
 
   .empty-hint { font-size: 11px; font-style: italic; color: color-mix(in srgb, var(--c-accent) 70%, transparent); }
   .field-help-inline { font-size: 10.5px; color: color-mix(in srgb, var(--c-accent) 75%, transparent); margin: 2px 0 4px; }
+
+  .bottom-section { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+  .row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c-accent) 85%, #fff 10%); }
 
   .fav-panel { display: flex; flex-direction: column; gap: 6px; }
   .fav-item { display: flex; flex-direction: column; gap: 4px; padding: 7px 8px; }

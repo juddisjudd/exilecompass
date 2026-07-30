@@ -67,7 +67,7 @@ export interface Settings {
   };
 }
 
-const defaultResultSettings = (): ResultSettings => ({ customText: '', excludeKeywords: '' });
+export const defaultResultSettings = (): ResultSettings => ({ customText: '', excludeKeywords: '' });
 
 const initialGroups = (): ModGroup[] => [{ id: 0, conditions: [] }];
 

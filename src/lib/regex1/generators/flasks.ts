@@ -1,6 +1,6 @@
 // Ported verbatim from poe-vendor-string's src/utils/FlaskOuput.ts.
 import type { FlaskModGroup, FlaskModsData } from '../types';
-import type { FlaskSettings } from '../settings';
+import { appendResultExtras, type FlaskSettings } from '../settings';
 
 function findIlevel(modGroup: FlaskModGroup, ilevelNumber: number): number | undefined {
   const possible = modGroup.mods.filter((m) => m.level <= ilevelNumber);
@@ -76,14 +76,19 @@ export function generateFlaskRegex(data: FlaskModsData, settings: FlaskSettings)
 
   const filteredPrefixRegex = replaceEffectTier(prefixRegex, data.flaskPrefix, ignoreEffectTiers);
 
+  let base = '';
   if (filteredPrefixRegex.length > 0 && suffixRegex.length > 0) {
     if (matchBothPrefixAndSuffix) {
-      if (matchOpenPrefixSuffix) return `"${openPrefix}|${filteredPrefixRegex}" "${openSuffix}|${suffixRegex}"`;
-      return `"${filteredPrefixRegex}" "${suffixRegex}"`;
+      base = matchOpenPrefixSuffix
+        ? `"${openPrefix}|${filteredPrefixRegex}" "${openSuffix}|${suffixRegex}"`
+        : `"${filteredPrefixRegex}" "${suffixRegex}"`;
+    } else {
+      base = `"${filteredPrefixRegex}|${suffixRegex}"`;
     }
-    return `"${filteredPrefixRegex}|${suffixRegex}"`;
+  } else if (filteredPrefixRegex.length > 0) {
+    base = `"${filteredPrefixRegex}"`;
+  } else if (suffixRegex.length > 0) {
+    base = `"${suffixRegex}"`;
   }
-  if (filteredPrefixRegex.length > 0) return `"${filteredPrefixRegex}"`;
-  if (suffixRegex.length > 0) return `"${suffixRegex}"`;
-  return '';
+  return appendResultExtras(base, settings.resultSettings);
 }
