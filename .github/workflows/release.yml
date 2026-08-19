@@ -10,6 +10,16 @@ name: Release
 #   ExileCompass_<version>_x64-setup.exe    (Windows, NSIS)
 #   ExileCompass_<version>_amd64.AppImage   (Linux, portable + auto-updater)
 #   ExileCompass_<version>_amd64.deb        (Linux, native Debian/Ubuntu install)
+#
+# Windows NSIS installers get occasionally flagged by Windows Defender as
+# Trojan:Win32/Wacatac.C!ml (an ML heuristic false positive from the binary
+# being unsigned). MSI was evaluated as a fix and deliberately rejected —
+# forces UAC elevation on every install/update with no per-user option in
+# Tauri's WiX bundler, trading a rare, submittable false positive for a
+# permanent UX regression. See "Windows distribution format" in CLAUDE.md.
+# If it happens on a release, submit the flagged installer at
+# https://www.microsoft.com/en-us/wdsi/filesubmission (usually clears in a
+# day or two). The real fix is code-signing the binary.
 
 on:
   push:

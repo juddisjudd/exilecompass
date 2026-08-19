@@ -148,8 +148,8 @@ paste a `pobb.in` link, fetching that build.
   up more for newer/less-downloaded releases. Two options:
   - Report it to Microsoft as a false positive (fixes it for everyone, no local
     changes needed): https://www.microsoft.com/en-us/wdsi/filesubmission —
-    submit the flagged `.exe`, category "Software developer", and it usually
-    clears within a day or two once reviewed.
+    submit the flagged installer file, category "Software developer", and it
+    usually clears within a day or two once reviewed.
   - Or add a local exclusion yourself: run
     [`scripts/add-defender-exclusion.ps1`](scripts/add-defender-exclusion.ps1)
     from this repo (right-click → *Run with PowerShell as Administrator*) after
