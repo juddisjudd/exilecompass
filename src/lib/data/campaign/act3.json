@@ -2,6 +2,17 @@
   "number": 3,
   "name": "ACT 3",
   "enabled": true,
+  "tips": [
+    { "text": "Servi's choice in Act 3 is permanent. Most builds pick Stun Threshold, since it clears bleeds and freezes on logout." },
+    { "text": "Field vendors give a guaranteed rare piece as you pass through: gloves in the Jungle Ruins, boots in Infested Barrens, armour in Chimeral Wetlands." },
+    { "text": "In the Trial of Chaos, dodge roll between the slam and the twist of the Soul Core's placement animation — it duplicates the core into every socket." },
+    { "text": "The Sacrificial Heart drops from Vaal Goliaths (the ones with a canister on their shoulder) in both Utzaal and Aggorat." },
+    { "text": "This act's monster density drops in its back half. Lean on the margin-of-safety rule from Act 1 if you start falling behind the area level." },
+    { "text": "Don't over-plan your route through this act. Enough of its layouts get reworked between patches that studying them in advance isn't worth it — keep moving even when you're unsure of the way." },
+    { "text": "Type a regex into vendor search bars to highlight the bases you want. It turns minutes of town shopping into seconds." },
+    { "text": "Hold Ctrl on the passive tree to auto-confirm points. Bind Quick Assign (no default key) for attribute nodes, and use Ctrl+Shift+Left/Right-click on the hotbar to assign weapon-swap skills." },
+    { "text": "Farm magic-name (blue) packs only while pushing forward. Skip white packs unless you're under-leveled." }
+  ],
   "zones": [
     {
       "id": "act3_marsh",
@@ -34,20 +45,38 @@
       "name": "Ziggurat Encampment (Town)",
       "objectives": [
         { "id": "zg1_1", "text": "Talk to Alva, Oswald, and The Hooded One" },
+        { "id": "zg1_3", "text": "Lvl 30 flask upgrade at Servi (increased recovery + charges)" },
         {
-          "id": "zg1_2",
-          "text": "Talk to Farrow, accept his Act 3 rune quest",
-          "notes": ["0.5 — unlocks Unique Verisium Runeforging (upgrade base type of sub-55 Unique drops)"],
-          "reward": "Unlocks Unique Verisium Runeforging"
-        },
-        { "id": "zg1_3", "text": "Lvl 30 flask upgrade at Rog (increased recovery + charges)" },
-        { "id": "zg1_4", "text": "Enter Jungle Ruins (top exit)" }
+          "id": "zg1_4",
+          "text": "Enter Jungle Ruins (top exit)",
+          "notes": ["Farrow doesn't have a quest here this league — he's waiting at the start of the Jungle Ruins instead"]
+        }
       ]
     },
     {
       "id": "act3_jungle",
       "name": "Jungle Ruins",
       "objectives": [
+        {
+          "id": "jng_5",
+          "text": "Talk to Farrow at the start",
+          "optional": true,
+          "league": true,
+          "notes": ["Starts the Runeseeker chain — collect all 3 Runestones (Jungle Ruins, Venom Crypts, Azak Bog), then clear the Mystic Refuge off Infested Barrens to unlock Unique Verisium Runeforging"]
+        },
+        {
+          "id": "jng_7",
+          "text": "Find the Runestone (1 of 3), summon Farrow",
+          "optional": true,
+          "league": true
+        },
+        {
+          "id": "jng_6",
+          "text": "Clear the Vaal Beacon pack (1 of 6)",
+          "optional": true,
+          "league": true,
+          "notes": ["A red-stone ring empowers the pack around it — that dense corrupted pack is the warning. Clearing it lights a crystal toward the six needed to open the Vaal Ruins."]
+        },
         {
           "id": "jng_1",
           "text": "Kill Mighty Silverfist",
@@ -57,7 +86,7 @@
         {
           "id": "jng_2",
           "text": "Jungle Grave (ravaged corpse) → Servi",
-          "notes": ["0.5: talk to the explorers at the camps — they reveal the next area on your minimap"],
+          "notes": ["Talk to the explorers at the camps — they reveal the next area on your minimap"],
           "reward": "Rare Belt (choice)"
         },
         {
@@ -66,26 +95,7 @@
           "optional": true,
           "reward": "Guaranteed Rare Gloves"
         },
-        { "id": "jng_4", "text": "Find the waypoint near Venom Crypts, then enter Infested Barrens" }
-      ]
-    },
-    {
-      "id": "act3_infested1",
-      "name": "Infested Barrens",
-      "objectives": [
-        { "id": "inf1_1", "text": "Find and talk to Alva, take the waypoint near her" },
-        {
-          "id": "inf1_2",
-          "text": "Field vendor",
-          "optional": true,
-          "reward": "Guaranteed Rare Boots"
-        },
-        {
-          "id": "inf1_3",
-          "text": "Scout exits to Chimeral Wetlands and Azak Bog",
-          "notes": ["Enter each, take the waypoint, then return"]
-        },
-        { "id": "inf1_4", "text": "TP to Venom Crypts (via the Jungle Ruins waypoint)" }
+        { "id": "jng_4", "text": "Find the waypoint near Venom Crypts, then enter The Venom Crypts" }
       ]
     },
     {
@@ -93,12 +103,24 @@
       "name": "The Venom Crypts",
       "objectives": [
         {
+          "id": "vnm_3",
+          "text": "Clear the Vaal Beacon pack (2 of 6)",
+          "optional": true,
+          "league": true
+        },
+        {
           "id": "vnm_1",
           "text": "Sarcophagus event",
           "optional": true,
           "reward": "Guaranteed Level 3 Support Gem"
         },
-        { "id": "vnm_2", "text": "Find the corpse, loot the Corpse-snake Venom, then TP to town" }
+        {
+          "id": "vnm_4",
+          "text": "Find the Runestone (2 of 3), summon Farrow",
+          "optional": true,
+          "league": true
+        },
+        { "id": "vnm_2", "text": "Find the corpse, loot the Orok Poison, head to the safe zone (A Reprieve), then TP to town" }
       ]
     },
     {
@@ -107,11 +129,31 @@
       "objectives": [
         {
           "id": "zg2_1",
-          "text": "Talk to Servi — PERMANENT CHOICE",
+          "text": "Hand the Orok Poison to Servi — PERMANENT CHOICE",
           "notes": ["Cannot be changed later: +25% Stun Threshold (popular), +30% Elemental Ailment Threshold, or +25% Mana Regen"],
           "reward": "Permanent Servi choice"
         },
-        { "id": "zg2_2", "text": "TP to Chimeral Wetlands" }
+        { "id": "zg2_2", "text": "Head to Infested Barrens (via the Jungle Ruins for now)" }
+      ]
+    },
+    {
+      "id": "act3_infested1",
+      "name": "Infested Barrens",
+      "objectives": [
+        {
+          "id": "inf1_5",
+          "text": "Clear the Vaal Beacon pack (3 of 6)",
+          "optional": true,
+          "league": true
+        },
+        { "id": "inf1_1", "text": "Find and talk to Alva, take the waypoint near her" },
+        {
+          "id": "inf1_2",
+          "text": "Troubled Camp (Sebastian Carroway)",
+          "optional": true,
+          "reward": "Guaranteed Rare Boots"
+        },
+        { "id": "inf1_4", "text": "Enter Chimeral Wetlands" }
       ]
     },
     {
@@ -119,16 +161,29 @@
       "name": "Chimeral Wetlands",
       "objectives": [
         {
-          "id": "chm_1",
-          "text": "Field vendor",
+          "id": "chm_6",
+          "text": "Clear the Vaal Beacon pack (4 of 6)",
           "optional": true,
-          "reward": "Guaranteed Rare Helm"
+          "league": true
+        },
+        {
+          "id": "chm_1",
+          "text": "Ravaged Camp → Lost Temple Logbook (reveals the Temple of Chaos) + gold chest",
+          "optional": true,
+          "reward": "Guaranteed Rare Armour"
         },
         {
           "id": "chm_2",
-          "text": "Toxic Bloom point of interest",
+          "text": "Toxic Bloom point of interest (Noxious Behemoth)",
           "optional": true,
-          "reward": "Amulet"
+          "reward": "Magic Amulet"
+        },
+        {
+          "id": "chm_7",
+          "text": "Ezomyte Remnant — inscribe runes, fight the waves",
+          "optional": true,
+          "league": true,
+          "reward": "Level 9 Uncut Skill Gem"
         },
         {
           "id": "chm_3",
@@ -181,15 +236,22 @@
       "objectives": [
         { "id": "snc_1", "text": "Summon/talk to Alva" },
         { "id": "snc_2", "text": "Loot 2 Medium Soul Cores, place them in the Generators" },
-        { "id": "snc_3", "text": "Back to start → click the Large Soul Core → kill Zicoatly → loot the core" },
-        { "id": "snc_4", "text": "TP to Infested Barrens" }
+        {
+          "id": "snc_5",
+          "text": "Clear the Vaal Beacon pack (5 of 6)",
+          "optional": true,
+          "league": true,
+          "notes": ["Paquate's Mechanism (a corruption altar, Vaal-orb-style item corruption) also sits in the Sanctum — use it while you clear"]
+        },
+        { "id": "snc_3", "text": "Back to start → click the Large Soul Core → kill Zicoatl, Warden of the Core → loot the core" },
+        { "id": "snc_4", "text": "TP to the Jungle Ruins" }
       ]
     },
     {
       "id": "act3_infested2",
-      "name": "Infested Barrens (Return)",
+      "name": "Jungle Ruins (Return)",
       "objectives": [
-        { "id": "inf2_1", "text": "Use the core on the Stone Altar next to the waypoint" },
+        { "id": "inf2_1", "text": "Use the Large Soul Core on the Stone Altar to resurface the Matlan Waterways entrance" },
         { "id": "inf2_2", "text": "Enter The Matlan Waterways" }
       ]
     },
@@ -198,9 +260,22 @@
       "name": "The Matlan Waterways",
       "objectives": [
         {
+          "id": "mtl_4",
+          "text": "Narag's Hut → kill Narag of the Vile Word",
+          "optional": true,
+          "reward": "Rare Weapon + Blacksmith's Whetstone"
+        },
+        {
           "id": "mtl_1",
           "text": "Walk over the pressure pads (auto-activate on contact), proceed to the end",
-          "notes": ["0.5: levers became walk-over pads and the final canal is pre-drained — just walk straight through"]
+          "notes": ["Levers became walk-over pads and the final canal is pre-drained — just walk straight through"]
+        },
+        {
+          "id": "mtl_5",
+          "text": "Clear the final Vaal Beacon pack (6 of 6)",
+          "optional": true,
+          "league": true,
+          "notes": ["Completes the set and opens the portal to the Vaal Ruins — enter promptly, since the entrance can disappear and stall the quest. The storyline continues in the Interludes."]
         },
         {
           "id": "mtl_2",
@@ -208,7 +283,65 @@
           "optional": true,
           "reward": "Random loot"
         },
-        { "id": "mtl_3", "text": "TP back to town" }
+        {
+          "id": "mtl_6",
+          "text": "Ravaged Corpse at the Azak Bog entrance → summon Servi",
+          "optional": true,
+          "notes": ["Servi only appears here, at the entrance — not inside Azak Bog"],
+          "reward": "Unidentified Rare Belt"
+        },
+        { "id": "mtl_3", "text": "Take the Azak Bog side entrance (off the Waterways)" }
+      ]
+    },
+    {
+      "id": "act3_azak",
+      "name": "Azak Bog",
+      "objectives": [
+        {
+          "id": "azk_5",
+          "text": "Talk to Farrow at the start",
+          "optional": true,
+          "league": true,
+          "notes": ["Farrow holds this act's Runestone here, not Servi"]
+        },
+        {
+          "id": "azk_2",
+          "text": "Flameskin rituals",
+          "optional": true,
+          "notes": ["Boss arena is always top-right; reset-farm magic packs around the fire shrine for XP"],
+          "reward": "Fire Res + Rarity buff"
+        },
+        {
+          "id": "azk_3",
+          "text": "Kill Ignagduk, the Bog Witch, use the Gemrot Skull",
+          "reward": "Permanent 30 Spirit"
+        },
+        {
+          "id": "azk_6",
+          "text": "Activate the Runestone (3 of 3)",
+          "optional": true,
+          "league": true
+        },
+        { "id": "azk_4", "text": "Return Ignagduk's Ghastly Spear to Servi in town, then TP back to town", "reward": "Charm (choice of 3)" }
+      ]
+    },
+    {
+      "id": "act3_mysticrefuge",
+      "name": "Infested Barrens — Mystic Refuge (Runeseeker)",
+      "objectives": [
+        {
+          "id": "myr_1",
+          "text": "With all 3 Runestones found, return to Infested Barrens and enter the Mystic Refuge (the locked jungle vault)",
+          "optional": true,
+          "league": true
+        },
+        {
+          "id": "myr_2",
+          "text": "Clear the Mystic Refuge, talk to Farrow",
+          "optional": true,
+          "league": true,
+          "reward": "Unlocks Unique Verisium Runeforging"
+        }
       ]
     },
     {
@@ -226,29 +359,9 @@
         {
           "id": "drn_1",
           "text": "Scout exits to Apex of Filth and The Molten Vault",
-          "notes": ["Enter each, take the waypoint, then return"]
+          "notes": ["Enter each, take the waypoint, then return", "Layout mirrors Utzaal — the post-bridge chokepoint here is where Viper later ambushes in Utzaal"]
         },
-        { "id": "drn_2", "text": "TP to Azak Bog" }
-      ]
-    },
-    {
-      "id": "act3_azak",
-      "name": "Azak Bog",
-      "objectives": [
-        { "id": "azk_1", "text": "Summon/talk to Servi" },
-        {
-          "id": "azk_2",
-          "text": "Flameskin rituals",
-          "optional": true,
-          "notes": ["Boss arena is always top-right; reset-farm magic packs around the fire shrine for XP"],
-          "reward": "Fire Res + Rarity buff"
-        },
-        {
-          "id": "azk_3",
-          "text": "Kill Ignagduk, the Bog Witch, use the Gemrot Skull",
-          "reward": "Permanent 30 Spirit"
-        },
-        { "id": "azk_4", "text": "Talk to Servi in town for the Frozen Charm, then TP to The Molten Vault (1st char) or town" }
+        { "id": "drn_2", "text": "TP to The Molten Vault (1st char) or town" }
       ]
     },
     {
@@ -258,8 +371,14 @@
         {
           "id": "mlv_1",
           "text": "Kill Mektul, the Forgemaster (1st char only)",
-          "notes": ["Return the Hammer of Kamasa to Oswald in town to unlock the bench; skip on alts"],
+          "notes": ["Return the Hammer of Kamasa to Oswald in town to unlock the bench; skip on alts", "Has a roughly 4-minute molten-flood timer — bring Fire Resistance"],
           "reward": "Unlocks Reforging Bench"
+        },
+        {
+          "id": "mlv_3",
+          "text": "Frost Cores → Stone Altars clear the Molten Flow blockages",
+          "optional": true,
+          "reward": "Gold Chests"
         },
         { "id": "mlv_2", "text": "TP back to town, talk to Oswald, then TP to Apex of Filth" }
       ]
@@ -272,6 +391,7 @@
           "id": "apx_1",
           "text": "Find 3 Mushrooms → use the Cauldron",
           "optional": true,
+          "notes": ["The Cauldron Keeper is also a secret vendor — caster gear + jewellery"],
           "reward": "Superior Flasks"
         },
         {
@@ -290,7 +410,7 @@
         {
           "id": "tpm_2",
           "text": "Kill Ketzuli, High Priest of the Sun (upstairs)",
-          "notes": ["Each floor is a triangle — the far corner has a 50% chance of being correct; check it first"]
+          "notes": ["Each floor is a triangle — the far corner has a 50% chance of being correct; check it first", "Indoors, sunlight stacks a burning debuff — stay in the shade between packs"]
         },
         { "id": "tpm_3", "text": "Talk to Alva, wait for the lore" }
       ]
@@ -299,7 +419,11 @@
       "id": "act3_utzaal",
       "name": "Utzaal",
       "objectives": [
-        { "id": "utz_1", "text": "In town take the Gateway, then downstairs → enter Utzaal" },
+        {
+          "id": "utz_1",
+          "text": "In town take the Gateway, then downstairs → enter Utzaal",
+          "notes": ["Same layout as the Drowned City — follow the paved road, it leads to Viper"]
+        },
         {
           "id": "utz_2",
           "text": "Farm the Sacrificial Heart from Vaal Goliaths (canister on shoulder)",
@@ -307,9 +431,16 @@
           "notes": ["Can also drop in Aggorat — only this monster type drops it"]
         },
         {
-          "id": "utz_3",
-          "text": "Energise the 6 Ancient Beacons across Utzaal & Aggorat, open the portal to the Vaal Ruins",
-          "notes": ["0.5: Fate of the Vaal is now core campaign content — this is your first encounter; it continues in the Interludes"]
+          "id": "utz_6",
+          "text": "Chaos Statue",
+          "optional": true,
+          "notes": ["Grants an Inscribed Ultimatum, usable at the Temple of Chaos"]
+        },
+        {
+          "id": "utz_7",
+          "text": "Side doors for idols",
+          "optional": true,
+          "notes": ["Sell idols to Oswald for gold"]
         },
         {
           "id": "utz_4",
@@ -337,6 +468,7 @@
           "id": "agg_3",
           "text": "League mechanic (Crag Tooth)",
           "optional": true,
+          "league": true,
           "reward": "Vaal Orb"
         },
         { "id": "agg_4", "text": "Enter The Black Chambers (top left of map)" }
@@ -348,8 +480,8 @@
       "objectives": [
         {
           "id": "cmb_1",
-          "text": "Kill Doryani, the Blood Alchemist (Act Boss)",
-          "notes": ["Phase 2 (Doryani's Triumph): rage gives a fortifying buff before engaging"]
+          "text": "Kill Doryani, Royal Thaumaturge (Act Boss)",
+          "notes": ["Three phases: caster → Doryani's Triumph mechanic below 50% life (rage gives him a fortifying buff before engaging) → airborne phase"]
         },
         { "id": "cmb_2", "text": "Wait for loot (~30s), then TP back to town" }
       ]

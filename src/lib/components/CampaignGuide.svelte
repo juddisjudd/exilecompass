@@ -3,7 +3,7 @@
   import { SvelteSet } from 'svelte/reactivity';
   import { CAMPAIGN_DATA } from '$lib/campaign';
   import { m } from '$lib/paraglide/messages.js';
-  import { trAct, trZone, trObjective, trObjectiveReward, trNotes } from '$lib/dataI18n';
+  import { trAct, trZone, trObjective, trObjectiveReward, trNotes, trActTip } from '$lib/dataI18n';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
   import ConfirmReset from './ConfirmReset.svelte';
 
@@ -12,14 +12,21 @@
   interface GuideState {
     expandedActs: Set<number>;
     expandedZones: Set<string>;
+    expandedTips: Set<number>;
   }
 
   const STATE_KEY = 'CAMPAIGN_GUIDE_STATE_V1';
+  const SHOW_LEAGUE_KEY = 'EXILECOMPASS_CAMPAIGN_SHOW_LEAGUE_V1';
 
   let guideState = $state<GuideState>({
     expandedActs: new SvelteSet<number>(),
     expandedZones: new SvelteSet<string>(),
+    expandedTips: new SvelteSet<number>(),
   });
+
+  // Hides steps/tips tied to the current league mechanic once it goes stale.
+  // Defaults to shown so nothing disappears silently on upgrade.
+  let showLeagueMechanics = $state(true);
 
   onMount(() => {
     campaignProgress.load();
@@ -29,18 +36,27 @@
         const parsed = JSON.parse(saved);
         guideState.expandedActs = new SvelteSet<number>(parsed.expandedActs ?? []);
         guideState.expandedZones = new SvelteSet<string>(parsed.expandedZones ?? []);
+        guideState.expandedTips = new SvelteSet<number>(parsed.expandedTips ?? []);
       } catch {
         // ignore corrupted state
       }
     }
+    const savedShowLeague = window.localStorage.getItem(SHOW_LEAGUE_KEY);
+    if (savedShowLeague !== null) showLeagueMechanics = savedShowLeague === 'true';
   });
 
   function saveState() {
     const toSave = {
       expandedActs: Array.from(guideState.expandedActs),
       expandedZones: Array.from(guideState.expandedZones),
+      expandedTips: Array.from(guideState.expandedTips),
     };
     window.localStorage.setItem(STATE_KEY, JSON.stringify(toSave));
+  }
+
+  function toggleShowLeagueMechanics(value: boolean) {
+    showLeagueMechanics = value;
+    window.localStorage.setItem(SHOW_LEAGUE_KEY, String(value));
   }
 
   function toggleAct(actNumber: number) {
@@ -57,6 +73,15 @@
       guideState.expandedZones.delete(zoneId);
     } else {
       guideState.expandedZones.add(zoneId);
+    }
+    saveState();
+  }
+
+  function toggleTips(actNumber: number) {
+    if (guideState.expandedTips.has(actNumber)) {
+      guideState.expandedTips.delete(actNumber);
+    } else {
+      guideState.expandedTips.add(actNumber);
     }
     saveState();
   }
@@ -103,17 +128,31 @@
 <div class="campaign-guide">
   <div class="guide-header ec-panel">
     <h3>{m.campaign_guide_title()}</h3>
-    <ConfirmReset
-      label={m.action_reset()}
-      prompt={m.confirm_reset_campaign_progress()}
-      title={m.campaign_reset_progress_title()}
-      onconfirm={resetProgress}
-    />
+    <div class="header-right">
+      <label class="cfg-check" title={m.campaign_show_league_toggle_title()}>
+        <input
+          type="checkbox"
+          class="ec-checkbox cfg-checkbox"
+          checked={showLeagueMechanics}
+          onchange={(e) => toggleShowLeagueMechanics((e.currentTarget as HTMLInputElement).checked)}
+        />
+        <span>{m.campaign_show_league_toggle()}</span>
+      </label>
+      <ConfirmReset
+        label={m.action_reset()}
+        prompt={m.confirm_reset_campaign_progress()}
+        title={m.campaign_reset_progress_title()}
+        onconfirm={resetProgress}
+      />
+    </div>
   </div>
 
   {#each CAMPAIGN_DATA as act (act.number)}
-    {@const objectives = act.zones.flatMap((z) => z.objectives)}
+    {@const objectives = act.zones
+      .flatMap((z) => z.objectives)
+      .filter((o) => showLeagueMechanics || !o.league)}
     {@const progress = summarize(objectives)}
+    {@const visibleTips = (act.tips ?? []).filter((t) => showLeagueMechanics || !t.league)}
     {@const isComplete = progress.status === 'complete'}
     {@const isRequired = progress.status === 'required'}
     {@const expanded = guideState.expandedActs.has(act.number)}
@@ -165,9 +204,36 @@
       </div>
 
       {#if expanded}
+        {#if visibleTips.length > 0}
+          {@const tipsExpanded = guideState.expandedTips.has(act.number)}
+          <div class="tips-box">
+            <button class="tips-header" onclick={() => toggleTips(act.number)} type="button">
+              <span class="toggle-icon" class:expanded={tipsExpanded}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+              </span>
+              <span>{m.campaign_tips_title()}</span>
+            </button>
+            {#if tipsExpanded}
+              <ul class="tips-list">
+                {#each act.tips ?? [] as tip, i}
+                  {#if showLeagueMechanics || !tip.league}
+                    <li class="tip-item">
+                      <span>{trActTip(act.number, i, tip.text)}</span>
+                      {#if tip.league}
+                        <span class="badge badge-league" title={m.campaign_league_badge_title()}>{m.campaign_league_badge()}</span>
+                      {/if}
+                    </li>
+                  {/if}
+                {/each}
+              </ul>
+            {/if}
+          </div>
+        {/if}
         <div class="zones-container">
           {#each act.zones as zone (zone.id)}
-            {@const zoneStatus = summarize(zone.objectives).status}
+            {@const zoneObjectives = zone.objectives.filter((o) => showLeagueMechanics || !o.league)}
+            {#if zoneObjectives.length > 0}
+            {@const zoneStatus = summarize(zoneObjectives).status}
             <div
               class="zone-group ec-panel"
               class:complete={zoneStatus === 'complete'}
@@ -189,9 +255,9 @@
 
               {#if guideState.expandedZones.has(zone.id)}
                 <div class="objectives-container">
-                  {#each zone.objectives as obj (obj.id)}
+                  {#each zoneObjectives as obj (obj.id)}
                     {@const done = campaignProgress.has(obj.id)}
-                    <div class="objective-row" class:done class:optional={obj.optional}>
+                    <div class="objective-row" class:done class:optional={obj.optional} class:league={obj.league}>
                       <label class="objective-label">
                         <input
                           type="checkbox"
@@ -200,7 +266,9 @@
                           class="ec-checkbox objective-checkbox"
                         />
                         <span class="objective-text">{trObjective(obj.id, obj.text)}</span>
-                        {#if obj.optional}
+                        {#if obj.league}
+                          <span class="badge badge-league" title={m.campaign_league_badge_title()}>{m.campaign_league_badge()}</span>
+                        {:else if obj.optional}
                           <span class="badge badge-optional">{m.campaign_optional_badge()}</span>
                         {/if}
                         {#if obj.reward}
@@ -220,6 +288,7 @@
                 </div>
               {/if}
             </div>
+            {/if}
           {/each}
         </div>
       {/if}
@@ -240,6 +309,28 @@
     justify-content: space-between;
     padding: 8px 12px;
     margin-bottom: 2px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .cfg-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--c-accent);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .cfg-checkbox {
+    width: 13px;
+    height: 13px;
   }
 
   .guide-header h3 {
@@ -265,7 +356,7 @@
 
   /* All required objectives done, optional ones still pending → yellow. */
   .act-group.required {
-    border-color: color-mix(in srgb, #fbbf24 26%, transparent);
+    border-color: color-mix(in srgb, var(--c-warning) 26%, transparent);
   }
 
   /* Finished act, collapsed — recede it so the eye skips to unfinished work.
@@ -334,8 +425,8 @@
     font-size: 12px;
   }
   .act-complete-btn.done:hover {
-    background: color-mix(in srgb, #fbbf24 14%, transparent);
-    color: #fbbf24;
+    background: color-mix(in srgb, var(--c-warning) 14%, transparent);
+    color: var(--c-warning);
   }
 
   .complete .act-header {
@@ -344,8 +435,8 @@
   }
 
   .required .act-header {
-    color: color-mix(in srgb, #fbbf24 80%, var(--c-primary) 20%);
-    text-shadow: 0 0 10px color-mix(in srgb, #fbbf24 26%, transparent);
+    color: color-mix(in srgb, var(--c-warning) 80%, var(--c-primary) 20%);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--c-warning) 26%, transparent);
   }
 
   .toggle-icon {
@@ -381,9 +472,9 @@
     text-transform: uppercase;
     padding: 1px 5px;
     border-radius: var(--radius);
-    background: color-mix(in srgb, #a78bfa 10%, transparent);
-    color: #c4b5fd;
-    border: 1px solid color-mix(in srgb, #a78bfa 28%, transparent);
+    background: color-mix(in srgb, var(--c-info) 10%, transparent);
+    color: color-mix(in srgb, var(--c-info) 80%, white 20%);
+    border: 1px solid color-mix(in srgb, var(--c-info) 28%, transparent);
     flex-shrink: 0;
   }
 
@@ -416,7 +507,7 @@
   }
 
   .act-progress.required {
-    color: #fbbf24;
+    color: var(--c-warning);
   }
 
   /* Progress bar */
@@ -436,7 +527,54 @@
   }
 
   .progress-bar-fill.required {
-    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    background: linear-gradient(90deg, var(--c-warning-deep), var(--c-warning));
+  }
+
+  /* Speedrun tips box */
+  .tips-box {
+    margin: 4px 4px 0;
+    border: 1px solid color-mix(in srgb, var(--c-primary) 20%, transparent);
+    background: color-mix(in srgb, var(--c-primary) 5%, var(--c-bg));
+  }
+
+  .tips-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 5px 10px;
+    background: transparent;
+    border: none;
+    color: var(--c-primary);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-align: left;
+    gap: 6px;
+  }
+
+  .tips-header:hover {
+    background: color-mix(in srgb, var(--c-primary) 8%, transparent);
+  }
+
+  .tips-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 2px 10px 8px 30px;
+    list-style: disc;
+  }
+
+  .tip-item {
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: color-mix(in srgb, var(--c-accent) 90%, #fff 10%);
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
   /* Zones */
@@ -464,11 +602,11 @@
   }
 
   .zone-group.required {
-    border-color: color-mix(in srgb, #fbbf24 32%, transparent);
-    background: color-mix(in srgb, #fbbf24 6%, var(--c-bg));
+    border-color: color-mix(in srgb, var(--c-warning) 32%, transparent);
+    background: color-mix(in srgb, var(--c-warning) 6%, var(--c-bg));
   }
   .zone-group.required .zone-header {
-    color: color-mix(in srgb, #fbbf24 85%, #fff 15%);
+    color: color-mix(in srgb, var(--c-warning) 85%, #fff 15%);
   }
 
   .zone-check {
@@ -523,7 +661,11 @@
   }
 
   .objective-row.optional {
-    border-left-color: color-mix(in srgb, #a78bfa 40%, transparent);
+    border-left-color: color-mix(in srgb, var(--c-optional) 40%, transparent);
+  }
+
+  .objective-row.league {
+    border-left-color: color-mix(in srgb, var(--c-info) 40%, transparent);
   }
 
   .objective-row.done {
@@ -568,9 +710,15 @@
   }
 
   .badge-optional {
-    background: color-mix(in srgb, #a78bfa 12%, transparent);
-    color: #c4b5fd;
-    border: 1px solid color-mix(in srgb, #a78bfa 30%, transparent);
+    background: color-mix(in srgb, var(--c-optional) 12%, transparent);
+    color: color-mix(in srgb, var(--c-optional) 80%, white 20%);
+    border: 1px solid color-mix(in srgb, var(--c-optional) 30%, transparent);
+  }
+
+  .badge-league {
+    background: color-mix(in srgb, var(--c-info) 12%, transparent);
+    color: var(--c-info);
+    border: 1px solid color-mix(in srgb, var(--c-info) 32%, transparent);
   }
 
   .badge-reward {

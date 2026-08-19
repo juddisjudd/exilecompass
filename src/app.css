@@ -40,6 +40,18 @@
   --c-success: oklch(65.7% 0.101 152); /* ≈ #5fa372 */
   --c-success-deep: oklch(42.7% 0.07 152); /* ≈ #2f5a3c */
 
+  /* Informational / temporary-content marker (e.g. current-league mechanics
+     that rotate out next league) — deliberately distinct from success/red and
+     from the --c-warning/--c-optional badge colors below. */
+  --c-info: oklch(75% 0.14 230); /* ≈ #38bdf8 */
+
+  /* Attention / in-progress state (partially-done sections, WIP content). */
+  --c-warning: oklch(83% 0.17 85); /* ≈ #fbbf24 */
+  --c-warning-deep: oklch(75% 0.16 70); /* ≈ #f59e0b */
+
+  /* Optional / secondary content marker (as opposed to required steps). */
+  --c-optional: oklch(74% 0.12 305); /* ≈ #a78bfa */
+
   --radius: 0px;
 }
 
@@ -77,6 +89,7 @@
   --c-red-deep: oklch(35% 0.16 305); /* ≈ #4f147b */
   --c-success: oklch(75% 0.12 200); /* ≈ #2ac4cc — Tul's cyan */
   --c-success-deep: oklch(45% 0.08 200); /* ≈ #006267 */
+  --c-info: oklch(72% 0.16 265); /* ≈ #6d7bf5 indigo — default blue reads too close to Tul's cyan here */
 }
 
 /* Ritual — the blacked-out arena: blood-wine red on true near-black (the map
@@ -116,6 +129,7 @@
   --c-red: oklch(60% 0.19 255); /* ≈ #127eee rune blue */
   --c-red-bright: oklch(72% 0.13 220); /* ≈ #09b7dc icy flare */
   --c-red-deep: oklch(35% 0.14 260); /* ≈ #023481 */
+  --c-info: oklch(72% 0.15 350); /* ≈ #f2769a rose — this theme's brand is already blue/cyan, and amber is taken by the "required" status color */
 }
 
 :root[data-theme='mono'] {

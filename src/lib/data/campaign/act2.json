@@ -2,6 +2,13 @@
   "number": 2,
   "name": "ACT 2",
   "enabled": true,
+  "tips": [
+    { "text": "Delay your Ascendancy trial to level 28. Skip the mobile Balbala fight in Traitor's Passage — farm a backup Djinn Barya from the two vultures in Deshar instead, then pick the level 28 Barya (not the default level 22 one) when you enter the trial. It gives better resistances at the end of the trial." },
+    { "text": "Aim to be level 29 for the Jamanra fight, and level 30 entering Act 3." },
+    { "text": "Pick a leveling Ascendancy that gives flat damage or survivability without needing specific items — for example Demon Form, Smith of Kitava, or Sorcery Ward. You can respec for endgame later." },
+    { "text": "Buy less, but buy well. Expect to finish a whole act without a weapon upgrade — when you do find one early, ignore vendors until the next act starts." },
+    { "text": "Use a leveling item filter with strong highlighting for your build's bases, so upgrades stand out and junk stays hidden." }
+  ],
   "zones": [
     {
       "id": "act2_vastiri",
@@ -9,19 +16,21 @@
       "objectives": [
         { "id": "vst_1", "text": "Talk to The Hooded One" },
         { "id": "vst_2", "text": "Kill Rathbreaker, then TP back to the start of the zone" },
-        { "id": "vst_3", "text": "Talk to Zarka, enter The Ardura Caravan" }
+        {
+          "id": "vst_3",
+          "text": "Talk to Zarka, enter The Ardura Caravan",
+          "reward": "Level 5 Uncut Skill Gem"
+        }
       ]
     },
     {
       "id": "act2_caravan1",
       "name": "The Ardura Caravan (Town)",
       "objectives": [
-        { "id": "cv1_1", "text": "Talk to The Hooded One and Sekhema Asala (×2)" },
         {
-          "id": "cv1_2",
-          "text": "Talk to Farrow, accept his Act 2 rune quest",
-          "notes": ["0.5 — unlocks the 13 Runic Alloy currencies, earned via Remnant encounters"],
-          "reward": "Unlocks Runic Alloys"
+          "id": "cv1_1",
+          "text": "Talk to The Hooded One and Sekhema Asala (×2)",
+          "notes": ["Farrow's rune quest doesn't continue here — every zone instead holds an optional Ezomyte Remnant, and Deshar holds this act's Runestone (see below)."]
         },
         { "id": "cv1_3", "text": "Use the Desert Map → Halani Gates → talk to Sekhema Asala, return and talk again" },
         { "id": "cv1_4", "text": "Travel to Mawdun Quarry" }
@@ -48,7 +57,12 @@
       "id": "act2_mawdun_m",
       "name": "Mawdun Mine",
       "objectives": [
-        { "id": "mm_1", "text": "Kill Rudja" },
+        {
+          "id": "mm_1",
+          "text": "Kill Rudja",
+          "notes": ["Follow the railroad tracks; at each intersection, take the turnout that connects the tracks to stay on the critical path"],
+          "reward": "Level 6 Uncut Skill Gem"
+        },
         { "id": "mm_2", "text": "Talk to Risu in the cage, then TP back to town" }
       ]
     },
@@ -92,7 +106,7 @@
         {
           "id": "hlg_1",
           "text": "Summon Asala to open the gates",
-          "notes": ["If she lags behind on terra-cotta soldiers, reset checkpoint — she snaps to you"]
+          "notes": ["If she lags behind on terra-cotta soldiers, reset checkpoint — she snaps to you", "Push forward to the command tents for loot before opening the gates"]
         },
         { "id": "hlg_2", "text": "Kill Jamanra (first encounter)" },
         { "id": "hlg_3", "text": "Stairs up, search the checkpoint, then TP back to town" }
@@ -128,8 +142,9 @@
         },
         {
           "id": "mb_3",
-          "text": "Complete the league mechanic",
+          "text": "Ezomyte Remnant — inscribe runes, fight the waves",
           "optional": true,
+          "league": true,
           "reward": "Regal Orb"
         },
         {
@@ -146,7 +161,7 @@
         {
           "id": "bp_1",
           "text": "Kill hyenas until the Sun Clan Relic drops",
-          "notes": ["Tall hyenas (Goliaths) have higher drop chance; save for the Valley of the Titans altar"]
+          "notes": ["Tall hyenas (Goliaths) have higher drop chance; save for the Valley of the Titans altar", "Loot the Effigy at the checkpoint on the way through"]
         },
         { "id": "bp_2", "text": "Kill Iktab & Ekbab, loot the Mastodon Tusks" },
         { "id": "bp_3", "text": "TP back to town" }
@@ -166,9 +181,16 @@
       "objectives": [
         { "id": "kth_1", "text": "Kill snakes until the Kabala Clan Relic drops" },
         {
-          "id": "kth_2",
-          "text": "Complete the league mechanic",
+          "id": "kth_5",
+          "text": "Abandoned Prayer (down the stairs)",
           "optional": true,
+          "reward": "Magic Amulet"
+        },
+        {
+          "id": "kth_2",
+          "text": "Ezomyte Remnant — inscribe runes, fight the waves",
+          "optional": true,
+          "league": true,
           "reward": "Gem Cutter's Prism"
         },
         {
@@ -188,7 +210,7 @@
           "id": "lc_1",
           "text": "Kill the Ninth Treasure of Keth",
           "optional": true,
-          "reward": "Random loot"
+          "reward": "Jewel"
         },
         {
           "id": "lc_2",
@@ -222,7 +244,11 @@
       "id": "act2_heart",
       "name": "The Heart of Keth",
       "objectives": [
-        { "id": "hk_1", "text": "Kill Azarian" },
+        {
+          "id": "hk_1",
+          "text": "Kill Azarian",
+          "notes": ["Descend through the Vestibule (crumbling floors, acid-bursting hydrozoids) to the Halani Shrine at the bottom — Azarian waits there"]
+        },
         { "id": "hk_2", "text": "Talk to the Water Goddess → Everburning Cinders → ignite the Goddess, then TP to town" }
       ]
     },
@@ -241,15 +267,16 @@
         { "id": "vl_1", "text": "Find 3 Ancient Seals around the perimeter" },
         {
           "id": "vl_2",
-          "text": "Complete the league mechanic",
+          "text": "Ezomyte Remnant — inscribe runes, fight the waves",
           "optional": true,
+          "league": true,
           "reward": "Random Unique"
         },
         {
           "id": "vl_3",
-          "text": "Find the Medallion near the waypoint, place both relics, choose a buff",
-          "notes": ["+30% Charm Charges OR +15% Mana Recovery — changeable later"],
-          "reward": "Permanent buff choice"
+          "text": "Find the Medallion at the Relic Altar, place both relics, choose a buff",
+          "notes": ["The Relic Altar sits on a side path off one of the routes to the Ancient Seals", "Grants +1 Charm Slot plus your choice of +30% Charm Charges gained OR +30% Charm Effect Duration — changeable later"],
+          "reward": "Permanent +1 Charm Slot + buff choice"
         },
         { "id": "vl_4", "text": "Enter The Titan Grotto" }
       ]
@@ -280,6 +307,25 @@
           "text": "Loot the Fallen Dekhara near the tower",
           "notes": ["Letter from Lihl Lima → deliver to Shambrin in town"],
           "reward": "2 Skill Points"
+        },
+        {
+          "id": "dsh_5",
+          "text": "Interact with the Runestone, summon Farrow and talk to him",
+          "optional": true,
+          "league": true
+        },
+        {
+          "id": "dsh_6",
+          "text": "Ride the caravan to the Skull of the Titan (the Runeseeker)",
+          "optional": true,
+          "league": true
+        },
+        {
+          "id": "dsh_7",
+          "text": "Follow the cave mouth to the Runic Vault, summon Farrow",
+          "optional": true,
+          "league": true,
+          "reward": "Unlocks Runic Inscriptions"
         },
         {
           "id": "dsh_2",
@@ -324,8 +370,9 @@
         },
         {
           "id": "sp_2",
-          "text": "Complete the league mechanic",
+          "text": "Ezomyte Remnant — inscribe runes, fight the waves",
           "optional": true,
+          "league": true,
           "reward": "Gem Cutter's Prism"
         },
         {

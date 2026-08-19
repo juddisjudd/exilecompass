@@ -40,6 +40,10 @@ To disable an act or interlude without deleting it, set `"enabled": false`. Acts
   "name": "ACT 1",      // Display name shown in the UI
   "enabled": true,      // false = hidden from guide without deleting data
   "temporary": false,   // true = interlude placeholder (shown with a badge); omit for normal acts
+  "tips": [              // Optional. Act-level strategy notes, shown in a collapsible box
+    { "text": "Push to the Red Vale weapon racks — guaranteed 2nd-tier weapon base." },
+    { "text": "Runes of Aldur: Farrow's rune quest chain unlocks Runeforging.", "league": true }
+  ],
   "zones": [ ... ]
 }
 ```
@@ -61,6 +65,7 @@ To disable an act or interlude without deleting it, set `"enabled": false`. Acts
   "id": "clf_1",                        // Unique ID within the file (used to track checkbox state)
   "text": "Kill Beira of the Rotten Pack",  // Main objective text (required)
   "optional": true,                     // Omit or false for required objectives
+  "league": true,                       // Tied to the current league mechanic — see below
   "reward": "Permanent 10% Cold Resistance", // Short reward label shown as a badge (omit if none)
   "notes": [                            // Extra tips shown below the objective (omit if none)
     "Always north/northeast of waypoint",
@@ -70,6 +75,15 @@ To disable an act or interlude without deleting it, set `"enabled": false`. Acts
 ```
 
 All fields except `id` and `text` are optional — leave them out rather than setting them to `null` or `""`.
+
+### League-mechanic content
+
+`"league": true` marks an objective as tied to the *current* league mechanic (e.g. this patch's Farrow
+rune quest chain) rather than the permanent campaign — content that's genuinely useful now but likely
+to change or vanish next league. It always implies `optional: true`: don't set `optional: false` on a
+league-tagged objective, since the guide's "required to finish the act" math assumes league content is
+never mandatory. The in-app filter lets players hide league content once it goes stale; tag generously
+rather than leaving stale content indistinguishable from the permanent route next time the league mechanic changes.
 
 ---
 

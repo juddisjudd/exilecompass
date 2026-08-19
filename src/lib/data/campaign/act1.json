@@ -2,6 +2,15 @@
   "number": 1,
   "name": "ACT 1",
   "enabled": true,
+  "tips": [
+    { "text": "Play with urgency. Spend as little time in town as you can, and keep moving in a zone — slow progress beats no progress." },
+    { "text": "Magic (blue-name) monsters give roughly 3.5x the experience of the same white monster. Skip white packs unless you're under-leveled." },
+    { "text": "Don't stop to sell gear. Push to the Red Vale weapon racks instead — they always drop a 2nd-tier weapon base (long quarterstaff, smithing hammer, tense crossbow)." },
+    { "text": "Save your currency. Use only 1-2 Regal Orbs per act, ideally on a weapon that hits a useful modifier count. Save Exalted Orbs for later." },
+    { "text": "Stay close to the area level. A safe margin is 3 levels under the zone level, plus 1 more level for every 16 character levels you have. Farm experience if you fall outside that margin." },
+    { "text": "In the Cemetery of the Eternals, kill Draven before Asinia, then leave and re-enter the zone before fighting Asinia — her drops scale with the higher zone level." },
+    { "text": "Aim to be level 14 before you fight Geonor." }
+  ],
   "zones": [
     {
       "id": "act1_riverbank",
@@ -29,9 +38,10 @@
       "objectives": [
         {
           "id": "clf_1",
-          "text": "Talk to Farrow, accept his first rune quest",
-          "notes": ["0.5 league NPC — unlocks Verisium Runeforging (Runic Ward on armour)"],
-          "reward": "Unlocks Verisium Runeforging"
+          "text": "Talk to Farrow — starts the Runeseeker quest",
+          "optional": true,
+          "league": true,
+          "notes": ["Farrow is this league's NPC. Talking to him here only starts the quest — the Verisium Anvil unlocks later, after you collect all 3 Runestones and run the Lost Catacombs (see below)."]
         },
         {
           "id": "clf_2",
@@ -124,7 +134,14 @@
         {
           "id": "grt_1",
           "text": "Find the exit to the Cemetery of the Eternals",
-          "notes": ["Farrow's 2nd rune quest: follow mushrooms toward the Druid, caskets toward the Cemetery"]
+          "notes": ["Follow mushrooms toward the Druid, caskets toward the Cemetery"]
+        },
+        {
+          "id": "grt_4",
+          "text": "Find the Runestone (1 of 3), summon Farrow and talk to him",
+          "optional": true,
+          "league": true,
+          "notes": ["This first Runestone sits on the path you'd normally take through the zone."]
         },
         {
           "id": "grt_2",
@@ -141,6 +158,12 @@
       "objectives": [
         { "id": "cem_1", "text": "Talk to Lachlann the Lost" },
         {
+          "id": "cem_7",
+          "text": "Ancient Ruins sarcophagus near the checkpoint",
+          "optional": true,
+          "reward": "Iron or Lazuli Ring"
+        },
+        {
           "id": "cem_2",
           "text": "Mausoleum of the Praetor → kill Draven, loot Key Piece",
           "notes": ["Do Draven first, then refresh the zone before Asinia so her drops scale up"]
@@ -155,6 +178,13 @@
         {
           "id": "cem_4",
           "text": "Tomb of the Consort → kill Asinia, loot Key Piece",
+          "reward": "Level 1 Uncut Support Gem"
+        },
+        {
+          "id": "cem_8",
+          "text": "Haunted Treasure secret in the Tomb of the Consort",
+          "optional": true,
+          "notes": ["Kill the rare it summons"],
           "reward": "Level 1 Uncut Support Gem"
         },
         {
@@ -180,7 +210,17 @@
       "id": "act1_hunting",
       "name": "Hunting Grounds",
       "objectives": [
-        { "id": "hnt_1", "text": "Talk to Farrow (3rd rune quest), then Delwyn further in" },
+        {
+          "id": "hnt_1",
+          "text": "Find the Runestone (2 of 3), summon Farrow and talk to him",
+          "optional": true,
+          "league": true
+        },
+        {
+          "id": "hnt_1b",
+          "text": "Talk to Delwyn",
+          "notes": ["Delwyn is a bit further into the zone than Farrow"]
+        },
         {
           "id": "hnt_2",
           "text": "Kill The Crowbell",
@@ -190,7 +230,7 @@
         {
           "id": "hnt_3",
           "text": "Scout exits to Freythorn and Ogham Farmlands",
-          "notes": ["Enter each, take the waypoint, then return"]
+          "notes": ["Enter each, take the waypoint, then return", "A signpost on the road points the way to Ogham Village"]
         },
         {
           "id": "hnt_4",
@@ -217,6 +257,13 @@
           "notes": ["Phase 2: dodge totem summons and curses"],
           "reward": "Permanent 30 Spirit"
         },
+        {
+          "id": "fry_4",
+          "text": "Cleanse the Ominous Altars",
+          "optional": true,
+          "notes": ["Claim a Charm reward from Finn back in town"],
+          "reward": "Ruby / Sapphire / Topaz Charm (choice)"
+        },
         { "id": "fry_3", "text": "TP to Ogham Farmlands" }
       ]
     },
@@ -227,8 +274,15 @@
         {
           "id": "ogm_1",
           "text": "Una's Lute Box in the house near the checkpoint → Una's Lute",
-          "notes": ["Deliver to Una in town for the reward; also the final step of Farrow's rune quest"],
+          "notes": ["Deliver to Una in town for the reward"],
           "reward": "2 Skill Points"
+        },
+        {
+          "id": "ogm_4",
+          "text": "Find the last Runestone (3 of 3, in a crop field), summon Farrow and talk to him",
+          "optional": true,
+          "league": true,
+          "notes": ["With all 3 Runestones found, teleport to The Grelwood to finish the Runeseeker chain — see the next section"]
         },
         {
           "id": "ogm_2",
@@ -236,7 +290,48 @@
           "optional": true,
           "reward": "Level 4 Uncut Skill Gem"
         },
-        { "id": "ogm_3", "text": "Enter Ogham Village" }
+        { "id": "ogm_3", "text": "Enter Ogham Village, take the waypoint" }
+      ]
+    },
+    {
+      "id": "act1_catacombs",
+      "name": "The Grelwood → Lost Catacombs (Runeseeker)",
+      "objectives": [
+        {
+          "id": "ctc_1",
+          "text": "Talk to Farrow near the Tree of Souls in The Grelwood",
+          "optional": true,
+          "league": true
+        },
+        {
+          "id": "ctc_2",
+          "text": "Enter the Lost Catacombs, find the Runic Vault, talk to Farrow",
+          "optional": true,
+          "league": true
+        },
+        {
+          "id": "ctc_3",
+          "text": "(First character) Grab the Liquid Verisium",
+          "optional": true,
+          "league": true
+        },
+        { "id": "ctc_4", "text": "TP back to town", "optional": true, "league": true }
+      ]
+    },
+    {
+      "id": "act1_clearfell_verisium",
+      "name": "Clearfell Encampment (Runeseeker)",
+      "objectives": [
+        { "id": "cfv_1", "text": "Talk to Una", "optional": true, "league": true },
+        {
+          "id": "cfv_2",
+          "text": "Talk to Farrow, use the Verisium Anvil, talk to Farrow again",
+          "optional": true,
+          "league": true,
+          "notes": ["Runeforging lets you spend Verisium to add Runic Ward to gear — a regenerating shield that absorbs damage at 1 life each, free on lower-level bases."],
+          "reward": "Unlocks Verisium Runeforging"
+        },
+        { "id": "cfv_3", "text": "Teleport to Ogham Village", "optional": true, "league": true }
       ]
     },
     {

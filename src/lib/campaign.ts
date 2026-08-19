@@ -12,6 +12,9 @@ export interface CampaignObjective {
   id: string;
   text: string;
   optional?: boolean;
+  /** Tied to the current league mechanic — likely to change or disappear next league.
+   *  Always implies `optional: true` (league content is never required to finish the act). */
+  league?: boolean;
   notes?: string[];
   reward?: string;
 }
@@ -22,6 +25,12 @@ export interface CampaignZone {
   objectives: CampaignObjective[];
 }
 
+export interface CampaignTip {
+  text: string;
+  /** Tied to the current league mechanic — see CampaignObjective.league. */
+  league?: boolean;
+}
+
 export interface CampaignAct {
   number: number;
   name: string;
@@ -29,6 +38,8 @@ export interface CampaignAct {
   enabled: boolean;
   /** True for temporary interludes that will be replaced by proper acts at 1.0. */
   temporary?: boolean;
+  /** Act-level strategy notes shown in a collapsible box above the zone list. */
+  tips?: CampaignTip[];
   zones: CampaignZone[];
 }
 

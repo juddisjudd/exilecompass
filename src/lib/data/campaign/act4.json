@@ -2,23 +2,31 @@
   "number": 4,
   "name": "ACT 4",
   "enabled": true,
+  "tips": [
+    { "text": "Weapon Fragments and Matiki's cage are randomized across the four islands each league — Kingsmarch's dialogue tells you which islands to check." },
+    { "text": "Greater Orbs of Transmutation and Augmentation can start dropping in Act 4 — their minimum item level requirement is lower here than in earlier acts." },
+    { "text": "Pre-organize your stash on Standard a few days before a league starts. Tab names, layouts, and highlights carry over to your fresh character and save a chunk of first-town time." },
+    { "text": "Save Artificer's Orbs, runes, and whetstones for your weapon until the end of Act 4, once you know what you're carrying into the Interludes." },
+    { "text": "Aim for roughly 5 hours to clear the whole campaign. Urgency, magic-pack farming, and not over-studying layouts gets you there." }
+  ],
   "zones": [
     {
       "id": "act4_kingsmarch",
       "name": "Kingsmarch (Hub Town)",
       "objectives": [
         { "id": "kng_1", "text": "Talk to Doryani, then Alva (with Rog)" },
-        { "id": "kng_2", "text": "Talk to Rog in the house — boat charter" },
+        { "id": "kng_5", "text": "Talk to Tujen, accept his quest" },
         {
           "id": "kng_3",
-          "text": "Talk to Farrow, accept his Act 4 rune quest",
-          "notes": ["0.5 — unlocks the 13 Ancient Runes (weapon-type-specific) crafted at Remnant encounters"],
-          "reward": "Unlocks Ancient Runes"
+          "text": "Talk to Farrow, accept his quest",
+          "optional": true,
+          "league": true,
+          "notes": ["Unlocks the 13 Ancient Runes (weapon-type-specific), crafted at Remnant encounters", "Farrow does nothing further here for now — his quest only completes later, at the Plunder's Point Deserted Post"]
         },
         {
           "id": "kng_4",
           "text": "Talk to Makoru on the ship, choose a destination",
-          "notes": ["Weapon Fragments and Matiki are randomized across the four islands each league — Kingsmarch dialogue tells you which"]
+          "notes": ["Rog doesn't handle the boat charter this league — Makoru does", "Weapon Fragments and Matiki are randomized across the four islands each league — Kingsmarch dialogue tells you which"]
         }
       ]
     },
@@ -37,6 +45,13 @@
           "text": "Shark Pit → kill the Great White One",
           "optional": true,
           "reward": "Shark Fin"
+        },
+        {
+          "id": "wkp_5",
+          "text": "Hand the Shark Fin to Kaimana to complete Tribal Medicine",
+          "optional": true,
+          "notes": ["Kaimana is at Ngakanu early, or on the docks after Tavakai if the islands are already corrupted"],
+          "reward": "Uncut Gem Lvl 11 (choice) + permanent Tukuama blessing"
         },
         {
           "id": "wkp_3",
@@ -118,6 +133,12 @@
           "reward": "Torn Map Piece"
         },
         {
+          "id": "ilk_6",
+          "text": "Doomed Mine (an abandoned delving site — Fossilised Formation)",
+          "optional": true,
+          "reward": "Lesser Jeweller's Orb"
+        },
+        {
           "id": "ilk_2",
           "text": "Beast Pen",
           "optional": true,
@@ -148,7 +169,7 @@
           "notes": ["Kill order matters: Lightning first → Ruby Ring; Fire first → Topaz Ring"],
           "reward": "Ruby/Topaz Ring (by kill order)"
         },
-        { "id": "vlc_2", "text": "Kill Krutog, Lord of Kin" },
+        { "id": "vlc_2", "text": "Kill Krutog, Lord of Kin (the Tyrant Throne)" },
         { "id": "vlc_3", "text": "Click the cage, free Matiki, then TP to Kingsmarch" }
       ]
     },
@@ -156,7 +177,11 @@
       "id": "act4_hinekora",
       "name": "Eye of Hinekora",
       "objectives": [
-        { "id": "eye_1", "text": "Talk to Matiki in town, click the well" },
+        {
+          "id": "eye_1",
+          "text": "Talk to Matiki at the well, click the well",
+          "notes": ["Matiki waits at the well itself, not in town"]
+        },
         {
           "id": "eye_2",
           "text": "Chest behind the waterfall",
@@ -176,7 +201,12 @@
       "id": "act4_halls",
       "name": "Halls of the Dead",
       "objectives": [
-        { "id": "hll_1", "text": "Trial of Ngakanu (3 tests in a clover-leaf), loot the Blank Tattoos" },
+        {
+          "id": "hll_1",
+          "text": "Trial of Ngakanu (3 tests in a clover-leaf), loot the Tattoos",
+          "notes": ["Choose +5% Fire/Cold/Lightning Resistance (recommended for most builds) or +5 Str/Dex/Int"],
+          "reward": "Tattoo (choice)"
+        },
         { "id": "hll_2", "text": "Fight Yama the White (low life pool — easy stun)" },
         { "id": "hll_3", "text": "Enter Trial of the Ancestors" }
       ]
@@ -187,14 +217,8 @@
       "objectives": [
         {
           "id": "anc_1",
-          "text": "Talk to Hinekora",
+          "text": "Talk to Navali and Hinekora",
           "reward": "2 Skill Points"
-        },
-        {
-          "id": "anc_2",
-          "text": "Choose a tattoo",
-          "notes": ["+5% Fire/Cold/Lightning Res (recommended) or +5 Str/Dex/Int"],
-          "reward": "+1 Tattoo Slot"
         },
         { "id": "anc_3", "text": "TP, sail to Kedge Bay" }
       ]
@@ -208,6 +232,14 @@
           "text": "Dead Man's Chest / Smuggler's Stash",
           "optional": true,
           "reward": "Torn Map Piece"
+        },
+        { "id": "kdg_3", "text": "Abandoned Ship", "optional": true },
+        { "id": "kdg_4", "text": "Tidal Cay → kill Tombgrowl", "optional": true },
+        {
+          "id": "kdg_5",
+          "text": "Doran, the Deft — near the entrance",
+          "optional": true,
+          "notes": ["A challenging, highly mobile Rogue Exile"]
         },
         { "id": "kdg_2", "text": "Enter Journey's End" }
       ]
@@ -230,14 +262,22 @@
     },
     {
       "id": "act4_plunder",
-      "name": "Plunder's Point (Optional)",
+      "name": "Plunder's Point (Runeseeker)",
       "objectives": [
         {
           "id": "pln_1",
-          "text": "Give 4 Map Pieces to Makoru → sail → Dannig → Expedition",
+          "text": "Give all 4 Torn Map Pieces to Makoru, sail to Dannig, start the Expedition",
           "optional": true,
-          "notes": ["0.5: requires all 4 Torn Maps turned in (Whakapanu, Shrike, Isle of Kin, Kedge Bay)"],
-          "reward": "Expedition loot"
+          "league": true,
+          "notes": ["Only unlocks once all 4 Torn Maps are turned in — from Whakapanu, Shrike, Isle of Kin, and Kedge Bay"]
+        },
+        {
+          "id": "pln_2",
+          "text": "Reach the Deserted Post, summon Farrow",
+          "optional": true,
+          "league": true,
+          "notes": ["The most-skipped leg of the Runeseeker chain — skip it and you forgo Ancient Runes entirely"],
+          "reward": "Unlocks 13 Ancient Runes (Runesmithing of Knowledge)"
         }
       ]
     },
@@ -252,14 +292,19 @@
           "optional": true,
           "reward": "3 Regal each"
         },
-        { "id": "ars_3", "text": "Kill Torvian, enter The Excavation" }
+        {
+          "id": "ars_3",
+          "text": "Kill Torvian, enter The Excavation",
+          "notes": ["Let Torvian throw stones at the 2 priests above to break the fight open"]
+        }
       ]
     },
     {
       "id": "act4_excavation",
       "name": "The Excavation",
       "objectives": [
-        { "id": "exc_1", "text": "Kill Benedictus, talk to The Hooded One" },
+        { "id": "exc_1", "text": "Kill Benedictus (the Precursor Forge), talk to The Hooded One" },
+        { "id": "exc_3", "text": "Excavated Cache at the checkpoint", "optional": true },
         { "id": "exc_2", "text": "Sail to Ngakanu" }
       ]
     },
@@ -267,17 +312,12 @@
       "id": "act4_ngakanu",
       "name": "Ngakanu → Heart of the Tribe",
       "objectives": [
-        { "id": "nga_1", "text": "Navigate the maze → Heart of the Tribe" },
-        { "id": "nga_2", "text": "Kill Tavaki, talk to him" },
-        { "id": "nga_3", "text": "TP to town → Rhodri → sail to the final area" }
-      ]
-    },
-    {
-      "id": "act4_finale",
-      "name": "Act 4 Finale",
-      "objectives": [
-        { "id": "fnl_1", "text": "Kill Zarokh (Final Act 4 Boss)" },
-        { "id": "fnl_2", "text": "Return, talk to The Hooded One — unlocks the Interludes" }
+        { "id": "nga_4", "text": "Abyss → Abyssal Depths", "optional": true },
+        { "id": "nga_5", "text": "Mad Butcher in the large hut", "optional": true },
+        { "id": "nga_1", "text": "Enter Heart of the Tribe" },
+        { "id": "nga_6", "text": "Meeting House has chests to loot", "optional": true },
+        { "id": "nga_2", "text": "Kill Tavakai (Final Act 4 Boss), talk to him" },
+        { "id": "nga_3", "text": "Return, talk to The Hooded One — unlocks the Interludes" }
       ]
     }
   ]

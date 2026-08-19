@@ -583,20 +583,20 @@
     align-items: center;
     gap: 7px;
     padding: 5px 10px;
-    border: 1px solid color-mix(in srgb, #fbbf24 26%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-warning) 26%, transparent);
     border-radius: var(--radius);
-    background: color-mix(in srgb, #fbbf24 6%, transparent);
+    background: color-mix(in srgb, var(--c-warning) 6%, transparent);
     font-size: 10px;
     line-height: 1.4;
-    color: color-mix(in srgb, #fbbf24 70%, #fff 30%);
+    color: color-mix(in srgb, var(--c-warning) 70%, #fff 30%);
     margin-bottom: 2px;
   }
 
   .wip-badge {
     flex-shrink: 0;
-    background: color-mix(in srgb, #fbbf24 14%, transparent);
-    border-color: color-mix(in srgb, #fbbf24 38%, transparent);
-    color: #fbbf24;
+    background: color-mix(in srgb, var(--c-warning) 14%, transparent);
+    border-color: color-mix(in srgb, var(--c-warning) 38%, transparent);
+    color: var(--c-warning);
   }
 
   .browse-hint {
@@ -765,7 +765,7 @@
     font-feature-settings: 'tnum';
     flex-shrink: 0;
   }
-  .craft-row-progress.started { color: #fbbf24; }
+  .craft-row-progress.started { color: var(--c-warning); }
   .craft-row-progress.complete { color: var(--c-success); }
 
   .craft-row-chevron {
@@ -987,11 +987,11 @@
     color: color-mix(in srgb, var(--c-muted) 75%, #fff 25%);
   }
   .step-note.note-warning {
-    border-left-color: #fbbf24;
-    background: color-mix(in srgb, #fbbf24 7%, transparent);
+    border-left-color: var(--c-warning);
+    background: color-mix(in srgb, var(--c-warning) 7%, transparent);
   }
   .note-warning .note-kind {
-    color: #fbbf24;
+    color: var(--c-warning);
   }
   .step-note.note-tip {
     border-left-color: #60a5fa;

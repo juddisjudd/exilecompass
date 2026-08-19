@@ -14,7 +14,8 @@
 //   "objectiveRewards": { "<objId>": "Reward badge text" },
 //   "notes":       { "<objId>": ["Note line 1", "Note line 2"] },
 //   "rewards":     { "<rewardId>": { "source": "...", "location": "...", "label": "..." } },
-//   "rewardGroups":{ "<groupId>": "Group label" }
+//   "rewardGroups":{ "<groupId>": "Group label" },
+//   "actTips":     { "<actNumber>": ["Tip 1 text", "Tip 2 text"] }  // order matches CampaignAct.tips
 // }
 
 import { getLocale } from '$lib/paraglide/runtime.js';
@@ -35,6 +36,7 @@ interface Overlay {
   notes?: Record<string, string[]>;
   rewards?: Record<string, { source?: string; location?: string; label?: string }>;
   rewardGroups?: Record<string, string>;
+  actTips?: Record<string, string[]>;
 }
 
 const OVERLAYS: Record<string, Overlay> = {
@@ -71,4 +73,8 @@ export function trReward(rewardId: string, field: 'source' | 'location' | 'label
 
 export function trRewardGroup(groupId: string, en: string): string {
   return current()?.rewardGroups?.[groupId] ?? en;
+}
+
+export function trActTip(actNumber: number, tipIndex: number, en: string): string {
+  return current()?.actTips?.[String(actNumber)]?.[tipIndex] ?? en;
 }
