@@ -135,6 +135,7 @@
   }
   const ACT_DECODER_ZONE_KEY   = 'EXILECOMPASS_ACT_DECODER_ZONE_V1';
   const CT_OPACITY_KEY         = 'EXILECOMPASS_CT_OPACITY_V1';
+  const MSI_SWITCH_NOTICE_KEY  = 'EXILECOMPASS_NOTICE_MSI_SWITCH_V1';
   const WINDOW_BOUNDS_KEY      = 'EXILECOMPASS_WINDOW_BOUNDS_V1';
   const SETTINGS_GROUPS = ['GENERAL', 'IMPORT', 'ABOUT'] as const;
   const SETTINGS_TABS: Array<{ group: 'GENERAL' | 'IMPORT' | 'ABOUT'; id: SettingsTabId }> = [
@@ -352,6 +353,14 @@
   // users get a "Get update" link to the releases page instead of an Install button.
   let updateSupported = $state(true);
 
+  // One-time notice: the Windows installer format switches from NSIS to MSI
+  // in an upcoming release (fixes Defender/Wacatac false positives), which
+  // breaks the auto-updater's NSIS→MSI path — this release still ships NSIS
+  // and just warns that the next one needs a manual download. Remove this
+  // once the switch has shipped and the notice has had a release cycle to
+  // reach existing installs (see CLAUDE.md notes on the MSI migration).
+  let msiNoticeDismissed = $state(false);
+
   // About
   let appVersion = $state('');
 
@@ -439,6 +448,7 @@
     refreshPoe1Builds();
     const savedOpacity = window.localStorage.getItem(CT_OPACITY_KEY);
     if (savedOpacity) ctOpacity = parseFloat(savedOpacity);
+    msiNoticeDismissed = window.localStorage.getItem(MSI_SWITCH_NOTICE_KEY) === '1';
     void getWidgetOpacity('act-decoder').then((v) => (actDecoderOpacity = v));
 
     getVersion().then((v) => (appVersion = v)).catch(() => {});
@@ -1101,6 +1111,11 @@
     }
   }
 
+  function dismissMsiNotice() {
+    msiNoticeDismissed = true;
+    window.localStorage.setItem(MSI_SWITCH_NOTICE_KEY, '1');
+  }
+
   async function openKofi() {
     try { await openUrl(KOFI_URL); } catch { /* ignore */ }
   }
@@ -1148,6 +1163,13 @@
         {/if}
         <button class="update-dismiss" onclick={() => (updateDismissed = true)} aria-label={m.update_later()}>✕</button>
       {/if}
+    </div>
+  {/if}
+
+  {#if !msiNoticeDismissed}
+    <div class="update-banner">
+      <span class="update-text">{m.notice_msi_switch()}</span>
+      <button class="update-dismiss" onclick={dismissMsiNotice} aria-label={m.notice_dismiss()}>✕</button>
     </div>
   {/if}
 

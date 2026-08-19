@@ -139,6 +139,8 @@
   "update_up_to_date": "You're on the latest version.",
   "update_get": "Get update",
   "update_manual": "Automatic updates aren't available for this install — get the new version from the releases page, or update via your package manager (e.g. apt or your AUR helper).",
+  "notice_msi_switch": "Heads up: the next Windows update switches installer format (to fix antivirus false-positives) and won't auto-install — you'll need to download it manually from the releases page.",
+  "notice_dismiss": "Dismiss",
   "onboarding_title": "Welcome to ExileCompass",
   "onboarding_step_label": "Step {step} of 2",
   "onboarding_logfile_title": "Connect Your Log File",
