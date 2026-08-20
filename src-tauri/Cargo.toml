@@ -27,6 +27,15 @@ overlay-core = { path = "overlay-core" }
 raw-window-handle = "0.6"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
+rustpotter = "3"
+cpal = "0.15"
+hound = "3"
+# Pins `half` (a transitive dep via candle-core, which rustpotter's NN-model
+# support pulls in even though we only use its sample-based WakewordRef path)
+# below the version where it moved to rand 0.9 — candle-core 0.2.2 is written
+# against rand_distr 0.4.3 (rand 0.8) and fails to compile against half's
+# newer rand-0.9-based Distribution impls otherwise.
+half = "=2.4.1"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-dialog = "2"

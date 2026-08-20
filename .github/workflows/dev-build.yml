@@ -1,0 +1,75 @@
+name: Dev Build
+
+# Builds the `dev` branch (currently: the in-progress voice-commands feature)
+# as a downloadable Actions artifact, completely separate from the stable
+# release pipeline in release.yml:
+#   - No GitHub Release is created, so nothing appears on the public
+#     Releases page and the stable auto-updater (which polls
+#     releases/latest/download/latest.json) is never affected.
+#   - The artifact is only downloadable by people with repo access, from the
+#     workflow run's Summary page, and auto-expires (see retention-days).
+#
+# Windows-only for now — Linux would additionally need `libasound2-dev`
+# installed for cpal's ALSA backend to link, which isn't set up here yet.
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # Same empty-string-literal workaround as release.yml — the signing
+          # key was generated without a password, and GitHub forbids storing
+          # an empty secret directly.
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+        run: bun run tauri -- build --bundles nsis
+
+      # Renamed so the file self-identifies even after it's unzipped and
+      # separated from the artifact's own name (e.g. shared over Discord) —
+      # avoids it being mistaken for a real, versioned stable release build.
+      - name: Rename installer for clarity
+        id: installer
+        shell: pwsh
+        run: |
+          $short = "${{ github.sha }}".Substring(0, 7)
+          $src = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1
+          $dest = Join-Path $src.DirectoryName "ExileCompass-dev-$short.exe"
+          Move-Item -Path $src.FullName -Destination $dest
+          echo "path=$dest" >> $env:GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: exilecompass-dev-${{ github.sha }}
+          path: ${{ steps.installer.outputs.path }}
+          retention-days: 14

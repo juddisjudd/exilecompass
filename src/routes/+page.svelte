@@ -47,6 +47,17 @@
   import { load as loadCampaignAutoProgress, handleScene as handleCampaignAutoProgressScene } from '$lib/campaignAutoProgress.svelte';
   import { levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge } from '$lib/levelingRoute.svelte';
   import {
+    voiceState,
+    recordVoiceSample,
+    trainVoicePhrase,
+    resetVoicePhrase,
+    refreshVoiceSetupStatus,
+    setVoiceEnabled,
+    applyVoiceEnabledOnStartup,
+    markVoiceListeningStopped,
+    type VoicePhrase,
+  } from '$lib/voice.svelte';
+  import {
     importPoe1Build,
     clearPoe1Build,
     listPoe1Builds,
@@ -101,7 +112,7 @@
   import type { Update } from '@tauri-apps/plugin-updater';
 
   type AppLocale = (typeof locales)[number];
-  type SettingsTabId = 'hotkeys' | 'language' | 'appearance' | 'logFile' | 'importBuilds' | 'about';
+  type SettingsTabId = 'hotkeys' | 'voice' | 'language' | 'appearance' | 'logFile' | 'importBuilds' | 'about';
 
   const KOFI_URL = 'https://ko-fi.com/ohitsjudd';
   const ADDONS_LABEL = 'Add-ons';
@@ -140,6 +151,7 @@
   const SETTINGS_GROUPS = ['GENERAL', 'IMPORT', 'ABOUT'] as const;
   const SETTINGS_TABS: Array<{ group: 'GENERAL' | 'IMPORT' | 'ABOUT'; id: SettingsTabId }> = [
     { group: 'GENERAL', id: 'hotkeys' },
+    { group: 'GENERAL', id: 'voice' },
     { group: 'GENERAL', id: 'language' },
     { group: 'GENERAL', id: 'appearance' },
     { group: 'GENERAL', id: 'logFile' },
@@ -249,6 +261,31 @@
 
   async function handleActDecoderOpacityChange() {
     await setWidgetOpacity('act-decoder', actDecoderOpacity);
+  }
+
+  // ── Voice commands ("compass next" / "compass back") ────────────────────────
+
+  const VOICE_PHRASES: VoicePhrase[] = ['next', 'back'];
+  const VOICE_MIN_SAMPLES = 3;
+
+  async function handleVoiceEnabledChange(checked: boolean) {
+    try { await setVoiceEnabled(checked); } catch { /* voiceState.error already set */ }
+  }
+
+  async function handleRecordVoiceSample(phrase: VoicePhrase) {
+    try { await recordVoiceSample(phrase); } catch { /* voiceState.error already set */ }
+  }
+
+  async function handleTrainVoicePhrase(phrase: VoicePhrase) {
+    try { await trainVoicePhrase(phrase); } catch { /* voiceState.error already set */ }
+  }
+
+  async function handleResetVoicePhrase(phrase: VoicePhrase) {
+    await resetVoicePhrase(phrase);
+    // Setup no longer complete — the toggle can't stay on without both models.
+    if (voiceState.enabled && !voiceState.setupComplete) {
+      await setVoiceEnabled(false);
+    }
   }
 
   // Apply/remove transparency whenever click-through state or opacity changes
@@ -382,6 +419,7 @@
 
   function getSettingsTabLabel(tabId: SettingsTabId) {
     if (tabId === 'hotkeys') return m.settings_tab_hotkeys();
+    if (tabId === 'voice') return m.settings_tab_voice();
     if (tabId === 'language') return m.label_language();
     if (tabId === 'appearance') return m.settings_tab_appearance();
     if (tabId === 'logFile') return m.settings_tab_log_file();
@@ -437,6 +475,7 @@
     hotkeyDrafts = { ...hotkeyBindings };
     triggerConfig = loadTriggerConfig();
     void pushTriggers();
+    void applyVoiceEnabledOnStartup();
     selectedLocale = getLocale() as AppLocale;
     pobBuild = loadStoredBuild();
     refreshPoe1Builds();
@@ -588,6 +627,21 @@
       });
     })();
 
+    // Voice commands ("compass next" / "compass back") — the Rust listener
+    // thread emits `voice-command` on a detection. Routes through the same
+    // GLOBAL_ACTIONS handlers the hotkeys use, so both drive identical logic.
+    let unlistenVoiceCommand: (() => void) | undefined;
+    let unlistenVoiceStopped: (() => void) | undefined;
+    (async () => {
+      unlistenVoiceCommand = await listen<string>('voice-command', (event) => {
+        if (event.payload === 'next') void GLOBAL_ACTIONS.campaignCompleteNext?.();
+        else if (event.payload === 'back') void GLOBAL_ACTIONS.campaignUndoLast?.();
+      });
+      unlistenVoiceStopped = await listen('voice-listening-stopped', () => {
+        markVoiceListeningStopped();
+      });
+    })();
+
     // Native file drag-and-drop — drop a .build/.json file anywhere to import it
     let unlistenDrop: (() => void) | undefined;
     (async () => {
@@ -612,6 +666,8 @@
       clearInterval(logTimer);
       unlistenDrop?.();
       unlistenTrigger?.();
+      unlistenVoiceCommand?.();
+      unlistenVoiceStopped?.();
       unlistenMoved?.();
       unlistenResized?.();
       if (boundsSaveTimer) clearTimeout(boundsSaveTimer);
@@ -1358,6 +1414,64 @@
                 <p class="field-help">{m.settings_triggers_help()}</p>
               </div>
 
+            {:else if activeSettingsTab === 'voice'}
+              <div class="settings-section-title">{m.settings_tab_voice()}</div>
+              <p class="field-help">{m.voice_intro()}</p>
+
+              <label class="cfg-check" title={m.voice_enable_toggle_title()}>
+                <input
+                  type="checkbox"
+                  class="ec-checkbox cfg-checkbox"
+                  checked={voiceState.enabled}
+                  disabled={!voiceState.setupComplete}
+                  onchange={(e) => handleVoiceEnabledChange((e.currentTarget as HTMLInputElement).checked)}
+                />
+                <span>{m.voice_enable_toggle()}</span>
+              </label>
+              {#if voiceState.listening}
+                <p class="voice-listening-indicator">🎙 {m.voice_listening_active()}</p>
+              {:else if !voiceState.setupComplete}
+                <p class="field-help">{m.voice_setup_required_help()}</p>
+              {/if}
+              {#if voiceState.error}
+                <p class="inline-error">{voiceState.error}</p>
+              {/if}
+
+              <div class="settings-section-title" style="margin-top:16px">{m.voice_setup_title()}</div>
+              <p class="field-help">{m.voice_setup_help({ count: VOICE_MIN_SAMPLES })}</p>
+              {#each VOICE_PHRASES as phrase (phrase)}
+                <div class="voice-phrase-card ec-panel">
+                  <div class="voice-phrase-header">
+                    <strong>{phrase === 'next' ? m.voice_phrase_next() : m.voice_phrase_back()}</strong>
+                    {#if voiceState.trained[phrase]}
+                      <span class="badge badge-ok">{m.voice_trained_badge()}</span>
+                    {/if}
+                  </div>
+                  <p class="field-help">{m.voice_samples_recorded({ count: voiceState.sampleCounts[phrase] })}</p>
+                  <div class="voice-phrase-actions">
+                    <button
+                      class="btn"
+                      type="button"
+                      disabled={voiceState.recordingPhrase !== null}
+                      onclick={() => handleRecordVoiceSample(phrase)}
+                    >
+                      {voiceState.recordingPhrase === phrase ? m.voice_recording() : m.voice_record_sample()}
+                    </button>
+                    <button
+                      class="btn btn-primary"
+                      type="button"
+                      disabled={voiceState.sampleCounts[phrase] < VOICE_MIN_SAMPLES || voiceState.recordingPhrase !== null}
+                      onclick={() => handleTrainVoicePhrase(phrase)}
+                    >
+                      {m.voice_train()}
+                    </button>
+                    <button class="btn btn-ghost" type="button" onclick={() => handleResetVoicePhrase(phrase)}>
+                      {m.voice_reset()}
+                    </button>
+                  </div>
+                </div>
+              {/each}
+
             {:else if activeSettingsTab === 'language'}
               <div class="settings-section-title">{m.label_language()}</div>
               <label class="field-label" for="language-select">{m.label_language()}</label>
@@ -1848,6 +1962,9 @@
   <footer class="app-footer">
     <span class="app-version">{appVersion ? `v${appVersion}` : ''}</span>
     <div class="footer-right">
+      {#if voiceState.listening}
+        <span class="footer-voice-indicator" title={m.voice_listening_active()}>🎙</span>
+      {/if}
       {#if gameMode.current === 'poe1' && levelingRoute.build}
         <span class="footer-build-chip">
           {levelingRoute.build.characterClass}{levelingRoute.build.ascendClassName
@@ -2049,6 +2166,45 @@
   .game-switch-btn.active {
     background: var(--c-red);
     color: var(--c-on-accent);
+  }
+
+  /* Voice commands: always-visible footer indicator so the mic being live is
+     never a surprise, plus the Settings → Voice setup/status UI. */
+  .footer-voice-indicator {
+    font-size: 11px;
+    line-height: 1;
+    animation: voice-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes voice-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+
+  .voice-listening-indicator {
+    margin: 4px 0 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--c-success);
+  }
+
+  .voice-phrase-card {
+    margin-top: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .voice-phrase-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .voice-phrase-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
   }
 
   /* Theme picker (Settings → Appearance) */

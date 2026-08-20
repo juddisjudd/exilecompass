@@ -6,6 +6,13 @@ use overlay_core::{
 };
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
+mod voice;
+use voice::{
+    voice_has_model, voice_is_listening, voice_record_sample, voice_reset_phrase,
+    voice_sample_count, voice_start_listening, voice_stop_listening, voice_train_model,
+    VoiceState,
+};
+
 /// Resolve the game-specific window finder for a `game` id ("poe1" | "poe2").
 /// Unrecognized ids fall back to PoE2 (the app's original/default game).
 fn find_window_for_game(game: &str) -> Option<WindowInfo> {
@@ -1379,6 +1386,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(OverlayState::new())
+        .manage(VoiceState::new())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Window is built here (not in tauri.conf.json) so transparency can be
@@ -1453,6 +1461,14 @@ pub fn run() {
             addons_install_from_registry,
             addons_read_panel,
             addons_load_registry,
+            voice_sample_count,
+            voice_has_model,
+            voice_reset_phrase,
+            voice_record_sample,
+            voice_train_model,
+            voice_is_listening,
+            voice_start_listening,
+            voice_stop_listening,
         ])
         .run(tauri::generate_context!());
 
