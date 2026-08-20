@@ -27,3 +27,15 @@
 ▁COMP AS S ▁ R ING S @rings
 ▁COMP AS S ▁BE L T @belt
 ▁COMP AS S ▁UN I QU ES @uniques
+▁COMP AS S ▁START ▁TIME R @timerstart
+▁COMP AS S ▁ST O P ▁TIME R @timerstop
+▁COMP AS S ▁RE S ET ▁TIME R @timerreset
+▁COMP AS S ▁TIME R @timer
+▁COMP AS S ▁RU N ▁TIME @timerstatus
+▁COMP AS S ▁SP LI T @timersplit
+▁COMP AS S ▁MAN U AL ▁TIME R @timermodemanual
+▁COMP AS S ▁CA M P A IG N ▁TIME R @timermodecampaign
+▁COMP AS S ▁C LI CK ▁THROUGH ▁ON @clickthroughon
+▁COMP AS S ▁C LI CK ▁THROUGH ▁OF F @clickthroughoff
+▁COMP AS S ▁LO CK ▁OVER LA Y @clickthroughon
+▁COMP AS S ▁UN LO CK ▁OVER LA Y @clickthroughoff

@@ -196,6 +196,7 @@
       </button>
     {/if}
     <h3>{view === 'slots' ? m.crafting_guide_title() : slotLabel}</h3>
+    <span class="game-tag game-tag-poe2">{m.game_switch_poe2()}</span>
     {#if view === 'slots'}
       <div class="guides-status">
         {#if lastRefreshed}
@@ -527,24 +528,8 @@
     gap: 4px;
   }
 
-  .guide-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    margin-bottom: 2px;
-  }
-
   .guide-header h3 {
     flex: 1;
-    margin: 0;
-    font-family: 'Satoshi', 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--c-primary);
-    text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

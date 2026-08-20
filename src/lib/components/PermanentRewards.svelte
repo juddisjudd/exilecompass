@@ -129,7 +129,7 @@
     <div class="group ec-panel" style="--g-color: {group.color}">
       <button class="group-header" type="button" onclick={() => toggleGroup(group.id)}>
         <span class="group-left">
-          <span class="toggle-icon" class:expanded={expanded}>▶</span>
+          <span class="guide-toggle-icon" class:expanded={expanded}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></span>
           <span class="group-label">{trRewardGroup(group.id, group.label)}</span>
         </span>
         {#if hasNumeric}
@@ -222,17 +222,6 @@
     align-items: center;
     gap: 7px;
     min-width: 0;
-  }
-
-  .toggle-icon {
-    font-size: 9px;
-    color: color-mix(in srgb, var(--c-accent) 75%, transparent);
-    transition: transform 0.12s;
-    flex-shrink: 0;
-  }
-
-  .toggle-icon.expanded {
-    transform: rotate(90deg);
   }
 
   .group-label {

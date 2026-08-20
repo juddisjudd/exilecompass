@@ -350,7 +350,7 @@
       <div class="section">
         <button class="panel-header notes-toggle" onclick={() => (notesExpanded = !notesExpanded)} type="button">
           <span class="notes-toggle-label">
-            <span class="toggle-icon" class:expanded={notesExpanded}>▶</span>
+            <span class="guide-toggle-icon" class:expanded={notesExpanded}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></span>
             {m.build_section_notes()}
           </span>
         </button>
@@ -611,7 +611,5 @@
   /* ── Notes ─────────────────────────────────────────────── */
   .notes-toggle { width: 100%; border: none; cursor: pointer; text-align: left; }
   .notes-toggle-label { display: flex; align-items: center; gap: 6px; }
-  .toggle-icon { font-size: 8px; color: color-mix(in srgb, var(--c-accent) 70%, transparent); transition: transform 0.2s ease; flex-shrink: 0; }
-  .toggle-icon.expanded { transform: rotate(90deg); }
   .notes-body { margin: 0; padding: 8px 10px; font-family: 'Satoshi', 'Inter', sans-serif; font-size: 11px; line-height: 1.55; color: color-mix(in srgb, var(--c-accent) 82%, #fff 18%); white-space: pre-wrap; overflow-wrap: break-word; background: color-mix(in srgb, var(--c-bg) 97%, var(--c-mid)); max-height: 240px; overflow-y: auto; }
 </style>

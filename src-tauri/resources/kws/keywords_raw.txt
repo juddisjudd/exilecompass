@@ -27,3 +27,15 @@ COMPASS AMULET @amulet
 COMPASS RINGS @rings
 COMPASS BELT @belt
 COMPASS UNIQUES @uniques
+COMPASS START TIMER @timerstart
+COMPASS STOP TIMER @timerstop
+COMPASS RESET TIMER @timerreset
+COMPASS TIMER @timer
+COMPASS RUN TIME @timerstatus
+COMPASS SPLIT @timersplit
+COMPASS MANUAL TIMER @timermodemanual
+COMPASS CAMPAIGN TIMER @timermodecampaign
+COMPASS CLICK THROUGH ON @clickthroughon
+COMPASS CLICK THROUGH OFF @clickthroughoff
+COMPASS LOCK OVERLAY @clickthroughon
+COMPASS UNLOCK OVERLAY @clickthroughoff

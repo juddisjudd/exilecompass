@@ -69,6 +69,7 @@ pub const PHRASES: &[&str] = &[
     "rewards",
     "campaign",
     "build",
+    "timer",
     "skill1",
     "skill2",
     "skill3",
@@ -91,6 +92,15 @@ pub const PHRASES: &[&str] = &[
     "rings",
     "belt",
     "uniques",
+    "timerstart",
+    "timerstop",
+    "timerreset",
+    "timerstatus",
+    "timersplit",
+    "timermodemanual",
+    "timermodecampaign",
+    "clickthroughon",
+    "clickthroughoff",
 ];
 
 #[tauri::command]

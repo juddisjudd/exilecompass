@@ -2,6 +2,7 @@
   import { m } from '$lib/paraglide/messages.js';
   import { campaignTimer } from '$lib/campaignTimer.svelte';
   import { poe1CampaignTimer } from '$lib/poe1CampaignTimer.svelte';
+  import { manualTimer, timerMode } from '$lib/manualTimer.svelte';
   import { gameMode } from '$lib/gameMode.svelte';
 
   // PoE1 and PoE2 auto-splits are tracked by separate timer instances (PoE1's
@@ -10,27 +11,7 @@
   // either one's progress.
   const timer = $derived(gameMode.current === 'poe1' ? poe1CampaignTimer : campaignTimer);
 
-  type TimerState = 'idle' | 'running' | 'paused';
-  type Mode = 'manual' | 'campaign';
-
-  interface Split {
-    label: string;
-    elapsed: number;
-    delta: number;
-  }
-
-  // PoE1 has 10 acts, PoE2 4 (+ interludes) — sized to the longer campaign;
-  // manual mode falls back to "Split N" once labels run out.
-  const DEFAULT_LABELS = Array.from({ length: 10 }, (_, i) => `Act ${i + 1}`);
-
-  let mode = $state<Mode>('manual');
-
-  // ── Manual timer ──────────────────────────────────────────────
-  let timerState = $state<TimerState>('idle');
-  let elapsedMs = $state(0);
-  let splits = $state<Split[]>([]);
-  let startTimestamp = 0;
-  let rafId: number | null = null;
+  const mode = $derived(timerMode.current);
 
   function formatTime(ms: number, compact = false): string {
     const totalCs = Math.floor(ms / 10);
@@ -50,46 +31,17 @@
     return `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
   }
 
-  function tick() {
-    elapsedMs = performance.now() - startTimestamp;
-    rafId = requestAnimationFrame(tick);
-  }
-  function startResume() {
-    startTimestamp = performance.now() - elapsedMs;
-    timerState = 'running';
-    rafId = requestAnimationFrame(tick);
-  }
-  function pause() {
-    timerState = 'paused';
-    if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-  }
-  function handleStartPause() {
-    if (timerState === 'running') pause();
-    else startResume();
-  }
-  function split() {
-    if (timerState !== 'running') return;
-    const prev = splits.length > 0 ? splits[splits.length - 1].elapsed : 0;
-    const label = DEFAULT_LABELS[splits.length] ?? `Split ${splits.length + 1}`;
-    splits = [...splits, { label, elapsed: elapsedMs, delta: elapsedMs - prev }];
-  }
-  function reset() {
-    if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-    timerState = 'idle';
-    elapsedMs = 0;
-    splits = [];
-  }
-
-  $effect(() => () => { if (rafId !== null) cancelAnimationFrame(rafId); });
-
-  // ── Campaign timer (auto, from log) ───────────────────────────
+  // One clock drives both modes' live readouts. Manual needs ~10fps for its
+  // centisecond display; campaign only shows whole seconds.
   let nowMs = $state(Date.now());
   $effect(() => {
-    if (mode === 'campaign' && timer.running) {
-      const id = setInterval(() => { nowMs = Date.now(); }, 250);
-      return () => clearInterval(id);
-    }
+    const live = (mode === 'manual' && manualTimer.running) || (mode === 'campaign' && timer.running);
+    if (!live) return;
+    const id = setInterval(() => { nowMs = Date.now(); }, mode === 'manual' ? 50 : 250);
+    return () => clearInterval(id);
   });
+
+  const manualElapsed = $derived(manualTimer.elapsedAt(nowMs));
 
   function fmtClock(ms: number): string {
     if (ms < 0) ms = 0;
@@ -119,23 +71,23 @@
   <div class="panel-header timer-header">
     <h3>{m.timer_title()}</h3>
     <div class="mode-toggle">
-      <button class="btn" class:btn-primary={mode === 'manual'} class:btn-ghost={mode !== 'manual'} onclick={() => (mode = 'manual')}>{m.timer_mode_manual()}</button>
-      <button class="btn" class:btn-primary={mode === 'campaign'} class:btn-ghost={mode !== 'campaign'} onclick={() => (mode = 'campaign')}>{m.timer_mode_campaign()}</button>
+      <button class="btn" class:btn-primary={mode === 'manual'} class:btn-ghost={mode !== 'manual'} onclick={() => timerMode.set('manual')}>{m.timer_mode_manual()}</button>
+      <button class="btn" class:btn-primary={mode === 'campaign'} class:btn-ghost={mode !== 'campaign'} onclick={() => timerMode.set('campaign')}>{m.timer_mode_campaign()}</button>
     </div>
   </div>
 
   {#if mode === 'manual'}
     <!-- ── Manual ───────────────────────────────────────────── -->
-    <div class="display" class:running={timerState === 'running'} class:paused={timerState === 'paused'}>
-      <span class="time">{formatTime(elapsedMs)}</span>
+    <div class="display" class:running={manualTimer.state === 'running'} class:paused={manualTimer.state === 'paused'}>
+      <span class="time">{formatTime(manualElapsed)}</span>
     </div>
 
     <div class="controls">
-      <button class="ctrl-btn ctrl-primary" class:is-pause={timerState === 'running'} onclick={handleStartPause}>
-        {#if timerState === 'running'}
+      <button class="ctrl-btn ctrl-primary" class:is-pause={manualTimer.running} onclick={() => manualTimer.toggle()}>
+        {#if manualTimer.state === 'running'}
           <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>
           {m.timer_pause()}
-        {:else if timerState === 'paused'}
+        {:else if manualTimer.state === 'paused'}
           <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M4 2l10 6-10 6V2z"/></svg>
           {m.timer_resume()}
         {:else}
@@ -143,13 +95,13 @@
           {m.timer_start()}
         {/if}
       </button>
-      <button class="btn btn-ghost ctrl-btn ctrl-split" onclick={split} disabled={timerState !== 'running'}>{m.timer_split()}</button>
-      <button class="btn btn-danger ctrl-btn" onclick={reset} disabled={timerState === 'idle' && splits.length === 0} title={m.timer_reset_title()}>{m.action_reset()}</button>
+      <button class="btn btn-ghost ctrl-btn ctrl-split" onclick={() => manualTimer.split()} disabled={!manualTimer.running}>{m.timer_split()}</button>
+      <button class="btn btn-danger ctrl-btn" onclick={() => manualTimer.reset()} disabled={manualTimer.state === 'idle' && manualTimer.splits.length === 0} title={m.timer_reset_title()}>{m.action_reset()}</button>
     </div>
 
-    {#if splits.length > 0}
+    {#if manualTimer.splits.length > 0}
       <div class="splits">
-        {#each splits as s, i (i)}
+        {#each manualTimer.splits as s, i (i)}
           <div class="split-row">
             <span class="split-label">{s.label}</span>
             <span class="split-delta">+{formatTime(s.delta, true)}</span>

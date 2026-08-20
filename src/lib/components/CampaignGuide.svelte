@@ -165,8 +165,11 @@
 
 <div class="campaign-guide">
   <div class="guide-header ec-panel">
-    <h3>{m.campaign_guide_title()}</h3>
-    <div class="header-right">
+    <div class="guide-title">
+      <h3>{m.campaign_guide_title()}</h3>
+      <span class="game-tag game-tag-poe2">{m.game_switch_poe2()}</span>
+    </div>
+    <div class="guide-header-actions">
       <label class="cfg-check" title={m.campaign_show_league_toggle_title()}>
         <input
           type="checkbox"
@@ -204,33 +207,33 @@
     {@const isRequired = progress.status === 'required'}
     {@const expanded = guideState.expandedActs.has(act.number)}
     <div
-      class="act-group ec-panel"
+      class="guide-group ec-panel"
       class:complete={isComplete}
       class:required={isRequired}
       class:complete-collapsed={isComplete && !expanded}
     >
-      <div class="act-header-row">
+      <div class="guide-group-row">
         <button
-          class="act-header"
+          class="guide-group-header"
           onclick={() => toggleAct(act.number)}
           type="button"
         >
-          <span class="toggle-icon" class:expanded>
+          <span class="guide-toggle-icon" class:expanded>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
           </span>
-          <span class="act-title">{trAct(act.number, act.name)}</span>
+          <span class="guide-group-title">{trAct(act.number, act.name)}</span>
           {#if act.temporary}
-            <span class="badge-interlude">{m.campaign_interlude_badge()}</span>
+            <span class="tag tag-interlude">{m.campaign_interlude_badge()}</span>
           {/if}
           {#if isComplete}
-            <span class="badge-complete">✓ {m.campaign_complete_badge()}</span>
+            <span class="tag tag-complete">✓ {m.campaign_complete_badge()}</span>
           {/if}
-          <span class="act-progress" class:complete={isComplete} class:required={isRequired}>
+          <span class="guide-progress" class:complete={isComplete} class:required={isRequired}>
             {progress.completed}/{progress.total}
           </span>
         </button>
         <button
-          class="act-complete-btn"
+          class="guide-group-action"
           class:done={isComplete}
           onclick={() => campaignProgress.setMany(objectives.map((o) => o.id), !isComplete)}
           title={isComplete ? m.campaign_clear_act() : m.campaign_mark_act_complete()}
@@ -253,21 +256,25 @@
       {#if expanded}
         {#if visibleTips.length > 0}
           {@const tipsExpanded = guideState.expandedTips.has(act.number)}
-          <div class="tips-box">
+          <div class="tips-box" class:expanded={tipsExpanded}>
             <button class="tips-header" onclick={() => toggleTips(act.number)} type="button">
-              <span class="toggle-icon" class:expanded={tipsExpanded}>
+              <span class="guide-toggle-icon" class:expanded={tipsExpanded}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
               </span>
-              <span>{m.campaign_tips_title()}</span>
+              <svg class="tips-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
+              </svg>
+              <span class="tips-title">{m.campaign_tips_title()}</span>
+              <span class="tips-count">{visibleTips.length}</span>
             </button>
             {#if tipsExpanded}
               <ul class="tips-list">
                 {#each act.tips ?? [] as tip, i}
                   {#if showLeagueMechanics || !tip.league}
                     <li class="tip-item">
-                      <span>{trActTip(act.number, i, tip.text)}</span>
+                      <span class="tip-text">{trActTip(act.number, i, tip.text)}</span>
                       {#if tip.league}
-                        <span class="badge badge-league" title={m.campaign_league_badge_title()}>{m.campaign_league_badge()}</span>
+                        <span class="tag tag-league" title={m.campaign_league_badge_title()}>{m.campaign_league_badge()}</span>
                       {/if}
                     </li>
                   {/if}
@@ -307,7 +314,7 @@
                   onclick={() => toggleZone(zone.id)}
                   type="button"
                 >
-                  <span class="toggle-icon" class:expanded={guideState.expandedZones.has(zone.id)}>
+                  <span class="guide-toggle-icon" class:expanded={guideState.expandedZones.has(zone.id)}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                   </span>
                   <span class="zone-title">{trZone(zone.id, zone.name)}</span>
@@ -321,29 +328,29 @@
                 <div class="objectives-container">
                   {#each zoneObjectives as obj (obj.id)}
                     {@const done = campaignProgress.has(obj.id)}
-                    <div class="objective-row" class:done class:optional={obj.optional} class:league={obj.league}>
-                      <label class="objective-label">
+                    <div class="guide-row" class:done class:optional={obj.optional} class:league={obj.league}>
+                      <label class="guide-row-label">
                         <input
                           type="checkbox"
                           checked={done}
                           onchange={() => toggleObjective(obj.id)}
-                          class="ec-checkbox objective-checkbox"
+                          class="ec-checkbox guide-row-checkbox"
                         />
-                        <span class="objective-text">{trObjective(obj.id, obj.text)}</span>
+                        <span class="guide-row-text">{trObjective(obj.id, obj.text)}</span>
                         {#if obj.league}
-                          <span class="badge badge-league" title={m.campaign_league_badge_title()}>{m.campaign_league_badge()}</span>
+                          <span class="tag tag-league" title={m.campaign_league_badge_title()}>{m.campaign_league_badge()}</span>
                         {:else if obj.optional}
-                          <span class="badge badge-optional">{m.campaign_optional_badge()}</span>
+                          <span class="tag tag-optional">{m.campaign_optional_badge()}</span>
                         {/if}
                         {#if obj.reward}
-                          <span class="badge badge-reward">{trObjectiveReward(obj.id, obj.reward)}</span>
+                          <span class="tag tag-reward">{trObjectiveReward(obj.id, obj.reward)}</span>
                         {/if}
                       </label>
 
                       {#if obj.notes && obj.notes.length > 0}
-                        <div class="objective-notes">
+                        <div class="guide-row-notes">
                           {#each trNotes(obj.id, obj.notes) as note}
-                            <div class="note">› {note}</div>
+                            <div class="guide-note">› {note}</div>
                           {/each}
                         </div>
                       {/if}
@@ -364,299 +371,146 @@
   .campaign-guide {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sp-1);
   }
 
-  .guide-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    margin-bottom: 2px;
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .cfg-check {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10px;
-    color: var(--c-accent);
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .cfg-checkbox {
-    width: 13px;
-    height: 13px;
-  }
-
-  .guide-header h3 {
-    margin: 0;
-    font-family: 'Satoshi', 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--c-primary);
-    text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent);
-  }
-
-  /* Act group */
-  .act-group {
-    overflow: hidden;
-    transition: border-color 0.25s;
-  }
-
-  .act-group.complete {
-    border-color: color-mix(in srgb, var(--c-success) 28%, transparent);
-  }
-
-  /* All required objectives done, optional ones still pending → yellow. */
-  .act-group.required {
+  /* Required-but-not-optional: all mandatory objectives done, optional ones
+     pending. Campaign-only — leveling steps have no optional flag. */
+  .guide-group.required {
     border-color: color-mix(in srgb, var(--c-warning) 26%, transparent);
   }
-
-  /* Finished act, collapsed — recede it so the eye skips to unfinished work.
-     Full opacity returns once expanded so its contents stay readable. */
-  .act-group.complete-collapsed {
-    opacity: 0.55;
-    transition: opacity 0.2s;
+  .required .guide-group-header {
+    color: color-mix(in srgb, var(--c-warning) 80%, var(--c-primary) 20%);
   }
-  .act-group.complete-collapsed:hover {
-    opacity: 0.85;
+  .guide-progress.required {
+    color: var(--c-warning);
   }
-
-  .act-header-row {
-    display: flex;
-    align-items: stretch;
+  .progress-bar-fill.required {
+    background: linear-gradient(90deg, var(--c-warning-deep), var(--c-warning));
   }
-
-  .act-header {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-    padding: 8px 12px;
-    background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
-    border: none;
-    color: var(--c-primary);
-    font-family: 'Satoshi', 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
-    cursor: pointer;
-    transition: background 0.15s;
-    text-align: left;
-    gap: 8px;
-  }
-
-  .act-header:hover {
-    background: color-mix(in srgb, var(--c-bg) 78%, var(--c-mid));
-  }
-
-  /* One-click "complete the whole act" toggle, sitting at the end of the header
-     row. Shows a check to fill the act in, or an undo arrow to clear it. */
-  .act-complete-btn {
-    flex-shrink: 0;
-    width: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
-    border: none;
-    border-left: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
-    color: color-mix(in srgb, var(--c-success) 70%, var(--c-accent));
-    font-size: 13px;
-    line-height: 1;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-  .act-complete-btn:hover {
-    background: color-mix(in srgb, var(--c-success) 16%, transparent);
-    color: color-mix(in srgb, var(--c-success) 80%, white 20%);
-  }
-  .act-complete-btn.done {
-    color: color-mix(in srgb, var(--c-muted) 80%, #fff 12%);
-    font-size: 12px;
-  }
-  .act-complete-btn.done:hover {
+  .guide-group-action.done:hover {
     background: color-mix(in srgb, var(--c-warning) 14%, transparent);
     color: var(--c-warning);
   }
 
-  .complete .act-header {
-    color: color-mix(in srgb, var(--c-success) 80%, var(--c-primary) 20%);
-    text-shadow: 0 0 10px color-mix(in srgb, var(--c-success) 30%, transparent);
-  }
-
-  .required .act-header {
-    color: color-mix(in srgb, var(--c-warning) 80%, var(--c-primary) 20%);
-    text-shadow: 0 0 10px color-mix(in srgb, var(--c-warning) 26%, transparent);
-  }
-
-  .toggle-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-    /* rotate 90° for the collapsed (pointing-right) state */
-    transform: rotate(90deg);
-    transition: transform 0.2s ease, opacity 0.15s;
-    opacity: 0.6;
-  }
-  .toggle-icon svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-  .toggle-icon.expanded {
-    transform: rotate(180deg);
-    opacity: 0.9;
-  }
-
-  .act-title {
-    flex: 1;
-  }
-
-  .badge-interlude {
-    font-size: 8px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 1px 5px;
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--c-info) 10%, transparent);
-    color: color-mix(in srgb, var(--c-info) 80%, white 20%);
-    border: 1px solid color-mix(in srgb, var(--c-info) 28%, transparent);
-    flex-shrink: 0;
-  }
-
-  .badge-complete {
-    font-size: 8px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 1px 5px;
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--c-success) 12%, transparent);
-    color: color-mix(in srgb, var(--c-success) 80%, white 20%);
-    border: 1px solid color-mix(in srgb, var(--c-success) 34%, transparent);
-    flex-shrink: 0;
-  }
-
-  .act-progress {
-    font-family: 'Satoshi', 'Inter', sans-serif;
-    font-size: 10px;
-    font-weight: 500;
-    color: color-mix(in srgb, var(--c-accent) 70%, transparent);
-    letter-spacing: 0.04em;
-    min-width: 36px;
-    text-align: right;
-    font-feature-settings: 'tnum';
-  }
-
-  .act-progress.complete {
-    color: var(--c-success);
-  }
-
-  .act-progress.required {
-    color: var(--c-warning);
-  }
-
-  /* Progress bar */
-  .progress-bar-track {
-    height: 2px;
-    background: color-mix(in srgb, var(--c-mid) 60%, transparent);
-  }
-
-  .progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--c-accent), var(--c-primary));
-    transition: width 0.4s ease;
-  }
-
-  .progress-bar-fill.complete {
-    background: linear-gradient(90deg, var(--c-success-deep), var(--c-success));
-  }
-
-  .progress-bar-fill.required {
-    background: linear-gradient(90deg, var(--c-warning-deep), var(--c-warning));
-  }
-
-  /* Speedrun tips box */
+  /* Advisory callout: leading accent rail + lightbulb, deliberately neutral
+     since green/amber/blue/purple already carry status meaning here. */
   .tips-box {
-    margin: 4px 4px 0;
-    border: 1px solid color-mix(in srgb, var(--c-primary) 20%, transparent);
-    background: color-mix(in srgb, var(--c-primary) 5%, var(--c-bg));
+    margin: var(--sp-1) var(--sp-1) 0;
+    border: 1px solid color-mix(in srgb, var(--c-primary) 16%, transparent);
+    border-left: 2px solid color-mix(in srgb, var(--c-primary) 42%, transparent);
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--c-primary) 7%, var(--c-bg)),
+      color-mix(in srgb, var(--c-primary) 3%, var(--c-bg))
+    );
+    transition: border-color 0.15s ease;
+  }
+  .tips-box:hover {
+    border-left-color: color-mix(in srgb, var(--c-primary) 65%, transparent);
   }
 
   .tips-header {
     display: flex;
     align-items: center;
     width: 100%;
-    padding: 5px 10px;
+    padding: 6px 10px;
     background: transparent;
     border: none;
-    color: var(--c-primary);
-    font-weight: 600;
-    font-size: 10px;
-    letter-spacing: 0.06em;
+    color: color-mix(in srgb, var(--c-primary) 88%, transparent);
+    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     cursor: pointer;
     text-align: left;
     gap: 6px;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .tips-header:hover {
+    background: color-mix(in srgb, var(--c-primary) 7%, transparent);
+    color: var(--c-primary);
   }
 
-  .tips-header:hover {
-    background: color-mix(in srgb, var(--c-primary) 8%, transparent);
+  .tips-icon {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    opacity: 0.85;
+  }
+
+  .tips-title {
+    flex: 1;
+  }
+
+  .tips-count {
+    flex-shrink: 0;
+    min-width: 15px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--c-primary) 14%, transparent);
+    color: color-mix(in srgb, var(--c-primary) 75%, transparent);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 15px;
+    text-align: center;
+    font-feature-settings: 'tnum';
   }
 
   .tips-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     margin: 0;
-    padding: 2px 10px 8px 30px;
-    list-style: disc;
+    padding: 0 10px var(--sp-1) 10px;
+    list-style: none;
   }
 
+  /* Custom marker instead of a disc bullet — hairline rules between tips keep
+     multi-line entries scannable without adding vertical bulk. */
   .tip-item {
+    position: relative;
     font-size: 10.5px;
-    line-height: 1.4;
-    color: color-mix(in srgb, var(--c-accent) 90%, #fff 10%);
+    line-height: 1.5;
+    color: color-mix(in srgb, var(--c-accent) 92%, #fff 8%);
     display: flex;
     align-items: baseline;
     gap: 6px;
     flex-wrap: wrap;
+    padding: 5px 0 5px 14px;
+    border-top: 1px solid color-mix(in srgb, var(--c-primary) 9%, transparent);
+  }
+  .tip-item:first-child {
+    border-top: none;
+  }
+  .tip-item::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 11px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--c-primary) 45%, transparent);
   }
 
-  /* Zones */
+  .tip-text {
+    flex: 1;
+    min-width: 0;
+  }
+
   .zones-container {
     display: flex;
     flex-direction: column;
     gap: 1px;
-    padding: 4px;
+    padding: var(--sp-1);
     background: color-mix(in srgb, var(--c-bg) 97%, var(--c-mid));
   }
 
   .zone-group {
     overflow: hidden;
-    transition: border-color 0.2s, background 0.2s;
+    transition: border-color 0.2s ease, background 0.2s ease;
   }
-
-  /* Zone fully complete (incl. optional) → green; required-only done → yellow.
-     A faint background tint keeps yellow distinct from the default gold accent. */
   .zone-group.complete {
     border-color: color-mix(in srgb, var(--c-success) 30%, transparent);
     background: color-mix(in srgb, var(--c-success) 6%, var(--c-bg));
@@ -664,7 +518,6 @@
   .zone-group.complete .zone-header {
     color: color-mix(in srgb, var(--c-success) 82%, #fff 18%);
   }
-
   .zone-group.required {
     border-color: color-mix(in srgb, var(--c-warning) 32%, transparent);
     background: color-mix(in srgb, var(--c-warning) 6%, var(--c-bg));
@@ -672,9 +525,6 @@
   .zone-group.required .zone-header {
     color: color-mix(in srgb, var(--c-warning) 85%, #fff 15%);
   }
-
-  /* Auto-progress "you are here" — position tracking only, independent of the
-     complete/required coloring above. */
   .zone-group.active-zone {
     border-color: color-mix(in srgb, var(--c-red) 40%, transparent);
     background: color-mix(in srgb, var(--c-red) 6%, var(--c-bg));
@@ -692,30 +542,8 @@
     align-items: stretch;
   }
 
-  .pos-marker {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+  .zone-header-row :global(.pos-marker) {
     width: 22px;
-    flex-shrink: 0;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: var(--c-muted);
-    cursor: pointer;
-  }
-
-  .pos-marker:hover {
-    color: var(--c-red-bright);
-  }
-
-  .pos-ico {
-    width: 10px;
-    height: 10px;
-  }
-
-  .pos-ico.active {
-    color: var(--c-red-bright);
   }
 
   .zone-header {
@@ -730,11 +558,10 @@
     font-size: 11px;
     letter-spacing: 0.03em;
     cursor: pointer;
-    transition: background 0.1s, color 0.1s;
+    transition: background 0.1s ease, color 0.1s ease;
     text-align: left;
     gap: 6px;
   }
-
   .zone-header:hover {
     background: color-mix(in srgb, var(--c-accent) 7%, transparent);
     color: var(--c-primary);
@@ -744,105 +571,16 @@
     flex: 1;
   }
 
-  /* Objectives */
   .objectives-container {
     display: flex;
     flex-direction: column;
     background: color-mix(in srgb, var(--c-bg) 99%, transparent);
   }
 
-  .objective-row {
-    padding: 4px 10px 4px 8px;
-    border-left: 2px solid transparent;
-    transition: background 0.1s, border-color 0.1s, transform 0.1s;
-  }
-
-  .objective-row:hover {
-    background: color-mix(in srgb, var(--c-accent) 5%, transparent);
-    transform: translateX(1px);
-  }
-
-  .objective-row.optional {
+  .guide-row.optional {
     border-left-color: color-mix(in srgb, var(--c-optional) 40%, transparent);
   }
-
-  .objective-row.league {
+  .guide-row.league {
     border-left-color: color-mix(in srgb, var(--c-info) 40%, transparent);
-  }
-
-  .objective-row.done {
-    opacity: 0.5;
-  }
-
-  .objective-label {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    cursor: pointer;
-    flex-wrap: wrap;
-  }
-
-  .objective-checkbox {
-    margin-top: 1px;
-    align-self: flex-start;
-  }
-
-  .objective-text {
-    font-size: 11px;
-    color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%);
-    line-height: 1.35;
-    flex: 1;
-  }
-
-  .done .objective-text {
-    text-decoration: line-through;
-    text-decoration-color: color-mix(in srgb, var(--c-accent) 50%, transparent);
-  }
-
-  .badge {
-    display: inline-block;
-    padding: 1px 5px;
-    border-radius: var(--radius);
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-    flex-shrink: 0;
-    line-height: 1.6;
-  }
-
-  .badge-optional {
-    background: color-mix(in srgb, var(--c-optional) 12%, transparent);
-    color: color-mix(in srgb, var(--c-optional) 80%, white 20%);
-    border: 1px solid color-mix(in srgb, var(--c-optional) 30%, transparent);
-  }
-
-  .badge-league {
-    background: color-mix(in srgb, var(--c-info) 12%, transparent);
-    color: var(--c-info);
-    border: 1px solid color-mix(in srgb, var(--c-info) 32%, transparent);
-  }
-
-  .badge-reward {
-    background: color-mix(in srgb, var(--c-primary) 10%, transparent);
-    color: var(--c-primary);
-    border: 1px solid color-mix(in srgb, var(--c-primary) 25%, transparent);
-    text-shadow: 0 0 8px color-mix(in srgb, var(--c-primary) 30%, transparent);
-  }
-
-  .objective-notes {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    margin: 3px 0 2px 19px;
-    padding: 3px 6px;
-    border-left: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent);
-  }
-
-  .note {
-    font-size: 10px;
-    color: color-mix(in srgb, var(--c-muted) 88%, #fff 12%);
-    line-height: 1.3;
-    font-style: italic;
   }
 </style>

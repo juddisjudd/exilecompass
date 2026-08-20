@@ -744,12 +744,7 @@
     line-height: 1.5;
     height: 28px;
     padding: 2px 2px 0;
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--c-accent) 45%, transparent) transparent;
   }
-  .output-text::-webkit-scrollbar { height: 6px; }
-  .output-text::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--c-accent) 40%, transparent); border-radius: var(--radius); }
-  .output-text::-webkit-scrollbar-track { background: transparent; }
   .output-text.empty { color: color-mix(in srgb, var(--c-accent) 60%, transparent); font-style: italic; }
 
   .act-btn {

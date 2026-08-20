@@ -45,6 +45,7 @@
   import { persistGet, persistSet, persistRemove } from '$lib/persist';
   import { campaignTimer } from '$lib/campaignTimer.svelte';
   import { poe1CampaignTimer } from '$lib/poe1CampaignTimer.svelte';
+  import { manualTimer, timerMode } from '$lib/manualTimer.svelte';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
   import { load as loadCampaignAutoProgress, handleScene as handleCampaignAutoProgressScene } from '$lib/campaignAutoProgress.svelte';
   import { levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge } from '$lib/levelingRoute.svelte';
@@ -80,6 +81,7 @@
     attachToGame,
     detachFromGame,
     toggleClickThrough,
+    setClickThrough,
     toggleHidden,
     setHidden,
   } from '$lib/overlay.svelte';
@@ -211,6 +213,7 @@
       const game = gameMode.current;
       await campaignTimer.load();
       await poe1CampaignTimer.load();
+      await timerMode.load();
       campaignProgress.load();
       loadCampaignAutoProgress();
       let path = await persistGet(logFileKey(game));
@@ -390,6 +393,126 @@
     void speak(items.map(describeItemSpoken).join(' '));
   }
 
+  /** The run timer for whichever game is active (each game keeps its own). */
+  function activeTimer() {
+    return gameMode.current === 'poe1' ? poe1CampaignTimer : campaignTimer;
+  }
+
+  /** Elapsed run time as words TTS reads naturally ("1 hour 12 minutes"). */
+  function spokenElapsed(ms: number): string {
+    const totalMinutes = Math.floor(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const parts: string[] = [];
+    if (hours > 0) {
+      parts.push(hours === 1 ? m.voice_tts_duration_hours_one() : m.voice_tts_duration_hours({ count: hours.toString() }));
+    }
+    if (minutes > 0 || hours === 0) {
+      parts.push(minutes === 1 ? m.voice_tts_duration_minutes_one() : m.voice_tts_duration_minutes({ count: minutes.toString() }));
+    }
+    return parts.join(' ');
+  }
+
+  /** Timer voice commands act on whichever mode the Timer tab is showing —
+   *  the manual stopwatch and the campaign auto-timer are separate runs, so
+   *  driving the hidden one would be silently wrong. */
+  function handleTimerCommand(action: 'start' | 'stop' | 'reset' | 'status' | 'split') {
+    if (timerMode.current === 'manual') {
+      handleManualTimerCommand(action);
+      return;
+    }
+    const timer = activeTimer();
+    const elapsedOf = () =>
+      timer.startMs === null
+        ? 0
+        : (timer.running ? Date.now() : (timer.stopMs ?? timer.startMs)) - timer.startMs;
+
+    switch (action) {
+      case 'start':
+        if (timer.running) { void speak(m.voice_tts_timer_already_running()); return; }
+        timer.start();
+        void speak(m.voice_tts_timer_started());
+        return;
+      case 'stop': {
+        if (!timer.running) { void speak(m.voice_tts_timer_not_running()); return; }
+        const elapsed = elapsedOf();
+        timer.stop();
+        void speak(m.voice_tts_timer_stopped({ elapsed: spokenElapsed(elapsed) }));
+        return;
+      }
+      case 'reset':
+        timer.reset();
+        void speak(m.voice_tts_timer_reset());
+        return;
+      case 'split':
+        // Campaign splits come from the game log, not from the player.
+        void speak(m.voice_tts_timer_split_auto());
+        return;
+      default:
+        if (timer.startMs === null) { void speak(m.voice_tts_timer_not_started()); return; }
+        void speak(
+          timer.running
+            ? m.voice_tts_timer_running({ elapsed: spokenElapsed(elapsedOf()) })
+            : m.voice_tts_timer_stopped({ elapsed: spokenElapsed(elapsedOf()) })
+        );
+    }
+  }
+
+  function handleManualTimerCommand(action: 'start' | 'stop' | 'reset' | 'status' | 'split') {
+    switch (action) {
+      case 'start': {
+        if (manualTimer.running) { void speak(m.voice_tts_timer_already_running()); return; }
+        const resuming = manualTimer.state === 'paused';
+        manualTimer.start();
+        void speak(resuming ? m.voice_tts_timer_resumed() : m.voice_tts_timer_started());
+        return;
+      }
+      case 'stop': {
+        if (!manualTimer.running) { void speak(m.voice_tts_timer_not_running()); return; }
+        const elapsed = manualTimer.elapsed;
+        manualTimer.pause();
+        void speak(m.voice_tts_timer_paused({ elapsed: spokenElapsed(elapsed) }));
+        return;
+      }
+      case 'reset':
+        manualTimer.reset();
+        void speak(m.voice_tts_timer_reset());
+        return;
+      case 'split': {
+        const entry = manualTimer.split();
+        if (!entry) { void speak(m.voice_tts_timer_not_running()); return; }
+        void speak(m.voice_tts_timer_split({ label: entry.label, elapsed: spokenElapsed(entry.elapsed) }));
+        return;
+      }
+      default:
+        if (manualTimer.state === 'idle') { void speak(m.voice_tts_timer_not_started()); return; }
+        void speak(
+          manualTimer.running
+            ? m.voice_tts_timer_running({ elapsed: spokenElapsed(manualTimer.elapsed) })
+            : m.voice_tts_timer_paused({ elapsed: spokenElapsed(manualTimer.elapsed) })
+        );
+    }
+  }
+
+  /** Voice-driven click-through. Explicit on/off rather than a toggle: while
+   *  click-through is on the overlay ignores the mouse, so voice is often the
+   *  only way back out — and a toggle that mishears leaves you stuck. */
+  async function applyClickThrough(enabled: boolean) {
+    if (overlayState.clickThrough === enabled) {
+      void speak(enabled ? m.voice_tts_click_through_already_on() : m.voice_tts_click_through_already_off());
+      return;
+    }
+    await setClickThrough(enabled);
+    await refreshStatus();
+    void speak(enabled ? m.voice_tts_click_through_on() : m.voice_tts_click_through_off());
+  }
+
+  function setTimerMode(mode: 'manual' | 'campaign') {
+    timerMode.set(mode);
+    mainView = 'timer';
+    void speak(mode === 'manual' ? m.voice_tts_timer_mode_manual() : m.voice_tts_timer_mode_campaign());
+  }
+
   function speakUniques() {
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const uniques = activeItems().filter((i) => i.rarity === 'Unique').map((i) => i.name);
@@ -411,6 +534,7 @@
       case 'rewards': if (gameMode.current === 'poe2') mainView = 'rewards'; break;
       case 'campaign': if (gameMode.current === 'poe2') mainView = 'campaign'; break;
       case 'build': if (gameMode.current === 'poe2') mainView = 'build'; break;
+      case 'timer': mainView = 'timer'; break;
       case 'skill1': speakNthSkill(1); break;
       case 'skill2': speakNthSkill(2); break;
       case 'skill3': speakNthSkill(3); break;
@@ -433,6 +557,15 @@
       case 'rings': speakSlots(['ring1', 'ring2']); break;
       case 'belt': speakSlots(['belt']); break;
       case 'uniques': speakUniques(); break;
+      case 'timerstart': handleTimerCommand('start'); break;
+      case 'timerstop': handleTimerCommand('stop'); break;
+      case 'timerreset': handleTimerCommand('reset'); break;
+      case 'timerstatus': handleTimerCommand('status'); break;
+      case 'timersplit': handleTimerCommand('split'); break;
+      case 'timermodemanual': setTimerMode('manual'); break;
+      case 'timermodecampaign': setTimerMode('campaign'); break;
+      case 'clickthroughon': void applyClickThrough(true); break;
+      case 'clickthroughoff': void applyClickThrough(false); break;
     }
   }
 
@@ -447,6 +580,7 @@
       case 'rewards': return m.voice_phrase_rewards();
       case 'campaign': return m.voice_phrase_campaign();
       case 'build': return m.voice_phrase_build();
+      case 'timer': return m.voice_phrase_timer();
       case 'skill1': return m.voice_phrase_skill1();
       case 'skill2': return m.voice_phrase_skill2();
       case 'skill3': return m.voice_phrase_skill3();
@@ -469,14 +603,25 @@
       case 'rings': return m.voice_phrase_rings();
       case 'belt': return m.voice_phrase_belt();
       case 'uniques': return m.voice_phrase_uniques();
+      case 'timerstart': return m.voice_phrase_timer_start();
+      case 'timerstop': return m.voice_phrase_timer_stop();
+      case 'timerreset': return m.voice_phrase_timer_reset();
+      case 'timerstatus': return m.voice_phrase_timer_status();
+      case 'timersplit': return m.voice_phrase_timer_split();
+      case 'timermodemanual': return m.voice_phrase_timer_mode_manual();
+      case 'timermodecampaign': return m.voice_phrase_timer_mode_campaign();
+      case 'clickthroughon': return m.voice_phrase_click_through_on();
+      case 'clickthroughoff': return m.voice_phrase_click_through_off();
       default: return phrase;
     }
   }
 
-  const VOICE_GROUP_ORDER = ['objectives', 'navigation', 'buildInfo', 'equipment', 'other'] as const;
+  const VOICE_GROUP_ORDER = ['objectives', 'timer', 'navigation', 'overlay', 'buildInfo', 'equipment', 'other'] as const;
   function voicePhraseGroupLabel(group: (typeof VOICE_GROUP_ORDER)[number]): string {
     switch (group) {
       case 'objectives': return m.voice_group_objectives();
+      case 'timer': return m.voice_group_timer();
+      case 'overlay': return m.voice_group_overlay();
       case 'navigation': return m.voice_group_navigation();
       case 'buildInfo': return m.voice_group_build_info();
       case 'equipment': return m.voice_group_equipment();
@@ -932,7 +1077,8 @@
   const GLOBAL_ACTIONS: Partial<Record<HotkeyActionId, () => void | Promise<void>>> = {
     toggleClickThrough: async () => { await toggleClickThrough(); await refreshStatus(); },
     toggleHidden: () => toggleHidden(),
-    toggleCampaignTimer: () => (gameMode.current === 'poe1' ? poe1CampaignTimer : campaignTimer).toggle(),
+    toggleCampaignTimer: () =>
+      timerMode.current === 'manual' ? manualTimer.toggle() : activeTimer().toggle(),
     // Same hotkeys drive whichever guide is active: PoE2's campaign progress,
     // or PoE1's leveling progress.
     campaignCompleteNext: () => {
@@ -1431,7 +1577,7 @@
   onkeyup={handleHotkeyCaptureKeyup}
 />
 
-<div class="app-shell">
+<div class="app-shell" class:game-poe1={gameMode.current === 'poe1'}>
   <div class="ec-grain"></div>
 
   <!-- Title bar sits above the frame -->
@@ -2016,6 +2162,9 @@
       <!-- Waiting for the active game (Windows only — standalone platforms skip this) -->
       <div class="waiting-screen">
         <div class="waiting-spinner" aria-hidden="true"></div>
+        <span class="game-tag game-tag-{gameMode.current}">
+          {gameMode.current === 'poe1' ? m.game_switch_poe1() : m.game_switch_poe2()}
+        </span>
         <p class="waiting-title">
           {m.waiting_title({ game: gameMode.current === 'poe1' ? 'Path of Exile' : 'Path of Exile 2' })}
         </p>
@@ -2275,13 +2424,13 @@
       <div class="game-switch" role="group" aria-label={m.game_switch_label()}>
         <button
           type="button"
-          class="game-switch-btn"
+          class="game-switch-btn poe2"
           class:active={gameMode.current === 'poe2'}
           onclick={() => setGameMode('poe2')}
         >{m.game_switch_poe2()}</button>
         <button
           type="button"
-          class="game-switch-btn"
+          class="game-switch-btn poe1"
           class:active={gameMode.current === 'poe1'}
           onclick={() => setGameMode('poe1')}
         >{m.game_switch_poe1()}</button>
@@ -2332,21 +2481,10 @@
     color: var(--c-primary);
   }
 
-  :global(::-webkit-scrollbar) { width: 5px; height: 5px; }
-  :global(::-webkit-scrollbar-track) { background: transparent; }
-  :global(::-webkit-scrollbar-thumb) {
-    background: color-mix(in srgb, var(--c-accent) 38%, transparent);
-    border-radius: var(--radius);
-  }
-  :global(::-webkit-scrollbar-thumb:hover) {
-    background: color-mix(in srgb, var(--c-accent) 60%, transparent);
-  }
-  :global(*) {
-    scrollbar-color: color-mix(in srgb, var(--c-accent) 38%, transparent) transparent;
-    scrollbar-width: thin;
-  }
 
   /* ── App shell ───────────────────────────────────────────────── */
+  /* --c-game resolves to the active game's identity colour; descendants read
+     it instead of branching on gameMode themselves. */
   .app-shell {
     display: flex;
     flex-direction: column;
@@ -2354,11 +2492,16 @@
     height: 100vh;
 
     background: var(--c-bg);
+    --c-game: var(--c-poe2);
 
     border-radius: 0;
     overflow: hidden;
 
     padding: 0;
+  }
+
+  .app-shell.game-poe1 {
+    --c-game: var(--c-poe1);
   }
 
   /* Settings/gear button — sits at the right end of the tab row */
@@ -2433,18 +2576,15 @@
     min-width: 0;
   }
 
-  /* Imported PoE1 build's class/ascendancy, shown here so the leveling and
-     gems tabs don't each need their own copy of the same chip. Uses the
-     bright accent (not the muted --c-accent) so it actually stands out —
-     every theme defines --c-red-bright specifically to stay legible at
-     small sizes like this, so it reads well regardless of which theme is
-     active. */
+  /* Imported PoE1 build's class/ascendancy — carries the PoE1 identity
+     colour, since that's the only game it can belong to. */
   .footer-build-chip {
     font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 9px;
     letter-spacing: 0.04em;
-    color: var(--c-red-bright);
-    border: 1px solid color-mix(in srgb, var(--c-red) 40%, transparent);
+    color: var(--c-poe1);
+    border: 1px solid color-mix(in srgb, var(--c-poe1) 40%, transparent);
+    background: color-mix(in srgb, var(--c-poe1) 10%, transparent);
     padding: 2px 7px;
     white-space: nowrap;
     overflow: hidden;
@@ -2479,9 +2619,16 @@
     color: var(--c-primary);
   }
 
+  /* Active game uses its own fixed identity colour rather than the theme
+     accent, so "which game am I on" reads the same under every theme. */
   .game-switch-btn.active {
-    background: var(--c-red);
-    color: var(--c-on-accent);
+    color: var(--c-bg);
+  }
+  .game-switch-btn.poe2.active {
+    background: var(--c-poe2);
+  }
+  .game-switch-btn.poe1.active {
+    background: var(--c-poe1);
   }
 
   /* Voice commands: always-visible footer indicator so the mic being live is
@@ -3027,10 +3174,12 @@
   }
 
   /* Tabs */
+  /* The strip's underline carries the active game's identity colour — a
+     persistent, low-noise cue for which tool set is on screen. */
   .view-tabs {
     display: flex;
     gap: 2px;
-    border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
+    border-bottom: 2px solid color-mix(in srgb, var(--c-game) 45%, transparent);
     flex-shrink: 0;
   }
 

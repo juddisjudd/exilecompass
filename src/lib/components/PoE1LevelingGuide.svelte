@@ -242,8 +242,11 @@
 
 <div class="leveling-guide">
   <div class="guide-header ec-panel">
-    <h3>{m.leveling_guide_title()}</h3>
-    <div class="header-right">
+    <div class="guide-title">
+      <h3>{m.leveling_guide_title()}</h3>
+      <span class="game-tag game-tag-poe1">{m.game_switch_poe1()}</span>
+    </div>
+    <div class="guide-header-actions">
       <label class="cfg-check" title={m.leveling_cfg_league_start()}>
         <input
           type="checkbox"
@@ -302,25 +305,25 @@
     {@const isComplete = progress.status === 'complete'}
     {@const expanded = guideState.expandedSections.has(section.id)}
     <div
-      class="act-group ec-panel"
+      class="guide-group ec-panel"
       class:complete={isComplete}
       class:complete-collapsed={isComplete && !expanded}
     >
-      <div class="act-header-row">
-        <button class="act-header" onclick={() => toggleSection(section.id)} type="button">
-          <span class="toggle-icon" class:expanded>
+      <div class="guide-group-row">
+        <button class="guide-group-header" onclick={() => toggleSection(section.id)} type="button">
+          <span class="guide-toggle-icon" class:expanded>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
           </span>
-          <span class="act-title">{section.name}</span>
+          <span class="guide-group-title">{section.name}</span>
           {#if isComplete}
-            <span class="badge-complete">✓ {m.campaign_complete_badge()}</span>
+            <span class="tag tag-complete">✓ {m.campaign_complete_badge()}</span>
           {/if}
-          <span class="act-progress" class:complete={isComplete}>
+          <span class="guide-progress" class:complete={isComplete}>
             {progress.completed}/{progress.total}
           </span>
         </button>
         <button
-          class="act-complete-btn"
+          class="guide-group-action"
           class:done={isComplete}
           onclick={() => setSectionDone(section.steps, !isComplete)}
           title={isComplete ? m.leveling_clear_section() : m.leveling_mark_section_complete()}
@@ -342,13 +345,13 @@
             {@const edgeIndex = step.kind === 'fragment' ? levelingRoute.edgeIndexForStep(step.id) : null}
             {@const isActiveStep = step.id === levelingRoute.activeStepId}
             <div
-              class="step-row"
+              class="guide-row"
               class:done
               class:gem-row={step.kind === 'gem'}
-              class:active-step={levelingRoute.config.autoProgress && isActiveStep}
+              class:active-row={levelingRoute.config.autoProgress && isActiveStep}
               use:trackStepRef={step.id}
             >
-              <label class="step-label">
+              <label class="guide-row-label">
                 {#if levelingRoute.config.autoProgress && edgeIndex !== null}
                   <button
                     type="button"
@@ -364,10 +367,10 @@
                   type="checkbox"
                   checked={done}
                   onchange={() => toggleStep(step)}
-                  class="ec-checkbox step-checkbox"
+                  class="ec-checkbox guide-row-checkbox"
                 />
                 {#if step.kind === 'gem'}
-                  <span class="step-text">
+                  <span class="guide-row-text">
                     <span class="gem-dot" style="background: {step.colour}" aria-hidden="true"></span>
                     <span class="frag-text">{step.rewardType === 'quest' ? m.leveling_gem_take() : m.leveling_gem_buy()}</span>
                     <span class="gem-name">{step.name}</span>
@@ -385,16 +388,16 @@
                     </button>
                   </span>
                 {:else}
-                  <span class="step-text">
+                  <span class="guide-row-text">
                     {#each step.parts as part}{@render renderPart(part)}{/each}
                   </span>
                 {/if}
               </label>
 
               {#if step.kind === 'fragment' && step.subSteps.length > 0}
-                <div class="step-notes">
+                <div class="guide-row-notes">
                   {#each step.subSteps as sub (sub.id)}
-                    <div class="note">
+                    <div class="guide-note">
                       › {#each sub.parts as part}{@render renderPart(part)}{/each}
                     </div>
                   {/each}
@@ -412,48 +415,7 @@
   .leveling-guide {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-  }
-
-  .guide-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    margin-bottom: 2px;
-  }
-
-  .guide-header h3 {
-    margin: 0;
-    font-family: 'Satoshi', 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--c-primary);
-    text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent);
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .cfg-check {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10px;
-    color: var(--c-accent);
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .cfg-checkbox {
-    width: 13px;
-    height: 13px;
+    gap: var(--sp-1);
   }
 
   .route-status {
@@ -463,6 +425,19 @@
   }
   .route-status.error {
     color: var(--c-red-bright);
+  }
+
+  .guide-group-action.done:hover {
+    background: color-mix(in srgb, var(--c-red) 14%, transparent);
+    color: var(--c-red-bright);
+  }
+
+  .steps-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: var(--sp-1);
+    background: color-mix(in srgb, var(--c-bg) 97%, var(--c-mid));
   }
 
   /* Gem-reward steps (from an imported PoB build) */
@@ -484,259 +459,20 @@
     font-weight: 600;
   }
 
-  /* Act (section) group — same visual language as CampaignGuide's act-group,
-     minus the yellow "required-but-not-optional" tri-state (leveling steps
-     have no optional flag, just done/not-done). */
-  .act-group {
-    overflow: hidden;
-    transition: border-color 0.25s;
-  }
-
-  .act-group.complete {
-    border-color: color-mix(in srgb, var(--c-success) 28%, transparent);
-  }
-
-  .act-group.complete-collapsed {
-    opacity: 0.55;
-    transition: opacity 0.2s;
-  }
-  .act-group.complete-collapsed:hover {
-    opacity: 0.85;
-  }
-
-  .act-header-row {
-    display: flex;
-    align-items: stretch;
-  }
-
-  .act-header {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-    padding: 8px 12px;
-    background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
-    border: none;
-    color: var(--c-primary);
-    font-family: 'Satoshi', 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
-    cursor: pointer;
-    transition: background 0.15s;
-    text-align: left;
-    gap: 8px;
-  }
-
-  .act-header:hover {
-    background: color-mix(in srgb, var(--c-bg) 78%, var(--c-mid));
-  }
-
-  .act-complete-btn {
-    flex-shrink: 0;
-    width: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
-    border: none;
-    border-left: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
-    color: color-mix(in srgb, var(--c-success) 70%, var(--c-accent));
-    font-size: 13px;
-    line-height: 1;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-  .act-complete-btn:hover {
-    background: color-mix(in srgb, var(--c-success) 16%, transparent);
-    color: color-mix(in srgb, var(--c-success) 80%, white 20%);
-  }
-  .act-complete-btn.done {
-    color: color-mix(in srgb, var(--c-muted) 80%, #fff 12%);
-    font-size: 12px;
-  }
-  .act-complete-btn.done:hover {
-    background: color-mix(in srgb, var(--c-red) 14%, transparent);
-    color: var(--c-red-bright);
-  }
-
-  .complete .act-header {
-    color: color-mix(in srgb, var(--c-success) 80%, var(--c-primary) 20%);
-    text-shadow: 0 0 10px color-mix(in srgb, var(--c-success) 30%, transparent);
-  }
-
-  .toggle-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+  .guide-row :global(.pos-marker) {
     width: 14px;
     height: 14px;
-    flex-shrink: 0;
-    transform: rotate(90deg);
-    transition: transform 0.2s ease, opacity 0.15s;
-    opacity: 0.6;
-  }
-  .toggle-icon svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-  .toggle-icon.expanded {
-    transform: rotate(180deg);
-    opacity: 0.9;
-  }
-
-  .act-title {
-    flex: 1;
-  }
-
-  .badge-complete {
-    font-size: 8px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 1px 5px;
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--c-success) 12%, transparent);
-    color: color-mix(in srgb, var(--c-success) 80%, white 20%);
-    border: 1px solid color-mix(in srgb, var(--c-success) 34%, transparent);
-    flex-shrink: 0;
-  }
-
-  .act-progress {
-    font-family: 'Satoshi', 'Inter', sans-serif;
-    font-size: 10px;
-    font-weight: 500;
-    color: color-mix(in srgb, var(--c-accent) 70%, transparent);
-    letter-spacing: 0.04em;
-    min-width: 36px;
-    text-align: right;
-    font-feature-settings: 'tnum';
-  }
-
-  .act-progress.complete {
-    color: var(--c-success);
-  }
-
-  .progress-bar-track {
-    height: 2px;
-    background: color-mix(in srgb, var(--c-mid) 60%, transparent);
-  }
-
-  .progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--c-accent), var(--c-primary));
-    transition: width 0.4s ease;
-  }
-
-  .progress-bar-fill.complete {
-    background: linear-gradient(90deg, var(--c-success-deep), var(--c-success));
-  }
-
-  /* Steps */
-  .steps-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    padding: 4px;
-    background: color-mix(in srgb, var(--c-bg) 97%, var(--c-mid));
-  }
-
-  .step-row {
-    padding: 4px 10px 4px 8px;
-    border-left: 2px solid transparent;
-    transition: background 0.1s, transform 0.1s;
-  }
-
-  .step-row:hover {
-    background: color-mix(in srgb, var(--c-accent) 5%, transparent);
-    transform: translateX(1px);
-  }
-
-  .step-row.done {
-    opacity: 0.5;
-  }
-
-  /* Auto-progress "you are here" — position tracking only, never affects
-     .done/completion styling above. */
-  .step-row.active-step {
-    background: color-mix(in srgb, var(--c-red) 10%, transparent);
-    border-left-color: var(--c-red);
-  }
-
-  .pos-marker {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 14px;
-    height: 14px;
-    padding: 0;
     margin-top: 1px;
-    border: none;
-    background: transparent;
-    color: var(--c-muted);
-    cursor: pointer;
-    flex-shrink: 0;
   }
 
-  .pos-marker:hover {
-    color: var(--c-red-bright);
-  }
-
-  .pos-ico {
-    width: 10px;
-    height: 10px;
-  }
-
-  .pos-ico.active {
-    color: var(--c-red-bright);
-  }
-
-  .step-label {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    cursor: pointer;
-  }
-
-  .step-checkbox {
-    margin-top: 1px;
-    align-self: flex-start;
-    flex-shrink: 0;
-  }
-
-  .step-text {
-    font-size: 11px;
-    color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%);
-    line-height: 1.5;
-    flex: 1;
+  .guide-row-text {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0 4px;
   }
 
-  .done .step-text {
-    text-decoration: line-through;
-    text-decoration-color: color-mix(in srgb, var(--c-accent) 50%, transparent);
-  }
-
-  .step-notes {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    margin: 3px 0 2px 19px;
-    padding: 3px 6px;
-    border-left: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent);
-  }
-
-  .note {
-    font-size: 10px;
-    color: color-mix(in srgb, var(--c-muted) 88%, #fff 12%);
-    line-height: 1.4;
-    font-style: italic;
+  .guide-note {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -798,7 +534,6 @@
 
   .frag-reward {
     color: var(--c-primary);
-    text-shadow: 0 0 8px color-mix(in srgb, var(--c-primary) 30%, transparent);
   }
 
   .frag-cost {
@@ -817,7 +552,7 @@
     background: transparent;
     color: var(--c-accent);
     cursor: pointer;
-    transition: color 0.15s;
+    transition: color 0.15s ease;
   }
   .frag-copy:hover {
     color: var(--c-red-bright);

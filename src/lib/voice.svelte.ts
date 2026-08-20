@@ -5,7 +5,14 @@ export type VoicePhrase = string;
 /** Category grouping for the Settings UI — purely a display concern, the
  *  backend's PHRASES registry (voice.rs) is a flat list. Keep in sync with it:
  *  any id present there but missing here falls into 'other' automatically. */
-export type VoicePhraseGroup = 'objectives' | 'navigation' | 'buildInfo' | 'equipment' | 'other';
+export type VoicePhraseGroup =
+  | 'objectives'
+  | 'navigation'
+  | 'buildInfo'
+  | 'equipment'
+  | 'timer'
+  | 'overlay'
+  | 'other';
 
 const GROUP_MAP: Record<string, VoicePhraseGroup> = {
   next: 'objectives',
@@ -13,6 +20,7 @@ const GROUP_MAP: Record<string, VoicePhraseGroup> = {
   rewards: 'navigation',
   campaign: 'navigation',
   build: 'navigation',
+  timer: 'navigation',
   skill1: 'buildInfo',
   skill2: 'buildInfo',
   skill3: 'buildInfo',
@@ -35,6 +43,15 @@ const GROUP_MAP: Record<string, VoicePhraseGroup> = {
   rings: 'equipment',
   belt: 'equipment',
   uniques: 'equipment',
+  timerstart: 'timer',
+  timerstop: 'timer',
+  timerreset: 'timer',
+  timerstatus: 'timer',
+  timersplit: 'timer',
+  timermodemanual: 'timer',
+  timermodecampaign: 'timer',
+  clickthroughon: 'overlay',
+  clickthroughoff: 'overlay',
 };
 
 export function voicePhraseGroup(phrase: VoicePhrase): VoicePhraseGroup {
@@ -52,6 +69,7 @@ export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
   rewards: 'compass rewards',
   campaign: 'compass campaign',
   build: 'compass build',
+  timer: 'compass timer',
   skill1: 'compass first skill',
   skill2: 'compass second skill',
   skill3: 'compass third skill',
@@ -74,6 +92,15 @@ export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
   rings: 'compass rings',
   belt: 'compass belt',
   uniques: 'compass uniques',
+  timerstart: 'compass start timer',
+  timerstop: 'compass stop timer',
+  timerreset: 'compass reset timer',
+  timerstatus: 'compass run time',
+  timersplit: 'compass split',
+  timermodemanual: 'compass manual timer',
+  timermodecampaign: 'compass campaign timer',
+  clickthroughon: 'compass click through on',
+  clickthroughoff: 'compass click through off',
 };
 
 const ENABLED_KEY = 'EXILECOMPASS_VOICE_ENABLED_V1';
