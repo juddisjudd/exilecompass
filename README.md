@@ -2,11 +2,11 @@
 
 # ExileCompass
 
-**A sleek, always-on-top companion overlay for Path of Exile 2.**
+**A sleek, always-on-top companion overlay for Path of Exile 2 and Path of Exile.**
 
 Track your campaign, never miss a permanent reward, build stash search strings,
-time your runs, and keep your build's gems and gear one glance away — all in a
-compact window that floats over the game.
+time your runs, keep your build's gems and gear one glance away, and drive it
+all hands-free with your voice — in a compact window that floats over the game.
 
 <img width="1368" height="576" alt="exile-compass-new" src="https://github.com/user-attachments/assets/819103a2-7d46-4a3c-b230-a9c4d15b37cd" />
 
@@ -20,45 +20,129 @@ compact window that floats over the game.
 
 ## What it does
 
-ExileCompass sits on top of Path of Exile 2 as a small, semi-transparent overlay
-and automatically appears when the game is running. Everything lives in one tidy
-panel with tabs:
+ExileCompass sits on top of the game as a small, semi-transparent overlay and
+automatically appears when the game is running. A switch in the footer picks
+which game you're playing — **PoE2** gets the full tool set, **PoE1** gets a
+leveling-focused one — and every tab, panel and build is tagged so you always
+know which game you're looking at.
+
+### Path of Exile 2
 
 - **Campaign Guide** — A collapsible act → zone → objective checklist for the
-  full campaign (including the current interludes), with per-act progress bars.
-  Check things off as you go; your progress is saved.
+  full campaign (including the current interludes), with per-act progress bars,
+  speedrun tips per act, and an optional filter for current-league mechanics.
+  **Auto-progress** follows your `Client.txt` log and keeps a "you are here"
+  marker on the zone you're in, expanding and scrolling to it as you play.
 
 - **Passive Boosts (Rewards)** — A complete checklist of every permanent reward
   in the campaign: passive skill points, resistances, spirit, life/mana, and the
   swappable/choice buffs — with their source, location, and act. Totals add up
-  automatically as you collect them.
+  automatically, and with the log file set, rewards **tick themselves off as you
+  earn them**.
 
-- **Regex (Stash Search)** — Build powerful in-game stash search strings without
-  memorizing syntax. Pick from categorized snippets (defences, resistances,
-  damage, gear, weapons, gems, currency…), combine them with AND/OR/NOT groups,
-  apply ready-made presets, test against pasted item text, and copy — with a live
+- **Regex (Stash Search)** — Build in-game stash search strings without
+  memorizing syntax. Pick from categorized snippets, combine them with
+  AND/OR/NOT groups, apply presets, save favourites, and copy — with a live
   250-character counter so you stay under the game's limit.
 
 - **Craft (Crafting Guides)** — Step-by-step crafting walkthroughs, browsable by
-  equipment slot. Each guide shows the currency/omens to use at every step, the
-  mod(s) the step is aiming for, success/fail branches, and the finished item's
-  target stats — with real item icons. Check steps off as you craft. Guides are
-  community-contributed (see [Contributing](#contributing)).
-
-- **Timer** — A speedrun timer with start/pause/resume, per-act splits, and
-  reset.
+  equipment slot, with the currency/omens for every step, success/fail branches,
+  and real item icons. Check steps off as you craft. Guides are
+  community-contributed (see [Contributing](#contributing)) and refresh in the
+  background, with a bundled copy so they work offline.
 
 - **Build** — Import a build from **Path of Building** (export code or `pobb.in`
-  link) or an official **GGG `.build`** file. See your skill links and full
-  equipment, hover any item for its stats, read the build notes, and switch
-  between multiple skill/item sets.
+  link) or an official **GGG `.build`** file — or point Settings at your
+  `BuildPlanner` folder and switch between every saved build from a dropdown.
+  See your skill links and full equipment, hover any item or gem for its stats
+  (including the level the guide intends it from, and which supports are linked
+  where), jump to the guide it came from, and turn any item's mods into a
+  ready-made stash search with one click.
 
-### Automatic reward tracking
+### Path of Exile
 
-Point ExileCompass at your PoE2 `Client.txt` log file (Settings → Log File →
-Auto Detect) and it will **watch for rewards as you earn them** and tick them off
-the Passive Boosts list for you. It only reacts to new events going forward — it
-won't re-check rewards from previous characters — and you can clear it anytime.
+- **Leveling Guide** — The full act-by-act leveling route (built on
+  [exile-leveling](https://github.com/HeartofPhos/exile-leveling)), with
+  league-start and library variants, per-step checkboxes, and the same
+  log-driven **auto-progress** marker as the PoE2 campaign guide. Import a PoB
+  build and the route gains **gem-reward steps** showing exactly which gems to
+  take or buy after each quest.
+
+- **Gems** — Your imported build's skill links, set by set.
+
+- **Passive Tree** — A full passive tree viewer for the imported build, with
+  per-spec highlighting of added/removed nodes and support for multiple tree
+  versions side by side.
+
+- **Regex** — The PoE1 vendor/stash regex builder.
+
+- **Act-Decoder** — A separate floating window showing the zone layout for the
+  area you're in, switching automatically as you change zones
+  (`Ctrl + Shift + D`). Position and opacity are remembered.
+
+### Both games
+
+- **Timer** — A **Manual** stopwatch with start/pause/resume and named splits,
+  and a **Campaign** mode that starts a run and splits it per act automatically
+  from the game log. Each game keeps its own campaign run.
+
+- **Voice Commands** — Say a phrase like *"compass next"* and the overlay acts
+  on it. Fully offline: a bundled speech model listens for a fixed phrase list,
+  nothing is recorded or sent anywhere. See [Voice commands](#voice-commands).
+
+- **Add-ons** — Install community add-ons from the ExileCompass registry (or a
+  manifest URL), pin their panels as top-level tabs, and manage permissions and
+  updates from the Add-ons hub.
+
+- **Themes & appearance** — Seven colour themes (Default, Abyss, Breach,
+  Ritual, Vaal, Aldur, Mono), an overlay-wide font-size slider, click-through
+  opacity, and a live CPU / memory readout in the footer.
+
+### Automatic tracking from the game log
+
+Point ExileCompass at your `Client.txt` (Settings → Log File → Auto Detect — it
+checks the running game, your Steam library and the Windows install registry
+before asking you to browse) and it will watch for rewards, zone changes and
+campaign splits as they happen. Each game remembers its own log path. It only
+reacts to new events going forward — it won't re-check rewards from previous
+characters — and you can clear it anytime.
+
+---
+
+## Voice commands
+
+Enable them with the **mic toggle in the footer** (or Settings → Voice
+Commands), pick your microphone, and talk. Every command starts with
+*"compass"* so ordinary speech doesn't trigger anything — say it as one phrase,
+without a pause.
+
+| Say | Does |
+|-----|------|
+| **compass next** / **compass back** | Complete / undo the next objective (campaign or leveling step) |
+| **compass campaign · rewards · build · timer** | Switch tabs |
+| **compass start timer · stop timer · reset timer · split** | Drive whichever timer mode is showing |
+| **compass run time** | Hear the elapsed run time |
+| **compass manual timer · campaign timer** | Switch timer mode |
+| **compass click through on / off** (or **lock / unlock overlay**) | Toggle click-through — handy when the mouse already passes through |
+| **compass first … fifth skill**, **compass skills** | Hear a skill gem, or list them all |
+| **compass first skill supports**, **compass spirit gems**, … | Hear what's linked |
+| **compass helmet · weapon · rings · boots …** | Hear what's in a slot |
+| **compass helmet stats · weapon stats …** | Hear the slot's mods / stat priorities |
+| **compass uniques · flasks · charms · build info** | Lists and build identity |
+
+The full list, grouped, lives in Settings → Voice Commands. Phrases are fixed
+(this is keyword spotting, not dictation), which is what keeps it fast, offline
+and private.
+
+### Voice replies
+
+Build-info and timer commands answer out loud. By default that's your system's
+built-in voice — free, nothing to set up. For a far better voice, add your own
+**ElevenLabs** key (Settings → Voice Replies): it's stored in your OS keychain,
+you use your own account and credits, and the voice picker shows which voices
+are free on every plan versus paid-only. Either way you can choose the
+**output device**, so replies go to your headset while game audio stays on the
+speakers.
 
 ---
 
@@ -77,26 +161,28 @@ The app checks for updates on launch and can install them in one click. (The AUR
 package updates through your AUR helper instead.)
 
 > **Note:** Windows is the primary, fully-supported platform. The Linux builds
-> run and all the standalone tools (campaign, rewards, regex, timer, build
-> import) work, but automatic detection/attachment to the game window is
-> currently Windows-only.
+> run and all the standalone tools work, but automatic detection/attachment to
+> the game window is currently Windows-only.
 
 ---
 
 ## Getting started
 
-1. Launch Path of Exile 2.
-2. Start ExileCompass — it detects the game and shows the overlay automatically.
-3. Pick a tab and go. Your checklists, settings, and imported build are saved
-   between sessions.
+1. Launch Path of Exile 2 (or Path of Exile, and flip the footer switch).
+2. Start ExileCompass — a short first-run setup connects your log file and
+   shows you the hotkeys; after that it detects the game and shows the overlay
+   automatically.
+3. Pick a tab and go. Checklists, settings, themes, imported builds and voice
+   preferences are all saved between sessions.
 
 ### Overlay controls
 
 - **Click-through mode** — Let mouse clicks pass straight through the overlay to
-  the game while it stays visible. Toggle it with the hotkey below; you can set
-  how transparent the overlay becomes in this mode (Settings → Hotkeys →
-  Click-Through Opacity).
-- **Move / resize** — Drag the title bar to move; drag edges to resize.
+  the game while it stays visible. Toggle it with the hotkey, or by voice; you
+  can set how transparent the overlay becomes in this mode (Settings →
+  Hotkeys → Click-Through Opacity).
+- **Move / resize** — Drag the title bar to move; drag edges to resize. Position
+  and size are remembered.
 - **Drag & drop a build** — Drop a `.build` file anywhere on the window to import
   it instantly.
 
@@ -108,9 +194,10 @@ package updates through your AUR helper instead.)
 | Hide / show overlay | `Ctrl + Shift + H` |
 | Refresh game detection | `Ctrl + Shift + R` |
 | Open / close settings | `Ctrl + Shift + ,` |
-| Start / stop campaign timer | `Ctrl + Shift + T` |
-| Complete next campaign objective | `Ctrl + Shift + X` |
-| Undo last campaign objective | `Ctrl + Shift + Z` |
+| Start / stop the timer | `Ctrl + Shift + T` |
+| Complete next objective | `Ctrl + Shift + X` |
+| Undo last objective | `Ctrl + Shift + Z` |
+| Toggle Act-Decoder window (PoE1) | `Ctrl + Shift + D` |
 
 All hotkeys can be rebound in **Settings → Hotkeys**. (Click-through works as a
 global shortcut, even when the overlay isn't focused.)
@@ -128,19 +215,37 @@ Français, 日本語, 한국어, Português (Brasil), Русский, and 简体
 ## Privacy
 
 ExileCompass keeps everything on your machine — there's no account and no
-telemetry. Your only network activity is checking GitHub for updates and, if you
-paste a `pobb.in` link, fetching that build.
+telemetry. Voice recognition runs entirely offline; audio never leaves your PC.
+Network activity is limited to:
+
+- checking GitHub for updates;
+- fetching crafting guides, guide ratings and the add-ons registry from
+  `exilecompass.com`;
+- fetching a build if you paste a `pobb.in` link;
+- and, **only if you add your own key**, sending reply text to ElevenLabs to be
+  spoken. Without a key, the built-in system voice is used and nothing is sent.
 
 ---
 
 ## Troubleshooting
 
-- **Overlay doesn't appear** — Make sure Path of Exile 2 is running, then press
-  `Ctrl + Shift + R` to refresh detection.
+- **Overlay doesn't appear** — Make sure the game is running and the footer
+  switch is set to the game you launched, then press `Ctrl + Shift + R` to
+  refresh detection.
 - **Can't click the game** — You're likely in click-through mode; press
-  `Ctrl + Shift + C` to toggle it back.
-- **Rewards aren't auto-checking** — Confirm the log file is set in
-  Settings → Log File (use Auto Detect, or Browse to your `Client.txt`).
+  `Ctrl + Shift + C` to toggle it back, or say *"compass click through off"*.
+- **Rewards / auto-progress aren't updating** — Confirm the log file is set for
+  the active game in Settings → Log File (use Auto Detect, or Browse to your
+  `Client.txt`).
+- **Voice commands don't hear me** — Open Settings → Voice Commands and watch
+  the mic level meter while you talk. If it stays flat, pick a different input
+  device; if it moves but nothing triggers, say the phrase as one continuous
+  *"compass …"* without pausing after "compass".
+- **Voice commands switched themselves off** — If the app didn't start cleanly
+  while they were enabled, they're disabled on the next launch to be safe.
+  Turn them back on from the footer.
+- **ElevenLabs voice fails with a payment error** — That voice needs a paid
+  ElevenLabs plan; pick one from the "Free on every plan" group.
 - **Windows Defender / SmartScreen flags the installer or exe** — The Windows
   build isn't code-signed yet, and an unsigned auto-updating app that reads the
   game window's title (to find and attach to it) matches the heuristic profile
@@ -195,6 +300,15 @@ Environment variables you can set:
   ```
 - **Wayland / NVIDIA issues** — try forcing X11: `GDK_BACKEND=x11 ./ExileCompass_<version>_amd64.AppImage`
 
+- **Voice commands and replies** — Microphone capture and audio playback use
+  ALSA (`libasound2`), which every desktop distro ships. The built-in voice
+  needs a system speech engine: `espeak-ng` (usually installed alongside
+  `speech-dispatcher`) is enough; `pico2wave` sounds nicer if you have it.
+  Without one, you'll get an install hint instead of speech — or add an
+  ElevenLabs key. The ElevenLabs key uses your desktop keyring (GNOME Keyring /
+  KWallet) when one is running, and falls back to the local settings file
+  otherwise — Settings tells you which.
+
 - **App won't open / blank window** — Launch it from a terminal so you can see
   the error, and check the crash log at
   `~/.local/share/exilecompass/logs/crash.txt` (or
@@ -220,6 +334,10 @@ the [Guide Creator](https://exilecompass.com/guide-creator) and submit the
 exported `.yaml` — either as a pull request to `guides/`, or in the
 `#crafting-guides` channel on [Discord](https://discord.exilecompass.com/).
 
+**Voice phrases** are a plain text list in
+[`src-tauri/resources/kws/keywords_raw.txt`](src-tauri/resources/kws/keywords_raw.txt);
+the README next to it explains how to regenerate the model's keyword file.
+
 <details>
 <summary>Building from source</summary>
 
@@ -232,6 +350,9 @@ bun install
 bun tauri dev      # run in development
 bun run release    # build installers
 ```
+
+On Linux you'll also need the ALSA development headers (`libasound2-dev` on
+Debian/Ubuntu) for microphone capture and audio playback.
 
 </details>
 
@@ -249,6 +370,8 @@ ExileCompass builds on data and code from other community projects:
 - **[poe-vendor-string](https://github.com/veiset/poe-vendor-string)** and
   **[poe2.re](https://github.com/veiset/poe2.re)** (veiset) — the PoE1 regex
   data and the PoE2 stash-search regex builder are ported from these.
+- **[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)** (k2-fsa / Next-gen
+  Kaldi) — the offline keyword-spotting engine and model behind voice commands.
 - **[Path of Building (PoE1)](https://github.com/PathOfBuildingCommunity/PathOfBuilding)**
   — PoE1 build import relies on PoB's export format and gem data, and the
   passive tree viewer's ascendancy positions are sourced from PoB's own
@@ -265,4 +388,5 @@ Thanks to all of the above for making this possible.
 ## License
 
 Released under the [AGPL-3.0 license](LICENSE). Not affiliated with or endorsed by
-Grinding Gear Games. Path of Exile 2 is a trademark of Grinding Gear Games.
+Grinding Gear Games. Path of Exile and Path of Exile 2 are trademarks of
+Grinding Gear Games.

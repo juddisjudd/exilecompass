@@ -21,7 +21,7 @@ const KEY = 'EXILECOMPASS_THEME_V1';
 // Labels are PoE league names (proper nouns) — deliberately not localized.
 // Swatches feed the settings picker: bg, panel, accent, text.
 export const THEMES: { id: ThemeId; label: string; swatches: string[] }[] = [
-  { id: 'default', label: 'Default', swatches: ['#0b0a08', '#171310', '#960018', '#ede6d5'] },
+  { id: 'default', label: 'Default', swatches: ['#0a0a0a', '#121212', '#b5102d', '#ededed'] },
   { id: 'abyss', label: 'Abyss', swatches: ['#090c0a', '#0f1912', '#35bb58', '#dfece1'] },
   { id: 'breach', label: 'Breach', swatches: ['#100b14', '#1f1228', '#a347ef', '#efe8f5'] },
   { id: 'ritual', label: 'Ritual', swatches: ['#0c0808', '#200e0f', '#ad0445', '#9c9086'] },
