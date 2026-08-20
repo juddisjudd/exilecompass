@@ -45,6 +45,35 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
+      # See release.yml for why the sherpa-onnx libs live outside target/.
+      - name: Resolve sherpa-onnx prebuilt libs
+        id: sherpa
+        shell: bash
+        run: |
+          ver=$(awk '/^name = "sherpa-onnx-sys"$/{getline; gsub(/version = |"/,""); print; exit}' src-tauri/Cargo.lock)
+          name="sherpa-onnx-v$ver-win-x64-static-MT-Release-lib"
+          root="$(printf '%s' "$RUNNER_TEMP" | tr '\\' '/')/sherpa-onnx"
+          echo "ver=$ver"    >> "$GITHUB_OUTPUT"
+          echo "name=$name"  >> "$GITHUB_OUTPUT"
+          echo "root=$root"  >> "$GITHUB_OUTPUT"
+          echo "SHERPA_ONNX_LIB_DIR=$root/$name/lib" >> "$GITHUB_ENV"
+
+      - name: Cache sherpa-onnx prebuilt libs
+        id: sherpa-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.sherpa.outputs.root }}
+          key: sherpa-onnx-${{ runner.os }}-${{ steps.sherpa.outputs.name }}
+
+      - name: Download sherpa-onnx prebuilt libs
+        if: steps.sherpa-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          mkdir -p "${{ steps.sherpa.outputs.root }}"
+          curl -fsSL "https://github.com/k2-fsa/sherpa-onnx/releases/download/v${{ steps.sherpa.outputs.ver }}/${{ steps.sherpa.outputs.name }}.tar.bz2" \
+            | tar -xj -C "${{ steps.sherpa.outputs.root }}"
+          test -d "$SHERPA_ONNX_LIB_DIR"
+
       - name: Build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

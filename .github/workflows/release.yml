@@ -42,6 +42,13 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
+    # Creating the GitHub Release needs contents:write. The repo's default
+    # workflow token permission is read-only, so request it here explicitly
+    # (the top-level block above should suffice, but the v1.3.0 run was
+    # denied with "Resource not accessible by integration").
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -75,6 +82,44 @@ jobs:
 
       - name: Install frontend dependencies
         run: bun install
+
+      # sherpa-onnx-sys (voice commands) downloads prebuilt static libs into
+      # target/sherpa-onnx-prebuilt/. rust-cache prunes that directory when it
+      # saves, but keeps the build-script fingerprint, so the next cached run
+      # links against a -L path that no longer exists ("could not find native
+      # static library `sherpa-onnx-c-api`"). Keep the libs outside target/,
+      # cached on their own, and hand them to the build script directly.
+      - name: Resolve sherpa-onnx prebuilt libs
+        id: sherpa
+        shell: bash
+        run: |
+          ver=$(awk '/^name = "sherpa-onnx-sys"$/{getline; gsub(/version = |"/,""); print; exit}' src-tauri/Cargo.lock)
+          case "$RUNNER_OS" in
+            Windows) name="sherpa-onnx-v$ver-win-x64-static-MT-Release-lib" ;;
+            Linux)   name="sherpa-onnx-v$ver-linux-x64-static-lib" ;;
+            *) echo "unsupported runner: $RUNNER_OS" >&2; exit 1 ;;
+          esac
+          root="$(printf '%s' "$RUNNER_TEMP" | tr '\\' '/')/sherpa-onnx"
+          echo "ver=$ver"    >> "$GITHUB_OUTPUT"
+          echo "name=$name"  >> "$GITHUB_OUTPUT"
+          echo "root=$root"  >> "$GITHUB_OUTPUT"
+          echo "SHERPA_ONNX_LIB_DIR=$root/$name/lib" >> "$GITHUB_ENV"
+
+      - name: Cache sherpa-onnx prebuilt libs
+        id: sherpa-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.sherpa.outputs.root }}
+          key: sherpa-onnx-${{ runner.os }}-${{ steps.sherpa.outputs.name }}
+
+      - name: Download sherpa-onnx prebuilt libs
+        if: steps.sherpa-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          mkdir -p "${{ steps.sherpa.outputs.root }}"
+          curl -fsSL "https://github.com/k2-fsa/sherpa-onnx/releases/download/v${{ steps.sherpa.outputs.ver }}/${{ steps.sherpa.outputs.name }}.tar.bz2" \
+            | tar -xj -C "${{ steps.sherpa.outputs.root }}"
+          test -d "$SHERPA_ONNX_LIB_DIR"
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
