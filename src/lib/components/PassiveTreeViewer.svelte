@@ -384,8 +384,7 @@
     outline: none;
     transition: border-color 0.12s;
   }
-  .spec-select:hover,
-  .spec-select:focus {
+  .spec-select:hover {
     border-color: var(--c-red);
   }
   .spec-select option {

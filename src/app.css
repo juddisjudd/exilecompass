@@ -70,10 +70,15 @@
   --focus-ring: 0 0 0 2px var(--c-bg), 0 0 0 3px var(--c-red-bright);
 }
 
-/* Keyboard-only focus; mouse users never see it. */
-:focus-visible {
+/* Keyboard-only focus; mouse users never see it. Selects are excluded —
+   Chromium treats a click-opened <select> as :focus-visible, and the native
+   popup already signals focus. */
+:focus-visible:not(select) {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+select:focus-visible {
+  outline: none;
 }
 
 /* ── Themes ──────────────────────────────────────────────────────

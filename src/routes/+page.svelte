@@ -321,11 +321,25 @@
     }
   }
 
+  /** "level 20, quality 20, from level 65" — whichever parts the import had. */
+  function gemDetail(g: { level?: number; quality?: number; fromLevel?: number }): string {
+    const parts: string[] = [];
+    if (g.level) parts.push(m.voice_tts_gem_level({ level: String(g.level) }));
+    if (g.quality) parts.push(m.voice_tts_gem_quality({ quality: String(g.quality) }));
+    if (g.fromLevel) parts.push(m.voice_tts_from_level({ level: String(g.fromLevel) }));
+    return parts.join(', ');
+  }
+
   function speakNthSkill(n: number) {
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const skill = activeSkillGroups().filter((g) => g.mainType === 'skill')[n - 1];
     if (!skill) { void speak(m.voice_tts_no_skill_at_position()); return; }
-    void speak(m.voice_tts_skill_reply({ ordinal: ordinalWord(n), name: skill.mainSkill }));
+    const detail = gemDetail({ level: skill.mainLevel, quality: skill.mainQuality, fromLevel: skill.mainFromLevel });
+    void speak(
+      detail
+        ? m.voice_tts_skill_reply_detail({ ordinal: ordinalWord(n), name: skill.mainSkill, detail })
+        : m.voice_tts_skill_reply({ ordinal: ordinalWord(n), name: skill.mainSkill })
+    );
   }
 
   function speakAllSkills() {
@@ -372,13 +386,61 @@
 
   function describeItemSpoken(item: PobItem): string {
     const slot = SLOT_LABEL[item.slot] ?? item.slot;
+    let text: string;
     if (item.rarity === 'Unique') {
-      return m.voice_tts_slot_unique({ slot, name: item.name, base: item.base });
+      text = item.base && item.base !== item.name
+        ? m.voice_tts_slot_unique({ slot, name: item.name, base: item.base })
+        : m.voice_tts_slot_unique_plain({ slot, name: item.name });
+    } else if (item.rarity === 'Normal') {
+      text = m.voice_tts_slot_plain({ slot, base: item.base || item.name });
+    } else {
+      text = m.voice_tts_slot_item({ slot, rarity: item.rarity, base: item.base || item.name });
     }
-    if (item.rarity === 'Normal') {
-      return m.voice_tts_slot_plain({ slot, base: item.base || item.name });
+    if (item.fromLevel) text += ' ' + m.voice_tts_from_level_sentence({ level: String(item.fromLevel) });
+    return text;
+  }
+
+  /** Mod lines as TTS-friendly text: GGG planner exports number them
+   *  ("3. +41% to Fire Resistance"), which reads badly aloud. */
+  function spokenMods(item: PobItem): string[] {
+    return item.mods
+      .map((mod) => mod.replace(/^\d+[.)]\s*/, '').replace(/\.\s*$/, '').trim())
+      .filter((mod) => mod.length > 0);
+  }
+
+  const MAX_SPOKEN_MODS = 8;
+
+  function speakSlotStats(slotKeys: string[]) {
+    if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
+    const items = activeItems().filter((i) => slotKeys.includes(i.slot));
+    if (!items.length) {
+      void speak(m.voice_tts_slot_empty({ slot: SLOT_LABEL[slotKeys[0]] ?? slotKeys[0] }));
+      return;
     }
-    return m.voice_tts_slot_item({ slot, rarity: item.rarity, base: item.base || item.name });
+    const sentences = items.map((item) => {
+      const slot = SLOT_LABEL[item.slot] ?? item.slot;
+      const mods = spokenMods(item);
+      if (!mods.length) return m.voice_tts_item_no_stats({ slot, name: item.name });
+      const shown = mods.slice(0, MAX_SPOKEN_MODS);
+      const rest = mods.length - shown.length;
+      const list = rest > 0
+        ? m.voice_tts_stats_more({ list: shown.join(', '), count: String(rest) })
+        : joinSpoken(shown);
+      return m.voice_tts_slot_stats({ slot, name: item.name, list });
+    });
+    void speak(sentences.join(' '));
+  }
+
+  function speakBuildInfo() {
+    if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
+    const b = pobBuild;
+    const name = b.buildName || b.ascendClassName || b.className;
+    const detail: string[] = [];
+    const cls = b.ascendClassName || b.className;
+    if (b.buildName && cls && cls !== 'Unknown') detail.push(cls);
+    if (b.level > 0) detail.push(m.voice_tts_build_level({ level: String(b.level) }));
+    if (b.author) detail.push(m.voice_tts_build_author({ author: b.author }));
+    void speak(detail.length ? m.voice_tts_build_info({ name, detail: detail.join(', ') }) : name);
   }
 
   /** One reply covering one or more equipment slots (rings/weapon span two). */
@@ -557,6 +619,17 @@
       case 'rings': speakSlots(['ring1', 'ring2']); break;
       case 'belt': speakSlots(['belt']); break;
       case 'uniques': speakUniques(); break;
+      case 'flasks': speakSlots(['flask1', 'flask2', 'flask3']); break;
+      case 'charms': speakSlots(['charm1', 'charm2', 'charm3']); break;
+      case 'buildinfo': speakBuildInfo(); break;
+      case 'weaponstats': speakSlotStats(['weapon1', 'offhand']); break;
+      case 'helmetstats': speakSlotStats(['helm']); break;
+      case 'bodyarmourstats': speakSlotStats(['body']); break;
+      case 'glovesstats': speakSlotStats(['gloves']); break;
+      case 'bootsstats': speakSlotStats(['boots']); break;
+      case 'amuletstats': speakSlotStats(['amulet']); break;
+      case 'ringsstats': speakSlotStats(['ring1', 'ring2']); break;
+      case 'beltstats': speakSlotStats(['belt']); break;
       case 'timerstart': handleTimerCommand('start'); break;
       case 'timerstop': handleTimerCommand('stop'); break;
       case 'timerreset': handleTimerCommand('reset'); break;
@@ -603,6 +676,17 @@
       case 'rings': return m.voice_phrase_rings();
       case 'belt': return m.voice_phrase_belt();
       case 'uniques': return m.voice_phrase_uniques();
+      case 'flasks': return m.voice_phrase_flasks();
+      case 'charms': return m.voice_phrase_charms();
+      case 'buildinfo': return m.voice_phrase_build_info();
+      case 'weaponstats': return m.voice_phrase_weapon_stats();
+      case 'helmetstats': return m.voice_phrase_helmet_stats();
+      case 'bodyarmourstats': return m.voice_phrase_bodyarmour_stats();
+      case 'glovesstats': return m.voice_phrase_gloves_stats();
+      case 'bootsstats': return m.voice_phrase_boots_stats();
+      case 'amuletstats': return m.voice_phrase_amulet_stats();
+      case 'ringsstats': return m.voice_phrase_rings_stats();
+      case 'beltstats': return m.voice_phrase_belt_stats();
       case 'timerstart': return m.voice_phrase_timer_start();
       case 'timerstop': return m.voice_phrase_timer_stop();
       case 'timerreset': return m.voice_phrase_timer_reset();
@@ -626,6 +710,15 @@
       case 'buildInfo': return m.voice_group_build_info();
       case 'equipment': return m.voice_group_equipment();
       default: return group;
+    }
+  }
+
+  function voiceTierLabel(tier: 'free' | 'own' | 'paid' | 'unknown'): string {
+    switch (tier) {
+      case 'free': return m.voice_tts_tier_free();
+      case 'own': return m.voice_tts_tier_own();
+      case 'paid': return m.voice_tts_tier_paid();
+      default: return m.voice_tts_tier_unknown();
     }
   }
 
@@ -1859,6 +1952,9 @@
                   {/if}
                 </p>
                 {#if ttsState.voices.length > 0}
+                  {@const tierGroups = (['free', 'own', 'paid', 'unknown'] as const)
+                    .map((tier) => ({ tier, voices: ttsState.voices.filter((v) => v.tier === tier) }))
+                    .filter((g) => g.voices.length > 0)}
                   <label class="field-label" for="elevenlabs-voice-select">{m.voice_tts_voice_label()}</label>
                   <select
                     id="elevenlabs-voice-select"
@@ -1866,10 +1962,15 @@
                     value={ttsState.voiceId}
                     onchange={(e) => setVoiceId((e.currentTarget as HTMLSelectElement).value)}
                   >
-                    {#each ttsState.voices as v (v.id)}
-                      <option value={v.id}>{v.name}</option>
+                    {#each tierGroups as g (g.tier)}
+                      <optgroup label={voiceTierLabel(g.tier)}>
+                        {#each g.voices as v (v.id)}
+                          <option value={v.id}>{v.name}</option>
+                        {/each}
+                      </optgroup>
                     {/each}
                   </select>
+                  <p class="field-help">{m.voice_tts_tier_help()}</p>
                 {:else}
                   <p class="field-help">{m.voice_tts_voices_unavailable()}</p>
                 {/if}

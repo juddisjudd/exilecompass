@@ -96,12 +96,20 @@ pub async fn tts_speak_elevenlabs(
     Ok(bytes.to_vec())
 }
 
-/// One voice as returned by tts_list_elevenlabs_voices.
+/// One voice as returned by tts_list_elevenlabs_voices. The plan-related
+/// fields are passed through as-is so the frontend can label which voices a
+/// free-tier key can actually synthesize with (see `voiceTier` in
+/// tts.svelte.ts) — each is optional because ElevenLabs only populates them
+/// for some voice categories.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ElevenLabsVoice {
     pub voice_id: String,
     pub name: String,
+    pub category: Option<String>,
+    pub is_owner: Option<bool>,
+    pub free_users_allowed: Option<bool>,
+    pub available_for_tiers: Vec<String>,
 }
 
 /// List voices the caller's own ElevenLabs account can actually use.
@@ -150,7 +158,23 @@ pub async fn tts_list_elevenlabs_voices(api_key: String) -> Result<Vec<ElevenLab
         .filter_map(|entry| {
             let voice_id = entry.get("voice_id").and_then(|v| v.as_str())?;
             let name = entry.get("name").and_then(|v| v.as_str())?;
-            Some(ElevenLabsVoice { voice_id: voice_id.to_string(), name: name.to_string() })
+            let str_field = |k: &str| entry.get(k).and_then(|v| v.as_str()).map(str::to_string);
+            let available_for_tiers = entry
+                .get("available_for_tiers")
+                .and_then(|v| v.as_array())
+                .map(|a| a.iter().filter_map(|t| t.as_str().map(str::to_string)).collect())
+                .unwrap_or_default();
+            Some(ElevenLabsVoice {
+                voice_id: voice_id.to_string(),
+                name: name.to_string(),
+                category: str_field("category"),
+                is_owner: entry.get("is_owner").and_then(|v| v.as_bool()),
+                free_users_allowed: entry
+                    .get("sharing")
+                    .and_then(|s| s.get("free_users_allowed"))
+                    .and_then(|v| v.as_bool()),
+                available_for_tiers,
+            })
         })
         .collect();
     if voices.is_empty() {

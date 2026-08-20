@@ -5,6 +5,11 @@ import { invoke } from '@tauri-apps/api/core';
 export interface PobGem {
   name: string;
   type: 'skill' | 'support' | 'spirit';
+  /** Character level the guide intends this gem from (GGG `level_interval`). */
+  fromLevel?: number;
+  /** Gem level / quality (PoB exports only). */
+  level?: number;
+  quality?: number;
 }
 
 export interface PobSkillGroup {
@@ -12,6 +17,9 @@ export interface PobSkillGroup {
   /** Type of the active (first) gem — skill gems and spirit gems (heralds,
    *  auras, …) can both head a link, and need to be told apart visually. */
   mainType: PobGem['type'];
+  mainFromLevel?: number;
+  mainLevel?: number;
+  mainQuality?: number;
   supports: PobGem[];
 }
 
@@ -25,6 +33,8 @@ export interface PobItem {
   quality?: number;
   itemLevel?: number;
   requirements?: { level?: number; str?: number; dex?: number; int?: number };
+  /** Character level the guide intends this item from (GGG `level_interval`). */
+  fromLevel?: number;
 }
 
 /** A named skill set (one tab of skill gem links in PoB). */
@@ -47,6 +57,8 @@ export interface PobBuild {
   level: number;
   buildName?: string;       // present for GGG .build imports (has a build name)
   source?: 'pob' | 'ggg';
+  author?: string;          // GGG .build `author`
+  sourceUrl?: string;       // GGG .build `link` (guide page the build came from)
   // Skill sets and item sets are independent dimensions in PoB — a build can
   // have a different number of each, switched separately.
   skillSets: PobSkillSet[];
@@ -161,8 +173,8 @@ function gemType(name: string): PobGem['type'] {
 // SkillGem prefix, so they're separated out by keyword on the readable name.
 function gemTypeFromId(id: string): PobGem['type'] {
   const seg = id.split('/').pop() ?? id;
-  if (/^SupportGem/i.test(seg)) return 'support';
-  if (/^SkillGem/i.test(seg)) {
+  if (/^Support(Gem)?/i.test(seg)) return 'support';
+  if (/^Skill(Gem)?/i.test(seg)) {
     const name = humanizeGemId(id).toLowerCase();
     return SPIRIT_KEYWORDS.some(k => name.includes(k)) ? 'spirit' : 'skill';
   }
@@ -172,16 +184,33 @@ function gemTypeFromId(id: string): PobGem['type'] {
 function extractSkillGroups(root: Element): PobSkillGroup[] {
   const groups: PobSkillGroup[] = [];
   for (const skillEl of root.querySelectorAll('Skill')) {
+    const num = (v: string | null) => {
+      const n = parseInt(v ?? '', 10);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    };
     const gems = Array.from(skillEl.querySelectorAll('Gem'))
-      .map(g => ({ name: g.getAttribute('nameSpec') ?? '', id: g.getAttribute('gemId') ?? '' }))
+      .map(g => ({
+        name: g.getAttribute('nameSpec') ?? '',
+        id: g.getAttribute('gemId') ?? '',
+        level: num(g.getAttribute('level')),
+        quality: num(g.getAttribute('quality')),
+      }))
       .filter(g => g.name);
     if (!gems.length) continue;
     const main = gems[0];
     if (groups.some(g => g.mainSkill === main.name)) continue;
     const classify = (g: { name: string; id: string }): PobGem['type'] =>
       g.id ? gemTypeFromId(g.id) : gemType(g.name);
-    const supports: PobGem[] = gems.slice(1).map(g => ({ name: g.name, type: classify(g) }));
-    groups.push({ mainSkill: main.name, mainType: classify(main), supports });
+    const supports: PobGem[] = gems.slice(1).map(g => ({
+      name: g.name, type: classify(g),
+      ...(g.level !== undefined && { level: g.level }),
+      ...(g.quality !== undefined && { quality: g.quality }),
+    }));
+    groups.push({
+      mainSkill: main.name, mainType: classify(main), supports,
+      ...(main.level !== undefined && { mainLevel: main.level }),
+      ...(main.quality !== undefined && { mainQuality: main.quality }),
+    });
   }
   return groups;
 }
@@ -351,12 +380,19 @@ function parseItemSets(doc: Document): {
 // (not a full character export): gems by metadata id, item slots are hints with
 // optional unique name + stat-priority text, passives are tree node ids.
 
-interface GggSupport { id: string; additional_text?: string }
-interface GggSkill   { id: string; additional_text?: string; support_skills?: Array<string | GggSupport> }
-interface GggSlot    { inventory_id: string; unique_name?: string; additional_text?: string }
+// `level_interval` is [from, to] in character levels; real exports use [1,100]
+// for "always" and a higher start for gear/gems meant for later in the build.
+interface GggSupport { id: string; additional_text?: string; level_interval?: [number, number] }
+interface GggSkill   { id: string; additional_text?: string; level_interval?: [number, number]; support_skills?: Array<string | GggSupport> }
+interface GggSlot    { inventory_id: string; unique_name?: string; additional_text?: string; level_interval?: [number, number] }
 interface GggBuild   {
-  name?: string; author?: string; description?: string; ascendancy?: string;
+  name?: string; author?: string; link?: string; description?: string; ascendancy?: string;
   skills?: GggSkill[]; items?: GggSlot[]; inventory_slots?: GggSlot[]; passives?: unknown[];
+}
+
+function fromLevelOf(interval?: [number, number]): number | undefined {
+  const from = interval?.[0];
+  return typeof from === 'number' && from > 1 ? from : undefined;
 }
 
 // GGG markup is <tag>{content}, including <rgb(r,g,b)> and nesting. Strip both
@@ -367,13 +403,29 @@ function stripGggMarkup(text: string): string {
 
 // Metadata/Items/Gems/SkillGemEarthquake → "Earthquake"
 // Metadata/Items/Gems/SupportGemFastForward → "Fast Forward"
+// Metadata/Items/Gems/SupportGemMartialTempoTwo → "Martial Tempo II"
+// Real exports also carry ids without the "Gem" infix (SupportOlrothsConviction),
+// ascendancy-granted skills (SkillGemAscendancyMirageDeadeye), and an internal
+// "Player" variant suffix (SkillGemLivingBombPlayer).
+const GEM_TIER_SUFFIX: Record<string, string> = { Two: 'II', Three: 'III', Four: 'IV', Five: 'V' };
+
 function humanizeGemId(id: string): string {
   const seg = id.split('/').pop() ?? id;
-  const noPrefix = seg.replace(/^(SkillGem|SupportGem)/, '');
-  return noPrefix
+  let core = seg
+    .replace(/^(SkillGem|SupportGem|Skill|Support)/, '')
+    .replace(/^Ascendancy/, '')
+    .replace(/Player$/, '');
+  let tier = '';
+  const tierMatch = core.match(/(Two|Three|Four|Five)$/);
+  if (tierMatch) {
+    tier = ` ${GEM_TIER_SUFFIX[tierMatch[1]]}`;
+    core = core.slice(0, -tierMatch[1].length);
+  }
+  const words = core
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-    .trim() || seg;
+    .trim();
+  return words ? words + tier : seg;
 }
 
 // Real GGG exports suffix single-instance slots with a redundant index
@@ -394,10 +446,13 @@ function gggSlotToItem(slot: GggSlot): PobItem | null {
     .map(l => l.trim())
     .filter(l => l.length > 0 && !/^-+$/.test(l));
 
+  const fromLevel = fromLevelOf(slot.level_interval);
+
   if (slot.unique_name) {
     return {
       slot: slotKey, name: slot.unique_name, base: slot.unique_name,
       rarity: 'Unique', mods: lines, corrupted: false,
+      ...(fromLevel !== undefined && { fromLevel }),
     };
   }
 
@@ -408,6 +463,7 @@ function gggSlotToItem(slot: GggSlot): PobItem | null {
   return {
     slot: slotKey, name, base: name,
     rarity: mods.length > 0 ? 'Rare' : 'Normal', mods, corrupted: false,
+    ...(fromLevel !== undefined && { fromLevel }),
   };
 }
 
@@ -421,11 +477,19 @@ function parseGggBuild(json: GggBuild): PobBuild {
     if (skillGroups.some(g => g.mainSkill === mainSkill)) continue;
     const supports: PobGem[] = (s.support_skills ?? []).map(sup => {
       const supId = typeof sup === 'string' ? sup : sup.id;
+      const fromLevel = typeof sup === 'string' ? undefined : fromLevelOf(sup.level_interval);
       // Classify by metadata id — a slot is usually a support gem, but a spirit
       // gem (herald/aura) socketed into a skill should surface as such.
-      return { name: humanizeGemId(supId), type: gemTypeFromId(supId) };
+      return {
+        name: humanizeGemId(supId), type: gemTypeFromId(supId),
+        ...(fromLevel !== undefined && { fromLevel }),
+      };
     });
-    skillGroups.push({ mainSkill, mainType: gemTypeFromId(s.id), supports });
+    const mainFromLevel = fromLevelOf(s.level_interval);
+    skillGroups.push({
+      mainSkill, mainType: gemTypeFromId(s.id), supports,
+      ...(mainFromLevel !== undefined && { mainFromLevel }),
+    });
   }
 
   // The real GGG export uses an `items` array; the docs example used
@@ -451,6 +515,8 @@ function parseGggBuild(json: GggBuild): PobBuild {
     level: 0,
     buildName: json.name || '',
     source: 'ggg',
+    ...(json.author && { author: json.author }),
+    ...(json.link && /^https?:\/\//i.test(json.link) && { sourceUrl: json.link }),
     skillSets: [{ id: '1', name: 'Default', skillGroups }],
     itemSets:  [{ id: '1', name: 'Default', items }],
     activeSkillSet: 0,

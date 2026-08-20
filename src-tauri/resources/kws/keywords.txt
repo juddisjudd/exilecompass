@@ -27,6 +27,17 @@
 ▁COMP AS S ▁ R ING S @rings
 ▁COMP AS S ▁BE L T @belt
 ▁COMP AS S ▁UN I QU ES @uniques
+▁COMP AS S ▁F LA S K S @flasks
+▁COMP AS S ▁CHA R M S @charms
+▁COMP AS S ▁BUILD ▁IN F O @buildinfo
+▁COMP AS S ▁WE A P ON ▁STA T S @weaponstats
+▁COMP AS S ▁HE L ME T ▁STA T S @helmetstats
+▁COMP AS S ▁BO D Y ▁A R MO UR ▁STA T S @bodyarmourstats
+▁COMP AS S ▁G LO VE S ▁STA T S @glovesstats
+▁COMP AS S ▁BO O T S ▁STA T S @bootsstats
+▁COMP AS S ▁A M UL ET ▁STA T S @amuletstats
+▁COMP AS S ▁ R ING S ▁STA T S @ringsstats
+▁COMP AS S ▁BE L T ▁STA T S @beltstats
 ▁COMP AS S ▁START ▁TIME R @timerstart
 ▁COMP AS S ▁ST O P ▁TIME R @timerstop
 ▁COMP AS S ▁RE S ET ▁TIME R @timerreset

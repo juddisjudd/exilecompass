@@ -6,7 +6,12 @@
   } from '$lib/pob';
   import { recommendVendorOptionsForItem } from '$lib/regex/buildRecommend';
   import { loadVendorRecommendation } from '$lib/regex/builderState.svelte';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { m } from '$lib/paraglide/messages.js';
+
+  async function openSourceUrl(url: string) {
+    try { await openUrl(url); } catch { /* ignore */ }
+  }
 
   // Localized slot + rarity labels (keys mirror the canonical slot/rarity ids)
   const SLOT_MSG: Record<string, () => string> = {
@@ -117,12 +122,25 @@
   }
 
   // Gem hovercard (reuses cardX/cardY — only one card is ever shown at a time)
-  let hoveredGem = $state<{ name: string; type: string } | null>(null);
-  const GEM_CARD_W = 168;
+  interface HoveredGem {
+    name: string;
+    type: string;
+    level?: number;
+    quality?: number;
+    fromLevel?: number;
+    /** For a main gem: the supports linked into it. */
+    supports?: string[];
+    /** For a support: the main gem it's linked into. */
+    linkedTo?: string;
+  }
+  let hoveredGem = $state<HoveredGem | null>(null);
+  const GEM_CARD_W = 188;
 
-  function updateGemPos(e: MouseEvent) {
+  function updateGemPos(e: MouseEvent, gem: HoveredGem) {
     const winW = window.innerWidth, winH = window.innerHeight;
-    const h = 46;
+    const extraRows = (gem.supports?.length ?? 0) + (gem.linkedTo ? 1 : 0)
+      + (gem.level || gem.quality || gem.fromLevel ? 1 : 0);
+    const h = 46 + extraRows * 16;
     let x = e.clientX + 14, y = e.clientY + 16;
     if (x + GEM_CARD_W > winW - 4) x = e.clientX - GEM_CARD_W - 14;
     if (y + h > winH - 4) y = e.clientY - h - 14;
@@ -130,11 +148,11 @@
     if (y < 4) y = 4;
     cardX = x; cardY = y;
   }
-  function onGemEnter(e: MouseEvent, gem: { name: string; type: string }) {
+  function onGemEnter(e: MouseEvent, gem: HoveredGem) {
     hoveredGem = gem;
-    updateGemPos(e);
+    updateGemPos(e, gem);
   }
-  function onGemMove(e: MouseEvent) { if (hoveredGem) updateGemPos(e); }
+  function onGemMove(e: MouseEvent) { if (hoveredGem) updateGemPos(e, hoveredGem); }
   function onGemLeave() { hoveredGem = null; }
 
   // Items present in this set, ordered by the canonical slot order
@@ -224,16 +242,37 @@
     <!-- Build header -->
     <div class="build-header">
       <div class="build-identity">
-        <span class="build-class">{build.buildName || build.ascendClassName || build.className}</span>
-        {#if build.buildName && (build.ascendClassName || build.className)}
-          <span class="build-base-class">{build.ascendClassName || build.className}</span>
-        {:else if build.ascendClassName}
-          <span class="build-base-class">{build.className}</span>
-        {/if}
+        <span class="build-name" title={build.buildName || build.ascendClassName || build.className}>
+          {build.buildName || build.ascendClassName || build.className}
+        </span>
+        <div class="build-subline">
+          {#if build.buildName && (build.ascendClassName || build.className)}
+            <span class="build-fact build-fact-class">{build.ascendClassName || build.className}</span>
+          {:else if build.ascendClassName}
+            <span class="build-fact build-fact-class">{build.className}</span>
+          {/if}
+          {#if build.level > 0}
+            <span class="build-fact">{m.build_level_prefix()} {build.level}</span>
+          {/if}
+          {#if build.author}
+            <span class="build-fact">{m.build_by_author({ author: build.author })}</span>
+          {/if}
+        </div>
       </div>
-      <div class="build-meta">
-        {#if build.level > 0}
-          <span class="build-level">{m.build_level_prefix()} {build.level}</span>
+      <div class="build-actions">
+        {#if build.sourceUrl}
+          <button
+            class="build-source-link"
+            type="button"
+            title={build.sourceUrl}
+            aria-label={m.build_open_source()}
+            onclick={() => openSourceUrl(build.sourceUrl!)}
+          >
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            {m.build_open_source()}
+          </button>
         {/if}
         <button class="btn btn-danger btn-sm" onclick={handleClear}>{m.action_clear()}</button>
       </div>
@@ -324,7 +363,11 @@
             <div class="skill-group">
               <button
                 class="gem-node main {gemTypeClass(group.mainType)}"
-                onmouseenter={(e) => onGemEnter(e, { name: group.mainSkill, type: group.mainType })}
+                onmouseenter={(e) => onGemEnter(e, {
+                  name: group.mainSkill, type: group.mainType,
+                  level: group.mainLevel, quality: group.mainQuality, fromLevel: group.mainFromLevel,
+                  supports: group.supports.map((s) => s.name),
+                })}
                 onmousemove={onGemMove} onmouseleave={onGemLeave}
                 aria-label="{group.mainSkill} ({gemTypeLabel(group.mainType)})"
                 type="button"
@@ -333,7 +376,11 @@
                 <span class="gem-link" aria-hidden="true"></span>
                 <button
                   class="gem-node {gemTypeClass(sup.type)}"
-                  onmouseenter={(e) => onGemEnter(e, { name: sup.name, type: sup.type })}
+                  onmouseenter={(e) => onGemEnter(e, {
+                    name: sup.name, type: sup.type,
+                    level: sup.level, quality: sup.quality, fromLevel: sup.fromLevel,
+                    linkedTo: group.mainSkill,
+                  })}
                   onmousemove={onGemMove} onmouseleave={onGemLeave}
                   aria-label="{sup.name} ({gemTypeLabel(sup.type)})"
                   type="button"
@@ -384,9 +431,10 @@
       </div>
     {/if}
 
-    {#if item.requirements || item.itemLevel || item.corrupted}
+    {#if item.requirements || item.itemLevel || item.corrupted || item.fromLevel}
       <div class="hc-sep"></div>
       <div class="hc-footer">
+        {#if item.fromLevel}<span class="hc-from">{m.item_from_level({ level: String(item.fromLevel) })}</span>{/if}
         {#if reqLine(item)}<span class="hc-req">{reqLine(item)}</span>{/if}
         {#if item.itemLevel}<span class="hc-ilv">iLv {item.itemLevel}</span>{/if}
         {#if item.corrupted}<span class="hc-corrupted">{m.item_corrupted()}</span>{/if}
@@ -399,7 +447,22 @@
 {#if hoveredGem}
   <div class="gem-hovercard {gemTypeClass(hoveredGem.type)}" style="left:{cardX}px; top:{cardY}px; width:{GEM_CARD_W}px">
     <span class="ghc-name">{hoveredGem.name}</span>
-    <span class="ghc-type">{gemTypeLabel(hoveredGem.type)}</span>
+    <span class="ghc-meta">
+      <span class="ghc-type">{gemTypeLabel(hoveredGem.type)}</span>
+      {#if hoveredGem.level}<span class="ghc-stat">{m.gem_level({ level: String(hoveredGem.level) })}</span>{/if}
+      {#if hoveredGem.quality}<span class="ghc-stat">{m.gem_quality({ quality: String(hoveredGem.quality) })}</span>{/if}
+      {#if hoveredGem.fromLevel}<span class="ghc-from">{m.gem_from_level({ level: String(hoveredGem.fromLevel) })}</span>{/if}
+    </span>
+    {#if hoveredGem.supports && hoveredGem.supports.length > 0}
+      <div class="ghc-sep"></div>
+      <span class="ghc-label">{m.gem_linked_supports()}</span>
+      {#each hoveredGem.supports as sup, i (i)}
+        <span class="ghc-link-item">{sup}</span>
+      {/each}
+    {:else if hoveredGem.linkedTo}
+      <div class="ghc-sep"></div>
+      <span class="ghc-label">{m.gem_linked_to({ skill: hoveredGem.linkedTo })}</span>
+    {/if}
   </div>
 {/if}
 
@@ -419,13 +482,20 @@
   .empty-state .btn { margin-top: 4px; }
 
   /* ── Build header ──────────────────────────────────────── */
-  .build-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: color-mix(in srgb, var(--c-bg) 86%, var(--c-mid)); border: 1px solid color-mix(in srgb, var(--c-accent) 38%, transparent); border-radius: var(--radius); }
-  .build-identity { display: flex; align-items: baseline; gap: 6px; }
-  .build-class { font-family: 'Satoshi', 'Inter', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; color: var(--c-primary); text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent); }
-  .build-base-class { font-size: 10px; color: color-mix(in srgb, var(--c-muted) 80%, transparent); letter-spacing: 0.04em; }
-  .build-meta { display: flex; align-items: center; gap: 8px; }
-  .build-level { font-family: 'Satoshi', 'Inter', sans-serif; font-size: 11px; font-weight: 600; font-feature-settings:'tnum'; color: color-mix(in srgb, var(--c-accent) 75%, #fff 25%); letter-spacing: 0.04em; }
-  .btn-sm { height: auto; padding: 2px 8px; font-size: 10px; font-weight: 500; letter-spacing: 0.06em; }
+  /* Two-line identity (name, then class · level · author) with the actions
+     pinned right, so long guide names wrap instead of squeezing everything
+     onto one baseline. */
+  .build-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 12px; background: color-mix(in srgb, var(--c-bg) 86%, var(--c-mid)); border: 1px solid color-mix(in srgb, var(--c-accent) 38%, transparent); border-radius: var(--radius); }
+  .build-identity { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+  .build-name { font-family: 'Satoshi', 'Inter', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; line-height: 1.3; color: var(--c-primary); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .build-subline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; }
+  .build-fact { font-size: 10px; letter-spacing: 0.03em; color: color-mix(in srgb, var(--c-accent) 72%, transparent); white-space: nowrap; }
+  .build-fact-class { color: color-mix(in srgb, var(--c-accent) 90%, #fff 10%); font-weight: 600; }
+  .build-fact + .build-fact::before { content: '·'; margin: 0 7px; color: color-mix(in srgb, var(--c-muted) 70%, transparent); }
+  .build-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-top: 1px; }
+  .build-source-link { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent); border-radius: var(--radius); background: transparent; color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%); font-family: 'Satoshi', 'Inter', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 0.04em; cursor: pointer; transition: border-color 0.12s ease, color 0.12s ease; }
+  .build-source-link:hover { border-color: var(--c-red); color: var(--c-red-bright); }
+  .btn-sm { height: 22px; padding: 0 8px; font-size: 10px; font-weight: 500; letter-spacing: 0.06em; }
 
   /* ── Set selectors (skill set / item set dropdowns) ────── */
   .set-selectors {
@@ -467,8 +537,7 @@
     outline: none;
     transition: border-color 0.12s;
   }
-  .set-select select:hover,
-  .set-select select:focus {
+  .set-select select:hover {
     border-color: color-mix(in srgb, var(--c-red) 55%, transparent);
   }
   .set-select option {
@@ -498,8 +567,7 @@
     outline: none;
     transition: border-color 0.12s;
   }
-  .build-library select:hover,
-  .build-library select:focus {
+  .build-library select:hover {
     border-color: color-mix(in srgb, var(--c-red) 55%, transparent);
   }
   .build-library option {
@@ -573,6 +641,7 @@
   .hc-footer { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .hc-req { font-size: 9px; color: color-mix(in srgb, var(--c-muted) 75%, transparent); }
   .hc-ilv { font-size: 9px; color: color-mix(in srgb, var(--c-muted) 55%, transparent); }
+  .hc-from { font-size: 9px; font-weight: 600; color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%); }
   .hc-corrupted { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-red-bright); }
 
   /* ── Skill groups ──────────────────────────────────────── */
@@ -607,6 +676,13 @@
   .gem-hovercard { position: fixed; z-index: 9999; pointer-events: none; padding: 7px 10px; background: var(--c-mid); border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-left: 2px solid currentColor; border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 2px; }
   .ghc-name { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; color: color-mix(in srgb, var(--c-accent) 88%, #fff 12%); }
   .ghc-type { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: currentColor; }
+  .ghc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .ghc-stat { font-size: 9px; font-weight: 600; font-feature-settings: 'tnum'; color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%); }
+  .ghc-from { font-size: 9px; font-weight: 600; color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%); }
+  .ghc-sep { height: 1px; background: color-mix(in srgb, var(--c-accent) 15%, transparent); margin: 3px 0 2px; }
+  .ghc-label { font-size: 8px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--c-accent) 60%, transparent); }
+  .ghc-link-item { font-size: 10px; line-height: 1.4; color: color-mix(in srgb, var(--c-accent) 88%, #fff 12%); padding-left: 8px; position: relative; }
+  .ghc-link-item::before { content: ''; position: absolute; left: 0; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.6; }
 
   /* ── Notes ─────────────────────────────────────────────── */
   .notes-toggle { width: 100%; border: none; cursor: pointer; text-align: left; }

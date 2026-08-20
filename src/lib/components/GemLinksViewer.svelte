@@ -137,8 +137,7 @@
     outline: none;
     transition: border-color 0.12s;
   }
-  .set-select select:hover,
-  .set-select select:focus {
+  .set-select select:hover {
     border-color: color-mix(in srgb, var(--c-red) 55%, transparent);
   }
   .set-select option {
