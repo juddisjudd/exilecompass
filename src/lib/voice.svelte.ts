@@ -1,26 +1,56 @@
 import { invoke } from '@tauri-apps/api/core';
 
-export type VoicePhrase = 'next' | 'back';
+export type VoicePhrase = string;
+
+/** Category grouping for the Settings UI — purely a display concern, the
+ *  backend's PHRASES registry (voice.rs) is a flat list. Keep in sync with it:
+ *  any id present there but missing here falls into 'other' automatically. */
+export type VoicePhraseGroup = 'objectives' | 'navigation' | 'buildInfo' | 'other';
+
+const GROUP_MAP: Record<string, VoicePhraseGroup> = {
+  next: 'objectives',
+  back: 'objectives',
+  rewards: 'navigation',
+  campaign: 'navigation',
+  build: 'navigation',
+  skill1: 'buildInfo',
+  skill2: 'buildInfo',
+  skill3: 'buildInfo',
+  spirit: 'buildInfo',
+  skill1supports: 'buildInfo',
+  skill2supports: 'buildInfo',
+  skill3supports: 'buildInfo',
+  spiritsupports: 'buildInfo',
+};
+
+export function voicePhraseGroup(phrase: VoicePhrase): VoicePhraseGroup {
+  return GROUP_MAP[phrase] ?? 'other';
+}
 
 const ENABLED_KEY = 'EXILECOMPASS_VOICE_ENABLED_V1';
 
 // ── Reactive state (Svelte 5 runes) ───────────────────────────────────────────
 
+let _phrases = $state<VoicePhrase[]>([]);
 let _enabled = $state(false);
 let _listening = $state(false);
-let _sampleCounts = $state<Record<VoicePhrase, number>>({ next: 0, back: 0 });
-let _trained = $state<Record<VoicePhrase, boolean>>({ next: false, back: false });
+let _sampleCounts = $state<Record<VoicePhrase, number>>({});
+let _trained = $state<Record<VoicePhrase, boolean>>({});
 let _recordingPhrase = $state<VoicePhrase | null>(null);
 let _error = $state('');
 
 export const voiceState = {
+  /** Every phrase id the backend knows how to train/listen for (voice.rs's PHRASES). */
+  get phrases() { return _phrases; },
   /** User's saved preference — does not by itself mean the mic is active; see `listening`. */
   get enabled() { return _enabled; },
   /** Whether the detector is actually running right now (drives the "you're being listened to" indicator). */
   get listening() { return _listening; },
   get sampleCounts() { return _sampleCounts; },
   get trained() { return _trained; },
-  get setupComplete() { return _trained.next && _trained.back; },
+  /** At least one phrase trained — matches the backend, which listens for
+   *  whichever phrases are trained rather than requiring the full set. */
+  get setupComplete() { return _phrases.some((p) => _trained[p]); },
   get recordingPhrase() { return _recordingPhrase; },
   get error() { return _error; },
 };
@@ -39,8 +69,14 @@ function setVoiceEnabledPref(value: boolean) {
 
 // ── Setup: recording samples & training ──────────────────────────────────────
 
+export async function loadVoicePhrases(): Promise<VoicePhrase[]> {
+  _phrases = await invoke<string[]>('voice_list_phrases');
+  return _phrases;
+}
+
 export async function refreshVoiceSetupStatus(): Promise<void> {
-  for (const phrase of ['next', 'back'] as const) {
+  if (_phrases.length === 0) await loadVoicePhrases();
+  for (const phrase of _phrases) {
     _sampleCounts[phrase] = await invoke<number>('voice_sample_count', { phrase });
     _trained[phrase] = await invoke<boolean>('voice_has_model', { phrase });
   }
@@ -77,7 +113,10 @@ export async function resetVoicePhrase(phrase: VoicePhrase): Promise<void> {
   await invoke('voice_reset_phrase', { phrase });
   _sampleCounts[phrase] = 0;
   _trained[phrase] = false;
-  if (_listening) await stopVoiceListening();
+  // The backend just re-derives its trained-phrase list from disk on next
+  // start, so a live session doesn't need restarting for one phrase reset —
+  // only stop if that was the last trained phrase (nothing left to listen for).
+  if (_listening && !voiceState.setupComplete) await stopVoiceListening();
 }
 
 // ── Live listening ────────────────────────────────────────────────────────
@@ -106,7 +145,7 @@ export function markVoiceListeningStopped() {
 }
 
 /** Apply the saved enable preference at startup: if the user left voice
- *  commands on and both phrases are trained, start listening immediately. */
+ *  commands on and at least one phrase is trained, start listening immediately. */
 export async function applyVoiceEnabledOnStartup(): Promise<void> {
   loadVoiceEnabled();
   await refreshVoiceSetupStatus();

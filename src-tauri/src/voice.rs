@@ -25,8 +25,40 @@ use rustpotter::{
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 
-/// All loaded wakewords must share one mfcc_size (rustpotter rejects mixed
-/// sizes at runtime) — 16 matches rustpotter-cli's own default.
+/// Every phrase id the app can train/listen for. Adding a new voice command
+/// means adding its id here plus its label/dispatch handling on the frontend
+/// (voice.svelte.ts / +page.svelte) — recording, training, and listening are
+/// all generic over this list. Ids are internal keys only (filenames and the
+/// `voice-command` event payload); the spoken phrase is whatever the user
+/// actually records, guided by the frontend's on-screen label for that id.
+///
+/// Each phrase gets its own independent Rustpotter instance at listen time
+/// (see build_listening_stream), so — unlike a single shared instance —
+/// there's no hard requirement they share one mfcc_size or stay a small
+/// number for correctness. There IS an open perf/accuracy question as this
+/// list grows: every trained phrase adds another full detector processing
+/// every audio frame in real time, and phrases with heavy text overlap
+/// ("skill1" vs "skill1supports") haven't been validated against each other
+/// yet. Grow this list incrementally and re-test, don't assume it scales.
+pub const PHRASES: &[&str] = &[
+    "next",
+    "back",
+    "rewards",
+    "campaign",
+    "build",
+    "skill1",
+    "skill2",
+    "skill3",
+    "spirit",
+    "skill1supports",
+    "skill2supports",
+    "skill3supports",
+    "spiritsupports",
+];
+
+/// mfcc_size used when training every phrase — 16 matches rustpotter-cli's
+/// own default. No longer a hard cross-phrase requirement (see PHRASES doc),
+/// just kept uniform for predictability.
 const MFCC_SIZE: u16 = 16;
 /// Minimum recordings before a phrase can be trained; rustpotter recommends
 /// 3-8 samples per wakeword reference.
@@ -50,11 +82,17 @@ impl VoiceState {
 }
 
 fn validate_phrase(phrase: &str) -> Result<(), String> {
-    if phrase == "next" || phrase == "back" {
+    if PHRASES.contains(&phrase) {
         Ok(())
     } else {
         Err(format!("Unknown voice phrase: {phrase}"))
     }
+}
+
+/// The phrase registry, for the frontend to build its setup UI from.
+#[tauri::command]
+pub fn voice_list_phrases() -> Vec<String> {
+    PHRASES.iter().map(|s| s.to_string()).collect()
 }
 
 fn voice_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -255,9 +293,17 @@ pub async fn voice_start_listening(
     if state.stop_tx.lock().unwrap().is_some() {
         return Ok(()); // already running
     }
-    let next_path = model_path(&app, "next")?;
-    let back_path = model_path(&app, "back")?;
-    if !next_path.is_file() || !back_path.is_file() {
+    // Listen for whichever phrases are trained — not all of them. Lets
+    // someone use just "next"/"back" without setting up every build-query
+    // phrase too.
+    let mut trained: Vec<(String, PathBuf)> = Vec::new();
+    for &phrase in PHRASES {
+        let path = model_path(&app, phrase)?;
+        if path.is_file() {
+            trained.push((phrase.to_string(), path));
+        }
+    }
+    if trained.is_empty() {
         return Err("Voice commands haven't been set up yet".to_string());
     }
 
@@ -265,7 +311,7 @@ pub async fn voice_start_listening(
     let (stop_tx, stop_rx) = mpsc::channel::<()>();
     let app_handle = app.clone();
     std::thread::spawn(move || {
-        run_listening_thread(app_handle, next_path, back_path, ready_tx, stop_rx);
+        run_listening_thread(app_handle, trained, ready_tx, stop_rx);
     });
 
     let ready = tauri::async_runtime::spawn_blocking(move || ready_rx.recv())
@@ -287,12 +333,11 @@ pub fn voice_stop_listening(state: State<'_, VoiceState>) {
 
 fn run_listening_thread(
     app: AppHandle,
-    next_path: PathBuf,
-    back_path: PathBuf,
+    trained: Vec<(String, PathBuf)>,
     ready_tx: mpsc::Sender<Result<(), String>>,
     stop_rx: mpsc::Receiver<()>,
 ) {
-    let stream = match build_listening_stream(&app, &next_path, &back_path) {
+    let stream = match build_listening_stream(&app, &trained) {
         Ok(s) => s,
         Err(e) => {
             let _ = ready_tx.send(Err(e));
@@ -314,19 +359,18 @@ fn run_listening_thread(
     let _ = app.emit("voice-listening-stopped", ());
 }
 
-// Two fully independent Rustpotter instances (one per phrase) rather than one
-// instance with both wakewords loaded. Rustpotter tracks a single cross-
-// wakeword "best candidate" internally (`partial_detection` in detector.rs) —
-// with two wakewords sharing the "compass " prefix, whichever one edges out
-// the other on an early, acoustically-ambiguous frame can end up "owning" the
-// candidate slot, forcing the other phrase to out-score that stale peak
-// rather than accumulate its own evidence. Feeding the same audio into two
-// separate detectors sidesteps that entirely — each phrase's evidence is
-// tracked independently and neither can starve the other.
+// One fully independent Rustpotter instance per trained phrase, rather than
+// one shared instance with every wakeword loaded into it. Rustpotter tracks
+// a single cross-wakeword "best candidate" internally (`partial_detection`
+// in detector.rs) — wakewords that share a prefix (every phrase here starts
+// with "compass ") can end up having one systematically edge out another on
+// early, acoustically-ambiguous frames, forcing the loser to out-score the
+// winner's stale peak instead of accumulating its own evidence. Feeding the
+// same audio into fully separate detectors sidesteps that: each phrase's
+// evidence is tracked independently and none of them can starve another.
 fn build_listening_stream(
     app: &AppHandle,
-    next_path: &Path,
-    back_path: &Path,
+    trained: &[(String, PathBuf)],
 ) -> Result<cpal::Stream, String> {
     let host = cpal::default_host();
     let device = host.default_input_device().ok_or("No microphone found")?;
@@ -344,10 +388,12 @@ fn build_listening_stream(
     .ok_or("Unsupported microphone audio format")?;
     config.detector.min_scores = LISTEN_MIN_SCORES;
 
-    let mut next_rp = Rustpotter::new(&config)?;
-    next_rp.add_wakeword_from_file("next", next_path.to_str().ok_or("Invalid model path")?)?;
-    let mut back_rp = Rustpotter::new(&config)?;
-    back_rp.add_wakeword_from_file("back", back_path.to_str().ok_or("Invalid model path")?)?;
+    let mut detectors: Vec<Rustpotter> = Vec::with_capacity(trained.len());
+    for (phrase, path) in trained {
+        let mut rp = Rustpotter::new(&config)?;
+        rp.add_wakeword_from_file(phrase, path.to_str().ok_or("Invalid model path")?)?;
+        detectors.push(rp);
+    }
 
     let stream_config = cpal::StreamConfig {
         channels: device_config.channels(),
@@ -356,10 +402,10 @@ fn build_listening_stream(
     };
     let app = app.clone();
     match device_config.sample_format() {
-        cpal::SampleFormat::I8 => build_spot_stream::<i8>(&device, &stream_config, next_rp, back_rp, app),
-        cpal::SampleFormat::I16 => build_spot_stream::<i16>(&device, &stream_config, next_rp, back_rp, app),
-        cpal::SampleFormat::I32 => build_spot_stream::<i32>(&device, &stream_config, next_rp, back_rp, app),
-        cpal::SampleFormat::F32 => build_spot_stream::<f32>(&device, &stream_config, next_rp, back_rp, app),
+        cpal::SampleFormat::I8 => build_spot_stream::<i8>(&device, &stream_config, detectors, app),
+        cpal::SampleFormat::I16 => build_spot_stream::<i16>(&device, &stream_config, detectors, app),
+        cpal::SampleFormat::I32 => build_spot_stream::<i32>(&device, &stream_config, detectors, app),
+        cpal::SampleFormat::F32 => build_spot_stream::<f32>(&device, &stream_config, detectors, app),
         other => Err(format!("Unsupported microphone sample format: {other:?}")),
     }
 }
@@ -367,26 +413,26 @@ fn build_listening_stream(
 fn build_spot_stream<S>(
     device: &cpal::Device,
     stream_config: &cpal::StreamConfig,
-    mut next_rp: Rustpotter,
-    mut back_rp: Rustpotter,
+    mut detectors: Vec<Rustpotter>,
     app: AppHandle,
 ) -> Result<cpal::Stream, String>
 where
     S: RpSample + SizedSample + Clone,
 {
-    // Both instances were built from the same config, so their frame size
-    // requirement is identical — only need to track one.
-    let samples_per_frame = next_rp.get_samples_per_frame();
+    // Every instance was built from the same config, so their frame size
+    // requirement is identical — only need to track one. `detectors` is
+    // guaranteed non-empty by the caller (voice_start_listening bails out
+    // before spawning this thread if `trained` is empty).
+    let samples_per_frame = detectors[0].get_samples_per_frame();
     let mut buffer: Vec<S> = Vec::with_capacity(samples_per_frame * 2);
     let data_callback = move |data: &[S], _: &cpal::InputCallbackInfo| {
         buffer.extend_from_slice(data);
         while buffer.len() >= samples_per_frame {
             let frame: Vec<S> = buffer.drain(0..samples_per_frame).collect();
-            if let Some(detection) = next_rp.process_samples(frame.clone()) {
-                let _ = app.emit("voice-command", detection.name.clone());
-            }
-            if let Some(detection) = back_rp.process_samples(frame) {
-                let _ = app.emit("voice-command", detection.name.clone());
+            for rp in detectors.iter_mut() {
+                if let Some(detection) = rp.process_samples(frame.clone()) {
+                    let _ = app.emit("voice-command", detection.name.clone());
+                }
             }
         }
     };

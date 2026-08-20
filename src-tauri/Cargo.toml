@@ -25,7 +25,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 overlay-core = { path = "overlay-core" }
 raw-window-handle = "0.6"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 rustpotter = "3"
 cpal = "0.15"
@@ -36,6 +36,12 @@ hound = "3"
 # against rand_distr 0.4.3 (rand 0.8) and fails to compile against half's
 # newer rand-0.9-based Distribution impls otherwise.
 half = "=2.4.1"
+# Windows Credential Manager / Linux Secret Service (default features cover
+# both — Linux backend is a pure-Rust D-Bus client, no libsecret dev headers
+# needed at build time). Used only for the optional ElevenLabs API key; falls
+# back to plain settings.json (frontend-side) if no OS keychain is reachable,
+# e.g. Linux with no keyring daemon running.
+keyring = "4"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-dialog = "2"

@@ -55,8 +55,10 @@
     setVoiceEnabled,
     applyVoiceEnabledOnStartup,
     markVoiceListeningStopped,
+    voicePhraseGroup,
     type VoicePhrase,
   } from '$lib/voice.svelte';
+  import { speak, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId, ELEVENLABS_PRESET_VOICES } from '$lib/tts.svelte';
   import {
     importPoe1Build,
     clearPoe1Build,
@@ -259,13 +261,17 @@
   // widgets.ts's getWidgetOpacity/setWidgetOpacity).
   let actDecoderOpacity = $state(1);
 
+  // ElevenLabs API key input box — deliberately not kept around as reactive
+  // state beyond the field itself; cleared once saved (see tts.svelte.ts for
+  // where it actually ends up).
+  let elevenLabsKeyInput = $state('');
+
   async function handleActDecoderOpacityChange() {
     await setWidgetOpacity('act-decoder', actDecoderOpacity);
   }
 
-  // ── Voice commands ("compass next" / "compass back") ────────────────────────
+  // ── Voice commands ─────────────────────────────────────────────────────────
 
-  const VOICE_PHRASES: VoicePhrase[] = ['next', 'back'];
   const VOICE_MIN_SAMPLES = 3;
 
   async function handleVoiceEnabledChange(checked: boolean) {
@@ -282,10 +288,131 @@
 
   async function handleResetVoicePhrase(phrase: VoicePhrase) {
     await resetVoicePhrase(phrase);
-    // Setup no longer complete — the toggle can't stay on without both models.
+    // Setup no longer complete — the toggle can't stay on without any models left.
     if (voiceState.enabled && !voiceState.setupComplete) {
       await setVoiceEnabled(false);
     }
+  }
+
+  // Build-query voice commands ("compass, first skill", "...supports", etc.) —
+  // resolved against the primary skill set of the currently imported PoE2
+  // build. Deliberately always skillSets[0] rather than mirroring whatever tab
+  // BuildOverview.svelte's own (component-local, unexported) selector has
+  // active — "first skill" means "first skill in the build's main set," full
+  // stop, regardless of which set happens to be on screen.
+  function activeSkillGroups() {
+    return pobBuild?.skillSets[0]?.skillGroups ?? [];
+  }
+
+  function speakNthSkill(n: 1 | 2 | 3) {
+    if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
+    const skill = activeSkillGroups().filter((g) => g.mainType === 'skill')[n - 1];
+    void speak(skill ? skill.mainSkill : m.voice_tts_no_skill_at_position());
+  }
+
+  function speakSpiritGem() {
+    if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
+    const spirits = activeSkillGroups().filter((g) => g.mainType === 'spirit');
+    void speak(spirits.length ? spirits.map((g) => g.mainSkill).join(', ') : m.voice_tts_no_spirit_gem());
+  }
+
+  function speakNthSkillSupports(n: 1 | 2 | 3) {
+    if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
+    const skill = activeSkillGroups().filter((g) => g.mainType === 'skill')[n - 1];
+    if (!skill) { void speak(m.voice_tts_no_skill_at_position()); return; }
+    void speak(skill.supports.length ? skill.supports.map((s) => s.name).join(', ') : m.voice_tts_no_supports());
+  }
+
+  function speakSpiritSupports() {
+    if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
+    const spirits = activeSkillGroups().filter((g) => g.mainType === 'spirit');
+    if (!spirits.length) { void speak(m.voice_tts_no_spirit_gem()); return; }
+    const supports = spirits.flatMap((g) => g.supports.map((s) => s.name));
+    void speak(supports.length ? supports.join(', ') : m.voice_tts_no_supports());
+  }
+
+  /** Routes a `voice-command` detection to whatever that phrase id does.
+   *  Kept as one dispatch point (rather than spread across the event
+   *  listener) so it's the single place to look when adding a new phrase to
+   *  voice.rs's PHRASES registry. Navigation commands are PoE2-only — those
+   *  tabs don't exist in PoE1 mode, so they're silently ignored there rather
+   *  than erroring, matching how toggleActDecoder is PoE1-only the other way. */
+  function handleVoiceCommand(phrase: string) {
+    switch (phrase) {
+      case 'next': void GLOBAL_ACTIONS.campaignCompleteNext?.(); break;
+      case 'back': void GLOBAL_ACTIONS.campaignUndoLast?.(); break;
+      case 'rewards': if (gameMode.current === 'poe2') mainView = 'rewards'; break;
+      case 'campaign': if (gameMode.current === 'poe2') mainView = 'campaign'; break;
+      case 'build': if (gameMode.current === 'poe2') mainView = 'build'; break;
+      case 'skill1': speakNthSkill(1); break;
+      case 'skill2': speakNthSkill(2); break;
+      case 'skill3': speakNthSkill(3); break;
+      case 'spirit': speakSpiritGem(); break;
+      case 'skill1supports': speakNthSkillSupports(1); break;
+      case 'skill2supports': speakNthSkillSupports(2); break;
+      case 'skill3supports': speakNthSkillSupports(3); break;
+      case 'spiritsupports': speakSpiritSupports(); break;
+    }
+  }
+
+  /** What Settings shows for a phrase id: a translated label, and the literal
+   *  (always-English) example phrase to say while recording it — the phrase
+   *  itself isn't translatable content, it's the fixed wake-phrase this
+   *  feature is built around regardless of UI locale. */
+  function voicePhraseLabel(phrase: VoicePhrase): string {
+    switch (phrase) {
+      case 'next': return m.voice_phrase_next();
+      case 'back': return m.voice_phrase_back();
+      case 'rewards': return m.voice_phrase_rewards();
+      case 'campaign': return m.voice_phrase_campaign();
+      case 'build': return m.voice_phrase_build();
+      case 'skill1': return m.voice_phrase_skill1();
+      case 'skill2': return m.voice_phrase_skill2();
+      case 'skill3': return m.voice_phrase_skill3();
+      case 'spirit': return m.voice_phrase_spirit();
+      case 'skill1supports': return m.voice_phrase_skill1_supports();
+      case 'skill2supports': return m.voice_phrase_skill2_supports();
+      case 'skill3supports': return m.voice_phrase_skill3_supports();
+      case 'spiritsupports': return m.voice_phrase_spirit_supports();
+      default: return phrase;
+    }
+  }
+
+  const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
+    next: 'compass next',
+    back: 'compass back',
+    rewards: 'compass rewards',
+    campaign: 'compass campaign',
+    build: 'compass build',
+    skill1: 'compass first skill',
+    skill2: 'compass second skill',
+    skill3: 'compass third skill',
+    spirit: 'compass spirit gem',
+    skill1supports: 'compass first skill supports',
+    skill2supports: 'compass second skill supports',
+    skill3supports: 'compass third skill supports',
+    spiritsupports: 'compass spirit gem supports',
+  };
+
+  const VOICE_GROUP_ORDER = ['objectives', 'navigation', 'buildInfo', 'other'] as const;
+  function voicePhraseGroupLabel(group: (typeof VOICE_GROUP_ORDER)[number]): string {
+    switch (group) {
+      case 'objectives': return m.voice_group_objectives();
+      case 'navigation': return m.voice_group_navigation();
+      case 'buildInfo': return m.voice_group_build_info();
+      default: return group;
+    }
+  }
+
+  async function handleSaveElevenLabsKey() {
+    const key = elevenLabsKeyInput.trim();
+    if (!key) return;
+    await setElevenLabsKey(key);
+    elevenLabsKeyInput = '';
+  }
+
+  async function handleClearElevenLabsKey() {
+    await clearElevenLabsKey();
   }
 
   // Apply/remove transparency whenever click-through state or opacity changes
@@ -476,6 +603,7 @@
     triggerConfig = loadTriggerConfig();
     void pushTriggers();
     void applyVoiceEnabledOnStartup();
+    void loadTtsSettings();
     selectedLocale = getLocale() as AppLocale;
     pobBuild = loadStoredBuild();
     refreshPoe1Builds();
@@ -627,15 +755,14 @@
       });
     })();
 
-    // Voice commands ("compass next" / "compass back") — the Rust listener
-    // thread emits `voice-command` on a detection. Routes through the same
-    // GLOBAL_ACTIONS handlers the hotkeys use, so both drive identical logic.
+    // Voice commands — the Rust listener thread emits `voice-command` (phrase
+    // id payload) on a detection; handleVoiceCommand is the single dispatch
+    // point for every phrase in voice.rs's PHRASES registry.
     let unlistenVoiceCommand: (() => void) | undefined;
     let unlistenVoiceStopped: (() => void) | undefined;
     (async () => {
       unlistenVoiceCommand = await listen<string>('voice-command', (event) => {
-        if (event.payload === 'next') void GLOBAL_ACTIONS.campaignCompleteNext?.();
-        else if (event.payload === 'back') void GLOBAL_ACTIONS.campaignUndoLast?.();
+        handleVoiceCommand(event.payload);
       });
       unlistenVoiceStopped = await listen('voice-listening-stopped', () => {
         markVoiceListeningStopped();
@@ -1439,38 +1566,87 @@
 
               <div class="settings-section-title" style="margin-top:16px">{m.voice_setup_title()}</div>
               <p class="field-help">{m.voice_setup_help({ count: VOICE_MIN_SAMPLES })}</p>
-              {#each VOICE_PHRASES as phrase (phrase)}
-                <div class="voice-phrase-card ec-panel">
-                  <div class="voice-phrase-header">
-                    <strong>{phrase === 'next' ? m.voice_phrase_next() : m.voice_phrase_back()}</strong>
-                    {#if voiceState.trained[phrase]}
-                      <span class="badge badge-ok">{m.voice_trained_badge()}</span>
-                    {/if}
-                  </div>
-                  <p class="field-help">{m.voice_samples_recorded({ count: voiceState.sampleCounts[phrase] })}</p>
-                  <div class="voice-phrase-actions">
-                    <button
-                      class="btn"
-                      type="button"
-                      disabled={voiceState.recordingPhrase !== null}
-                      onclick={() => handleRecordVoiceSample(phrase)}
-                    >
-                      {voiceState.recordingPhrase === phrase ? m.voice_recording() : m.voice_record_sample()}
-                    </button>
-                    <button
-                      class="btn btn-primary"
-                      type="button"
-                      disabled={voiceState.sampleCounts[phrase] < VOICE_MIN_SAMPLES || voiceState.recordingPhrase !== null}
-                      onclick={() => handleTrainVoicePhrase(phrase)}
-                    >
-                      {m.voice_train()}
-                    </button>
-                    <button class="btn btn-ghost" type="button" onclick={() => handleResetVoicePhrase(phrase)}>
-                      {m.voice_reset()}
-                    </button>
-                  </div>
-                </div>
+              {#each VOICE_GROUP_ORDER as group (group)}
+                {@const phrasesInGroup = voiceState.phrases.filter((p) => voicePhraseGroup(p) === group)}
+                {#if phrasesInGroup.length > 0}
+                  <div class="voice-group-label">{voicePhraseGroupLabel(group)}</div>
+                  {#each phrasesInGroup as phrase (phrase)}
+                    <div class="voice-phrase-card ec-panel">
+                      <div class="voice-phrase-header">
+                        <strong>{voicePhraseLabel(phrase)}</strong>
+                        {#if voiceState.trained[phrase]}
+                          <span class="badge badge-ok">{m.voice_trained_badge()}</span>
+                        {/if}
+                      </div>
+                      <p class="field-help">
+                        {m.voice_say_this()} <em>"{VOICE_PHRASE_EXAMPLES[phrase] ?? phrase}"</em>
+                        &middot; {m.voice_samples_recorded({ count: voiceState.sampleCounts[phrase] ?? 0 })}
+                      </p>
+                      <div class="voice-phrase-actions">
+                        <button
+                          class="btn"
+                          type="button"
+                          disabled={voiceState.recordingPhrase !== null}
+                          onclick={() => handleRecordVoiceSample(phrase)}
+                        >
+                          {voiceState.recordingPhrase === phrase ? m.voice_recording() : m.voice_record_sample()}
+                        </button>
+                        <button
+                          class="btn btn-primary"
+                          type="button"
+                          disabled={(voiceState.sampleCounts[phrase] ?? 0) < VOICE_MIN_SAMPLES || voiceState.recordingPhrase !== null}
+                          onclick={() => handleTrainVoicePhrase(phrase)}
+                        >
+                          {m.voice_train()}
+                        </button>
+                        <button class="btn btn-ghost" type="button" onclick={() => handleResetVoicePhrase(phrase)}>
+                          {m.voice_reset()}
+                        </button>
+                      </div>
+                    </div>
+                  {/each}
+                {/if}
               {/each}
+
+              <div class="settings-section-title" style="margin-top:16px">{m.voice_tts_title()}</div>
+              <p class="field-help">{m.voice_tts_help()}</p>
+              {#if ttsState.hasKey}
+                <p class="voice-listening-indicator">
+                  {m.voice_tts_key_configured()}
+                  {#if ttsState.keyStorage === 'fallback'}
+                    <span class="badge badge-bad" title={m.voice_tts_key_not_secure_title()}>{m.voice_tts_key_not_secure()}</span>
+                  {/if}
+                </p>
+                <label class="field-label" for="elevenlabs-voice-select">{m.voice_tts_voice_label()}</label>
+                <select
+                  id="elevenlabs-voice-select"
+                  class="field-select"
+                  value={ttsState.voiceId}
+                  onchange={(e) => setVoiceId((e.currentTarget as HTMLSelectElement).value)}
+                >
+                  {#each ELEVENLABS_PRESET_VOICES as v (v.id)}
+                    <option value={v.id}>{v.name}</option>
+                  {/each}
+                </select>
+                <button class="btn btn-danger" type="button" style="margin-top:8px" onclick={handleClearElevenLabsKey}>
+                  {m.voice_tts_remove_key()}
+                </button>
+              {:else}
+                <p class="field-help">{m.voice_tts_no_key_help()}</p>
+                <div class="trigger-add-row">
+                  <input
+                    class="hotkey-input trigger-add-input"
+                    type="password"
+                    bind:value={elevenLabsKeyInput}
+                    placeholder={m.voice_tts_key_placeholder()}
+                    onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveElevenLabsKey(); } }}
+                  />
+                  <button class="btn btn-primary" type="button" onclick={handleSaveElevenLabsKey}>{m.voice_tts_save_key()}</button>
+                </div>
+              {/if}
+              {#if ttsState.error}
+                <p class="inline-error">{ttsState.error}</p>
+              {/if}
 
             {:else if activeSettingsTab === 'language'}
               <div class="settings-section-title">{m.label_language()}</div>
@@ -1963,7 +2139,10 @@
     <span class="app-version">{appVersion ? `v${appVersion}` : ''}</span>
     <div class="footer-right">
       {#if voiceState.listening}
-        <span class="footer-voice-indicator" title={m.voice_listening_active()}>🎙</span>
+        <span class="footer-voice-indicator" title={m.voice_listening_active()}>
+          <span class="footer-voice-dot" aria-hidden="true"></span>
+          🎙 {m.voice_listening_short()}
+        </span>
       {/if}
       {#if gameMode.current === 'poe1' && levelingRoute.build}
         <span class="footer-build-chip">
@@ -2169,15 +2348,39 @@
   }
 
   /* Voice commands: always-visible footer indicator so the mic being live is
-     never a surprise, plus the Settings → Voice setup/status UI. */
+     never a surprise, plus the Settings → Voice setup/status UI. A red pill
+     with a pulsing record-dot (not just a dimly-pulsing emoji) so it reads
+     unambiguously as "actively listening," not decoration. */
   .footer-voice-indicator {
-    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px 2px 6px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--c-red) 55%, transparent);
+    color: var(--c-red-bright);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     line-height: 1;
-    animation: voice-pulse 1.6s ease-in-out infinite;
+    animation: voice-pulse-bg 1.6s ease-in-out infinite;
   }
-  @keyframes voice-pulse {
-    0%, 100% { opacity: 0.55; }
-    50% { opacity: 1; }
+  .footer-voice-dot {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--c-red-bright);
+    animation: voice-pulse-dot 1.2s ease-in-out infinite;
+  }
+  @keyframes voice-pulse-bg {
+    0%, 100% { background: color-mix(in srgb, var(--c-red) 20%, var(--c-bg)); }
+    50% { background: color-mix(in srgb, var(--c-red) 42%, var(--c-bg)); }
+  }
+  @keyframes voice-pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.7); }
   }
 
   .voice-listening-indicator {
@@ -2185,6 +2388,15 @@
     font-size: 11px;
     font-weight: 600;
     color: var(--c-success);
+  }
+
+  .voice-group-label {
+    margin-top: 14px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--c-accent);
   }
 
   .voice-phrase-card {

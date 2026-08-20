@@ -8,9 +8,15 @@ use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
 mod voice;
 use voice::{
-    voice_has_model, voice_is_listening, voice_record_sample, voice_reset_phrase,
-    voice_sample_count, voice_start_listening, voice_stop_listening, voice_train_model,
-    VoiceState,
+    voice_has_model, voice_is_listening, voice_list_phrases, voice_record_sample,
+    voice_reset_phrase, voice_sample_count, voice_start_listening, voice_stop_listening,
+    voice_train_model, VoiceState,
+};
+
+mod tts;
+use tts::{
+    tts_delete_elevenlabs_key_keychain, tts_get_elevenlabs_key_keychain, tts_speak_elevenlabs,
+    tts_speak_sapi, tts_set_elevenlabs_key_keychain,
 };
 
 /// Resolve the game-specific window finder for a `game` id ("poe1" | "poe2").
@@ -1461,6 +1467,7 @@ pub fn run() {
             addons_install_from_registry,
             addons_read_panel,
             addons_load_registry,
+            voice_list_phrases,
             voice_sample_count,
             voice_has_model,
             voice_reset_phrase,
@@ -1469,6 +1476,11 @@ pub fn run() {
             voice_is_listening,
             voice_start_listening,
             voice_stop_listening,
+            tts_speak_sapi,
+            tts_speak_elevenlabs,
+            tts_set_elevenlabs_key_keychain,
+            tts_get_elevenlabs_key_keychain,
+            tts_delete_elevenlabs_key_keychain,
         ])
         .run(tauri::generate_context!());
 
