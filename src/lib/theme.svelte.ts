@@ -1,6 +1,18 @@
 // Overlay color theme. Themes remap the shared `--c-*` tokens (app.css) via a
 // `data-theme` attribute on <html>; "default" clears the attribute. Cosmetic
-// preference, so plain localStorage — same tier as click-through opacity.
+// preference, so plain localStorage is the source of truth for the main
+// window — same tier as click-through opacity.
+//
+// Widget windows are a separate process/document (their own <html>, no shared
+// state with this module's in-memory _theme) and never ran loadTheme() at
+// all, so they always rendered the Default palette regardless of the saved
+// theme. setTheme() also mirrors the choice to persist.ts (disk) + an
+// `ec-theme-changed` event, the same "predates opening + live while open"
+// bridge every other cross-window widget need uses (see CLAUDE.md's Secondary
+// overlay widget windows section) — WidgetShell.svelte consumes both.
+
+import { persistSet } from '$lib/persist';
+import { emit } from '@tauri-apps/api/event';
 
 export type ThemeId = 'default' | 'abyss' | 'breach' | 'ritual' | 'vaal' | 'aldur' | 'mono';
 
@@ -26,7 +38,11 @@ export const theme = {
   },
 };
 
-function apply(t: ThemeId) {
+/** Apply a theme's `data-theme` attribute to the current document. Exported
+ *  so widget windows (their own separate <html>) can apply a theme they
+ *  learn about via persist.ts/`ec-theme-changed` without duplicating this
+ *  attribute logic — see WidgetShell.svelte. */
+export function applyTheme(t: ThemeId) {
   if (t === 'default') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = t;
 }
@@ -39,15 +55,21 @@ export function loadTheme() {
   } catch {
     /* ignore corrupt state */
   }
-  apply(_theme);
+  applyTheme(_theme);
+  // Mirror to disk on every startup, not just on an explicit change — closes
+  // the gap for installs that picked a theme before this widget-facing copy
+  // existed, with no separate migration needed.
+  void persistSet(KEY, _theme);
 }
 
 export function setTheme(t: ThemeId) {
   _theme = t;
-  apply(t);
+  applyTheme(t);
   try {
     window.localStorage.setItem(KEY, t);
   } catch {
     /* storage full / blocked */
   }
+  void persistSet(KEY, t);
+  void emit('ec-theme-changed', { theme: t });
 }

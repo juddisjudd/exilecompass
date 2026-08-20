@@ -3,8 +3,36 @@
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { listen } from '@tauri-apps/api/event';
   import { persistGet, persistSet } from '$lib/persist';
+  import { applyTheme, type ThemeId } from '$lib/theme.svelte';
 
   let { children }: { children?: Snippet } = $props();
+
+  const THEME_KEY = 'EXILECOMPASS_THEME_V1';
+
+  // Widget windows are a separate document from the main window and never run
+  // its startup loadTheme() — apply whatever theme is currently saved (via
+  // theme.svelte.ts's persist.ts mirror) on open, then follow live changes.
+  $effect(() => {
+    (async () => {
+      const saved = await persistGet(THEME_KEY);
+      if (saved) applyTheme(saved as ThemeId);
+    })();
+
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    (async () => {
+      const handle = await listen<{ theme: ThemeId }>('ec-theme-changed', (event) => {
+        applyTheme(event.payload.theme);
+      });
+      if (cancelled) handle();
+      else unlisten = handle;
+    })();
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  });
 
   // The window's own label is the natural per-widget persistence key — no
   // need to thread it through as a prop from the /widget route.

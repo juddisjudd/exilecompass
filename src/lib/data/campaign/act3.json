@@ -3,15 +3,10 @@
   "name": "ACT 3",
   "enabled": true,
   "tips": [
-    { "text": "Servi's choice in Act 3 is permanent. Most builds pick Stun Threshold, since it clears bleeds and freezes on logout." },
-    { "text": "Field vendors give a guaranteed rare piece as you pass through: gloves in the Jungle Ruins, boots in Infested Barrens, armour in Chimeral Wetlands." },
-    { "text": "In the Trial of Chaos, dodge roll between the slam and the twist of the Soul Core's placement animation — it duplicates the core into every socket." },
-    { "text": "The Sacrificial Heart drops from Vaal Goliaths (the ones with a canister on their shoulder) in both Utzaal and Aggorat." },
-    { "text": "This act's monster density drops in its back half. Lean on the margin-of-safety rule from Act 1 if you start falling behind the area level." },
-    { "text": "Don't over-plan your route through this act. Enough of its layouts get reworked between patches that studying them in advance isn't worth it — keep moving even when you're unsure of the way." },
-    { "text": "Type a regex into vendor search bars to highlight the bases you want. It turns minutes of town shopping into seconds." },
-    { "text": "Hold Ctrl on the passive tree to auto-confirm points. Bind Quick Assign (no default key) for attribute nodes, and use Ctrl+Shift+Left/Right-click on the hotbar to assign weapon-swap skills." },
-    { "text": "Farm magic-name (blue) packs only while pushing forward. Skip white packs unless you're under-leveled." }
+    { "text": "Servi's Act 3 choice is permanent — Stun Threshold is the popular pick." },
+    { "text": "Field vendors guarantee a rare: gloves (Jungle Ruins), boots (Infested Barrens), armour (Chimeral Wetlands)." },
+    { "text": "Dodge roll through the Soul Core's placement animation in the Trial of Chaos to duplicate it into every socket." },
+    { "text": "Hold Ctrl on the passive tree to auto-confirm points." }
   ],
   "zones": [
     {

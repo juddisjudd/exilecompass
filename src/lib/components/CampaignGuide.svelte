@@ -5,6 +5,7 @@
   import { m } from '$lib/paraglide/messages.js';
   import { trAct, trZone, trObjective, trObjectiveReward, trNotes, trActTip } from '$lib/dataI18n';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
+  import { campaignAutoProgress, jumpToEdge, setEnabled as setAutoProgressEnabled } from '$lib/campaignAutoProgress.svelte';
   import ConfirmReset from './ConfirmReset.svelte';
 
   // Completion lives in the shared module (so global hotkeys can mark objectives).
@@ -123,7 +124,44 @@
   function resetProgress() {
     campaignProgress.resetAll();
   }
+
+  // ── Auto-progress: "you are here" marker + auto-scroll/expand ─────────────
+  // Position tracking only — never touches completion state above. Mirrors
+  // PoE1LevelingGuide.svelte's identical pattern.
+  const zoneRefs: Record<string, HTMLElement> = {};
+
+  function trackZoneRef(node: HTMLElement, zoneId: string) {
+    zoneRefs[zoneId] = node;
+    return {
+      destroy() {
+        if (zoneRefs[zoneId] === node) delete zoneRefs[zoneId];
+      },
+    };
+  }
+
+  $effect(() => {
+    const activeZoneId = campaignAutoProgress.activeZoneId;
+    if (!activeZoneId || !campaignAutoProgress.enabled) return;
+
+    const owningAct = CAMPAIGN_DATA.find((a) => a.zones.some((z) => z.id === activeZoneId));
+    if (owningAct && !guideState.expandedActs.has(owningAct.number)) {
+      guideState.expandedActs.add(owningAct.number);
+      saveState();
+    }
+    if (!guideState.expandedZones.has(activeZoneId)) {
+      guideState.expandedZones.add(activeZoneId);
+      saveState();
+    }
+
+    requestAnimationFrame(() => {
+      zoneRefs[activeZoneId]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  });
 </script>
+
+{#snippet iconPosition(active: boolean)}
+  <svg class="pos-ico" class:active viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7" /></svg>
+{/snippet}
 
 <div class="campaign-guide">
   <div class="guide-header ec-panel">
@@ -137,6 +175,15 @@
           onchange={(e) => toggleShowLeagueMechanics((e.currentTarget as HTMLInputElement).checked)}
         />
         <span>{m.campaign_show_league_toggle()}</span>
+      </label>
+      <label class="cfg-check" title={m.campaign_auto_progress_toggle_title()}>
+        <input
+          type="checkbox"
+          class="ec-checkbox cfg-checkbox"
+          checked={campaignAutoProgress.enabled}
+          onchange={(e) => setAutoProgressEnabled((e.currentTarget as HTMLInputElement).checked)}
+        />
+        <span>{m.campaign_cfg_auto_progress()}</span>
       </label>
       <ConfirmReset
         label={m.action_reset()}
@@ -234,24 +281,41 @@
             {@const zoneObjectives = zone.objectives.filter((o) => showLeagueMechanics || !o.league)}
             {#if zoneObjectives.length > 0}
             {@const zoneStatus = summarize(zoneObjectives).status}
+            {@const zoneEdgeIndex = campaignAutoProgress.edgeIndexForZone(zone.id)}
+            {@const isActiveZone = zone.id === campaignAutoProgress.activeZoneId}
             <div
               class="zone-group ec-panel"
               class:complete={zoneStatus === 'complete'}
               class:required={zoneStatus === 'required'}
+              class:active-zone={campaignAutoProgress.enabled && isActiveZone}
+              use:trackZoneRef={zone.id}
             >
-              <button
-                class="zone-header"
-                onclick={() => toggleZone(zone.id)}
-                type="button"
-              >
-                <span class="toggle-icon" class:expanded={guideState.expandedZones.has(zone.id)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-                </span>
-                <span class="zone-title">{trZone(zone.id, zone.name)}</span>
-                {#if zoneStatus === 'complete'}
-                  <span class="zone-check" aria-hidden="true">✓</span>
+              <div class="zone-header-row">
+                {#if campaignAutoProgress.enabled && zoneEdgeIndex !== null}
+                  <button
+                    type="button"
+                    class="pos-marker"
+                    onclick={() => jumpToEdge(zoneEdgeIndex)}
+                    title={m.campaign_auto_progress_jump()}
+                    aria-label={m.campaign_auto_progress_jump()}
+                  >
+                    {@render iconPosition(isActiveZone)}
+                  </button>
                 {/if}
-              </button>
+                <button
+                  class="zone-header"
+                  onclick={() => toggleZone(zone.id)}
+                  type="button"
+                >
+                  <span class="toggle-icon" class:expanded={guideState.expandedZones.has(zone.id)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                  <span class="zone-title">{trZone(zone.id, zone.name)}</span>
+                  {#if zoneStatus === 'complete'}
+                    <span class="zone-check" aria-hidden="true">✓</span>
+                  {/if}
+                </button>
+              </div>
 
               {#if guideState.expandedZones.has(zone.id)}
                 <div class="objectives-container">
@@ -609,11 +673,49 @@
     color: color-mix(in srgb, var(--c-warning) 85%, #fff 15%);
   }
 
+  /* Auto-progress "you are here" — position tracking only, independent of the
+     complete/required coloring above. */
+  .zone-group.active-zone {
+    border-color: color-mix(in srgb, var(--c-red) 40%, transparent);
+    background: color-mix(in srgb, var(--c-red) 6%, var(--c-bg));
+  }
+
   .zone-check {
     flex-shrink: 0;
     color: var(--c-success);
     font-size: 11px;
     line-height: 1;
+  }
+
+  .zone-header-row {
+    display: flex;
+    align-items: stretch;
+  }
+
+  .pos-marker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--c-muted);
+    cursor: pointer;
+  }
+
+  .pos-marker:hover {
+    color: var(--c-red-bright);
+  }
+
+  .pos-ico {
+    width: 10px;
+    height: 10px;
+  }
+
+  .pos-ico.active {
+    color: var(--c-red-bright);
   }
 
   .zone-header {

@@ -12,6 +12,9 @@ export interface HotkeyAction {
   id: HotkeyActionId;
   description: string;
   defaultCombo: string;
+  /** Restricts this action to one game's settings hotkey list (e.g.
+   *  Act-Decoder is PoE1-only). Omit for actions relevant to both games. */
+  game?: 'poe1' | 'poe2';
 }
 
 export const HOTKEY_ACTIONS: HotkeyAction[] = [
@@ -22,7 +25,7 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: 'toggleCampaignTimer', description: 'Start/stop campaign timer', defaultCombo: 'Ctrl+Shift+T' },
   { id: 'campaignCompleteNext', description: 'Complete next campaign objective', defaultCombo: 'Ctrl+Shift+X' },
   { id: 'campaignUndoLast', description: 'Undo last campaign objective', defaultCombo: 'Ctrl+Shift+Z' },
-  { id: 'toggleActDecoder', description: 'Toggle Act-Decoder overlay', defaultCombo: 'Ctrl+Shift+D' },
+  { id: 'toggleActDecoder', description: 'Toggle Act-Decoder overlay', defaultCombo: 'Ctrl+Shift+D', game: 'poe1' },
 ];
 
 const STORAGE_KEY = 'EXILECOMPASS_HOTKEYS_V1';

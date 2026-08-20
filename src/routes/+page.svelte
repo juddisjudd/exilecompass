@@ -44,6 +44,7 @@
   import { campaignTimer } from '$lib/campaignTimer.svelte';
   import { poe1CampaignTimer } from '$lib/poe1CampaignTimer.svelte';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
+  import { load as loadCampaignAutoProgress, handleScene as handleCampaignAutoProgressScene } from '$lib/campaignAutoProgress.svelte';
   import { levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge } from '$lib/levelingRoute.svelte';
   import {
     importPoe1Build,
@@ -193,6 +194,8 @@
       const game = gameMode.current;
       await campaignTimer.load();
       await poe1CampaignTimer.load();
+      campaignProgress.load();
+      loadCampaignAutoProgress();
       let path = await persistGet(logFileKey(game));
       if (!path && !legacyLogPathMigrated) {
         // One-time migration from the pre-PoE1 flat key (shared by both
@@ -518,7 +521,10 @@
         if (gameMode.current === 'poe1') {
           for (const e of areaIdEvents) poe1CampaignTimer.handleAreaId(e.areaId, e.timeMs);
         } else {
-          for (const s of scenes) campaignTimer.handleScene(s.scene, s.timeMs);
+          for (const s of scenes) {
+            campaignTimer.handleScene(s.scene, s.timeMs);
+            handleCampaignAutoProgressScene(s.scene);
+          }
         }
         if (rewardsComponent) for (const id of ids) rewardsComponent.autoMarkReward(id);
         // Act-Decoder widget window(s) can't share in-memory state with the
@@ -702,8 +708,14 @@
       try {
         await syncGlobalShortcut(action, bindings[action]);
       } catch (e) {
+        // Previously silent for every action except click-through — a failed
+        // registration (e.g. the OS still holding the combo from a prior
+        // process that didn't shut down cleanly) looked identical to "the
+        // hotkey does nothing," with no way to tell the two apart.
         if (action === 'toggleClickThrough') {
           hotkeyError = `${m.error_failed_register_clickthrough_hotkey()} ${String(e)}`;
+        } else {
+          hotkeyError = `${m.error_failed_register_hotkey()} ${getHotkeyDescription(action)}: ${String(e)}`;
         }
       }
     }
@@ -1197,7 +1209,7 @@
             <div class="settings-section-title">{m.onboarding_hotkeys_title()}</div>
             <p class="field-help">{m.onboarding_hotkeys_help()}</p>
             <ul class="hotkey-list">
-              {#each HOTKEY_ACTIONS as hotkey (hotkey.id)}
+              {#each HOTKEY_ACTIONS.filter((h) => !h.game || h.game === gameMode.current) as hotkey (hotkey.id)}
                 {@const recording = recordingActionId === hotkey.id}
                 <li class="hotkey-row">
                   <button
@@ -1253,7 +1265,7 @@
               <div class="settings-section-title">{m.settings_tab_hotkeys()}</div>
               <p class="field-help">{m.hotkey_capture_hint()}</p>
               <ul class="hotkey-list">
-                {#each HOTKEY_ACTIONS as hotkey (hotkey.id)}
+                {#each HOTKEY_ACTIONS.filter((h) => !h.game || h.game === gameMode.current) as hotkey (hotkey.id)}
                   {@const recording = recordingActionId === hotkey.id}
                   <li class="hotkey-row">
                     <button

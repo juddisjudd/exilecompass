@@ -3,13 +3,9 @@
   "name": "ACT 1",
   "enabled": true,
   "tips": [
-    { "text": "Play with urgency. Spend as little time in town as you can, and keep moving in a zone — slow progress beats no progress." },
-    { "text": "Magic (blue-name) monsters give roughly 3.5x the experience of the same white monster. Skip white packs unless you're under-leveled." },
-    { "text": "Don't stop to sell gear. Push to the Red Vale weapon racks instead — they always drop a 2nd-tier weapon base (long quarterstaff, smithing hammer, tense crossbow)." },
-    { "text": "Save your currency. Use only 1-2 Regal Orbs per act, ideally on a weapon that hits a useful modifier count. Save Exalted Orbs for later." },
-    { "text": "Stay close to the area level. A safe margin is 3 levels under the zone level, plus 1 more level for every 16 character levels you have. Farm experience if you fall outside that margin." },
-    { "text": "In the Cemetery of the Eternals, kill Draven before Asinia, then leave and re-enter the zone before fighting Asinia — her drops scale with the higher zone level." },
-    { "text": "Aim to be level 14 before you fight Geonor." }
+    { "text": "Red Vale weapon racks always drop a 2nd-tier weapon base." },
+    { "text": "Kill Draven before Asinia in the Cemetery, then re-enter the zone — her drops scale up." },
+    { "text": "Magic (blue) packs give far more XP than white ones — skip whites unless under-leveled." }
   ],
   "zones": [
     {

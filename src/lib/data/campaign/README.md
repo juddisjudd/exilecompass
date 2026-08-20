@@ -22,6 +22,14 @@ To disable an act or interlude without deleting it, set `"enabled": false`. Acts
 
 ---
 
+## `scenes.json` — "you are here" auto-progress
+
+`scenes.json` is a separate, optional companion file: `{ "<zoneId>": "<exact [SCENE] log string>" }`. It drives the Campaign Guide's live position marker (`campaignAutoProgress.svelte.ts`), which watches the game log's `[SCENE] Set Source [...]` lines and follows along. It's kept out of the act files on purpose — this is log-matching plumbing, not guide content, the same reasoning `campaignTimer.ts`/`logWatcher.ts` already use for their own zone-name lookup tables.
+
+A zone with no entry here just never gets a marker — nothing breaks, and the guide content is unaffected. If you notice a missing or wrong scene string (best-effort, not verified against every zone in a live session), add or fix its line the same way you'd fix anything else in this folder — no TypeScript required, just make sure the string matches the log exactly (case and wording).
+
+---
+
 ## Schema
 
 ```jsonc

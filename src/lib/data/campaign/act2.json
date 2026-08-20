@@ -3,11 +3,9 @@
   "name": "ACT 2",
   "enabled": true,
   "tips": [
-    { "text": "Delay your Ascendancy trial to level 28. Skip the mobile Balbala fight in Traitor's Passage — farm a backup Djinn Barya from the two vultures in Deshar instead, then pick the level 28 Barya (not the default level 22 one) when you enter the trial. It gives better resistances at the end of the trial." },
-    { "text": "Aim to be level 29 for the Jamanra fight, and level 30 entering Act 3." },
-    { "text": "Pick a leveling Ascendancy that gives flat damage or survivability without needing specific items — for example Demon Form, Smith of Kitava, or Sorcery Ward. You can respec for endgame later." },
-    { "text": "Buy less, but buy well. Expect to finish a whole act without a weapon upgrade — when you do find one early, ignore vendors until the next act starts." },
-    { "text": "Use a leveling item filter with strong highlighting for your build's bases, so upgrades stand out and junk stays hidden." }
+    { "text": "Delay your Ascendancy trial to level 28 — skip Balbala, farm a backup Barya from the Deshar vultures instead." },
+    { "text": "Aim for level 29 at Jamanra, level 30 entering Act 3." },
+    { "text": "Expect to finish the act without a weapon upgrade — don't waste currency chasing one." }
   ],
   "zones": [
     {

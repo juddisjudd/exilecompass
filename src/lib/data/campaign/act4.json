@@ -3,11 +3,9 @@
   "name": "ACT 4",
   "enabled": true,
   "tips": [
-    { "text": "Weapon Fragments and Matiki's cage are randomized across the four islands each league — Kingsmarch's dialogue tells you which islands to check." },
-    { "text": "Greater Orbs of Transmutation and Augmentation can start dropping in Act 4 — their minimum item level requirement is lower here than in earlier acts." },
-    { "text": "Pre-organize your stash on Standard a few days before a league starts. Tab names, layouts, and highlights carry over to your fresh character and save a chunk of first-town time." },
-    { "text": "Save Artificer's Orbs, runes, and whetstones for your weapon until the end of Act 4, once you know what you're carrying into the Interludes." },
-    { "text": "Aim for roughly 5 hours to clear the whole campaign. Urgency, magic-pack farming, and not over-studying layouts gets you there." }
+    { "text": "Weapon Fragments and Matiki's cage are randomized each league — Kingsmarch's dialogue tells you which islands." },
+    { "text": "Pre-organize your stash on Standard before a league starts to save time in the first town." },
+    { "text": "Aim for roughly 5 hours to clear the whole campaign." }
   ],
   "zones": [
     {
