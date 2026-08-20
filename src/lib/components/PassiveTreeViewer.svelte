@@ -329,7 +329,7 @@
 
   .tree-header h3 {
     margin: 0;
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -442,7 +442,7 @@
   }
 
   .tip-title {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 700;
     color: var(--c-primary);

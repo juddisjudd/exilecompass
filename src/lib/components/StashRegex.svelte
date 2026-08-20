@@ -1058,7 +1058,7 @@
     line-height: 1.45;
     letter-spacing: normal;
     text-transform: none;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-pop);
     z-index: 50;
     opacity: 0;
     visibility: hidden;

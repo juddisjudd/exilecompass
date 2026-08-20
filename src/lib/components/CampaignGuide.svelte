@@ -418,7 +418,7 @@
     background: transparent;
     border: none;
     color: color-mix(in srgb, var(--c-primary) 88%, transparent);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-weight: 700;
     font-size: 9.5px;
     letter-spacing: 0.1em;

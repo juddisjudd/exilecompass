@@ -91,7 +91,7 @@
   .app-title {
     /* Satoshi Black — the heaviest cut of the UI face gives the wordmark its
        display weight without a separate font family. */
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 14px;
     font-weight: 900;
     letter-spacing: 0.1em;

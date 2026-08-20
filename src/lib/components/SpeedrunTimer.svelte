@@ -149,7 +149,7 @@
 
   .timer-header h3 {
     margin: 0;
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--c-primary);
     text-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent);
@@ -190,7 +190,7 @@
   .ctrl-primary {
     display: flex; align-items: center; justify-content: center; gap: 5px;
     padding: 7px 12px; border-radius: var(--radius);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
     cursor: pointer; transition: all 0.12s; border: 1px solid;
     background: color-mix(in srgb, var(--c-success) 12%, transparent); border-color: color-mix(in srgb, var(--c-success) 38%, transparent); color: var(--c-success);

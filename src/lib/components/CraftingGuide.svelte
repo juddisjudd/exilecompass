@@ -544,7 +544,7 @@
     border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid));
     color: color-mix(in srgb, var(--c-accent) 92%, #fff 8%);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -613,7 +613,7 @@
     border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-bg) 80%, var(--c-mid));
     color: color-mix(in srgb, var(--c-accent) 88%, #fff 12%);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.06em;
@@ -669,7 +669,7 @@
   }
 
   .slot-name {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -679,7 +679,7 @@
   .slot-card:hover:not(:disabled) .slot-name { color: var(--c-primary); }
 
   .slot-count {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 9px;
     font-weight: 600;
     color: color-mix(in srgb, var(--c-accent) 60%, transparent);
@@ -743,7 +743,7 @@
   }
 
   .craft-row-progress {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 500;
     color: color-mix(in srgb, var(--c-accent) 60%, transparent);
@@ -790,7 +790,7 @@
   }
 
   .craft-name {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -847,7 +847,7 @@
   }
 
   .craft-progress {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 500;
     color: color-mix(in srgb, var(--c-accent) 70%, transparent);
@@ -911,7 +911,7 @@
     flex-shrink: 0;
     min-width: 16px;
     margin-top: 2px;
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 9px;
     font-weight: 700;
     text-align: center;
@@ -1131,7 +1131,7 @@
     gap: 5px;
     padding: 7px 9px;
     text-align: left;
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-pop);
     pointer-events: none;
   }
   .item-chip.has-card:hover .hovercard {
@@ -1260,7 +1260,7 @@
   }
 
   .result-title {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.12em;

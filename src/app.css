@@ -3,8 +3,9 @@
    warns when it contains only :global selectors. */
 
 /* Satoshi (Fontshare, FF EULA — see static/fonts/SATOSHI-LICENSE.txt) —
-   vendored variable font, one file covers weights 300–900. Used for headings,
-   labels, tabs, and buttons; body text is Inter (via @fontsource). */
+   vendored variable font, one file covers weights 300–900. Since the site
+   revamp the UI is Inter-first (via @fontsource, see --font-ui); Satoshi is
+   kept only as the bundled fallback. */
 @font-face {
   font-family: 'Satoshi';
   src: url('/fonts/Satoshi-Variable.woff2') format('woff2');
@@ -17,19 +18,32 @@
   /* Tokens are authored in oklch (perceptually uniform — ramps and
      color-mix() behave predictably); hex equivalents in comments. Same
      relative lightness ordering the app's color-mix() calls depend on
-     (bg darkest -> mid -> muted -> accent -> primary lightest). */
-  --c-bg: oklch(14.5% 0.005 86); /* ≈ #0b0a08 */
-  --c-mid: oklch(19% 0.009 59); /* ≈ #171310 */
-  --c-muted: oklch(38.9% 0.021 85); /* ≈ #4a4438 */
-  --c-accent: oklch(69.2% 0.033 80); /* ≈ #a79a85 */
-  --c-primary: oklch(92.6% 0.024 88); /* ≈ #ede6d5 */
+     (bg darkest -> mid -> muted -> accent -> primary lightest).
 
-  /* Carmine — the brand accent, matches the website exactly. Main for fills,
-     bright for hovers/small accent text (carmine proper is too dark to read
-     at small sizes on ink), deep for offset shadows. */
-  --c-red: oklch(42.4% 0.172 24); /* #960018 */
-  --c-red-bright: oklch(60% 0.21 24); /* ≈ #e2333c */
-  --c-red-deep: oklch(32% 0.13 24); /* ≈ #65000c */
+     Default = the site revamp's neutral dark palette (Linear/Vercel
+     direction): true near-black canvas, charcoal surfaces one step lighter,
+     high-contrast neutral text, one precise red. No warm cast. */
+  --c-bg: oklch(13% 0 0); /* ≈ #0a0a0a */
+  --c-mid: oklch(17.5% 0 0); /* ≈ #121212 */
+  --c-muted: oklch(36% 0 0); /* ≈ #3f3f3f */
+  --c-accent: oklch(71% 0 0); /* ≈ #a1a1a1 */
+  --c-primary: oklch(94.5% 0 0); /* ≈ #ededed */
+
+  /* The red family, tuned for a neutral canvas: a cleaner, slightly brighter
+     fill than the old carmine so it reads crisp at small sizes; bright for
+     hovers/accent text; deep for pressed states. */
+  --c-red: oklch(50% 0.2 25); /* ≈ #b5102d */
+  --c-red-bright: oklch(63% 0.22 25); /* ≈ #f03e4a */
+  --c-red-deep: oklch(36% 0.14 25); /* ≈ #74071b */
+
+  /* Typography: Inter-first everywhere (Satoshi stays as the vendored
+     fallback). Components reference this instead of a literal stack. */
+  --font-ui: 'Inter', 'Satoshi', system-ui, sans-serif;
+
+  /* Elevation: floating surfaces get a hairline ring plus a soft, low-alpha
+     shadow — lift comes mostly from the lighter surface, not the shadow. */
+  --shadow-pop: 0 0 0 1px color-mix(in srgb, var(--c-accent) 18%, transparent),
+    0 12px 32px -8px rgba(0, 0, 0, 0.55);
 
   /* Text color used ON accent-filled surfaces (buttons, active tabs). Light
      by default since carmine is a dark fill; themes with bright accents
@@ -64,7 +78,7 @@
   --sp-4: 16px;
   --sp-5: 24px;
 
-  --radius: 0px;
+  --radius: 6px;
 
   /* Focus ring. */
   --focus-ring: 0 0 0 2px var(--c-bg), 0 0 0 3px var(--c-red-bright);
@@ -195,54 +209,49 @@ select option {
 }
 
 /* ── Shared buttons ──────────────────────────────────────────────
-   Flat, sharp-cornered, solid-fill primary with an offset drop-shadow —
-   same visual signature as the companion website's .btn system, sized down
-   for the overlay's compact 13px UI. Replaces the old 3-slice sprite button
-   used for both .btn and the tab bar. */
+   Flat, solid primary; hairline-bordered ghost. Sentence case with tight
+   tracking (the old uppercase/offset-shadow signature went with the site
+   revamp). Sized for the overlay's compact 13px UI. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   height: 30px;
-  padding: 0 18px;
+  padding: 0 14px;
   border: 1px solid transparent;
   border-radius: var(--radius);
-  font-family: 'Satoshi', 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease,
-    box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+    box-shadow 0.12s ease, opacity 0.12s ease;
 }
 
 .btn-primary {
   color: var(--c-on-accent);
   background: var(--c-red);
-  border-color: var(--c-red);
-  box-shadow: 3px 3px 0 0 var(--c-red-deep);
+  border-color: color-mix(in srgb, var(--c-red-bright) 40%, var(--c-red));
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--c-red-bright);
+  background: color-mix(in srgb, var(--c-red) 82%, var(--c-red-bright));
   border-color: var(--c-red-bright);
-  transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0 0 var(--c-red-deep);
 }
 .btn-primary:active:not(:disabled) {
-  transform: translate(0, 0);
-  box-shadow: 1px 1px 0 0 var(--c-red-deep);
+  background: var(--c-red-deep);
+  border-color: var(--c-red-deep);
 }
 
 .btn-ghost {
   color: var(--c-primary);
-  background: color-mix(in srgb, var(--c-mid) 80%, transparent);
-  border-color: color-mix(in srgb, var(--c-accent) 36%, transparent);
+  background: color-mix(in srgb, var(--c-primary) 4%, transparent);
+  border-color: color-mix(in srgb, var(--c-accent) 28%, transparent);
 }
 .btn-ghost:hover:not(:disabled) {
-  border-color: var(--c-red);
-  color: var(--c-red-bright);
+  background: color-mix(in srgb, var(--c-primary) 8%, transparent);
+  border-color: color-mix(in srgb, var(--c-accent) 50%, transparent);
 }
 
 .btn-danger {
@@ -278,7 +287,7 @@ select option {
   padding: 6px 10px;
   background: color-mix(in srgb, var(--c-accent) 8%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
-  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -359,7 +368,7 @@ select option {
   align-items: center;
   flex-shrink: 0;
   padding: 1px 6px;
-  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -393,7 +402,7 @@ select option {
 
 .guide-header h3 {
   margin: 0;
-  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -464,7 +473,7 @@ select option {
   background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
   border: none;
   color: var(--c-primary);
-  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -531,7 +540,7 @@ select option {
 }
 
 .guide-progress {
-  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 10px;
   font-weight: 500;
   color: color-mix(in srgb, var(--c-accent) 70%, transparent);
@@ -700,14 +709,3 @@ select option {
   background: color-mix(in srgb, var(--c-accent) 50%, transparent);
 }
 
-/* ── Film grain — same technique as the companion website, replaces the
-   tiled background1.webp/background2.webp game texture. ── */
-.ec-grain {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.06;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}

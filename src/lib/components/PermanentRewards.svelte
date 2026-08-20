@@ -183,7 +183,7 @@
 
   .rewards-header h3 {
     margin: 0;
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -225,7 +225,7 @@
   }
 
   .group-label {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.1em;

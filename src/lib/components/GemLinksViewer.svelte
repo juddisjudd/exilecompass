@@ -92,7 +92,7 @@
 
   .gems-header h3 {
     margin: 0;
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -129,7 +129,7 @@
     border: 1px solid color-mix(in srgb, var(--c-red) 32%, transparent);
     border-radius: var(--radius);
     color: var(--c-red-bright);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -153,7 +153,7 @@
     padding: 6px 12px;
     background: color-mix(in srgb, var(--c-bg) 84%, var(--c-mid));
     border-bottom: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.08em;

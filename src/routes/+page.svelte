@@ -1684,7 +1684,6 @@
 />
 
 <div class="app-shell" class:game-poe1={gameMode.current === 'poe1'}>
-  <div class="ec-grain"></div>
 
   <!-- Title bar sits above the frame -->
   <TitleBar title={m.app_title()} />
@@ -2623,7 +2622,7 @@
   :global(body) {
     /* Inter for running/body text (best legibility at these small sizes);
        Satoshi carries headings, labels, tabs, and buttons. */
-    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-family: var(--font-ui);
     font-size: 13px;
     color: var(--c-primary);
   }
@@ -2754,7 +2753,7 @@
     border: none;
     background: transparent;
     color: var(--c-accent);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.06em;
@@ -2795,7 +2794,7 @@
     border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
     background: transparent;
     color: color-mix(in srgb, var(--c-accent) 75%, transparent);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.06em;
@@ -2937,7 +2936,7 @@
     background: color-mix(in srgb, var(--c-mid) 80%, transparent);
     border: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
     color: var(--c-accent);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.06em;
@@ -3007,7 +3006,7 @@
   }
 
   .settings-title {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -3024,7 +3023,7 @@
     border: none;
     background: transparent;
     color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 0.08em;
@@ -3120,7 +3119,7 @@
   }
 
   .settings-section-title {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -3284,7 +3283,7 @@
   }
 
   .about-name {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 15px;
     font-weight: 650;
     letter-spacing: 0.05em;
@@ -3364,7 +3363,7 @@
     border: 1px solid color-mix(in srgb, var(--c-accent) 22%, transparent);
     border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-mid) 70%, transparent);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -3412,7 +3411,7 @@
     border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-mid) 80%, transparent);
     color: color-mix(in srgb, var(--c-accent) 80%, #fff 20%);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -3659,7 +3658,7 @@
   }
 
   .ct-slider-val {
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 600;
     font-feature-settings: 'tnum';
@@ -3755,7 +3754,7 @@
     border: 1px solid color-mix(in srgb, var(--c-red) 55%, transparent);
     border-radius: var(--radius);
     color: var(--c-red-bright);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.06em;
@@ -3832,7 +3831,7 @@
     border-radius: var(--radius);
     background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
     color: var(--c-red-bright);
-    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-family: var(--font-ui);
     font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.1em;
