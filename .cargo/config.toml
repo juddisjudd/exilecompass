@@ -1,0 +1,10 @@
+# sherpa-onnx-sys (voice commands, `static` feature) links prebuilt Windows
+# libraries built against the static MSVC CRT (/MT, the "-static-MT-" release
+# archive). Rust defaults to the dynamic CRT (/MD), and mixing the two produces
+# LNK4098 on every build. Link the whole binary against the static CRT so the
+# runtime libraries agree. Side benefit: no VC++ redistributable dependency.
+# Lives at the repo root (not src-tauri/) so cargo finds it both from `bun tauri
+# dev/build` (cwd = src-tauri) and `cargo build --manifest-path src-tauri/...`
+# run from the root.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

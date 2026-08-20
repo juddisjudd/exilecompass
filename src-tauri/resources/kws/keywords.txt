@@ -1,5 +1,7 @@
 ▁COMP AS S ▁NEXT @next
 ▁COMP AS S ▁BACK @back
+▁COMP AS S ▁WHAT S ▁NEXT @nextstep
+▁COMP AS S ▁C UR R ENT ▁ST E P @nextstep
 ▁COMP AS S ▁RE WARD S @rewards
 ▁COMP AS S ▁CA M P A IG N @campaign
 ▁COMP AS S ▁BUILD @build

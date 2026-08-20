@@ -17,6 +17,7 @@ export type VoicePhraseGroup =
 const GROUP_MAP: Record<string, VoicePhraseGroup> = {
   next: 'objectives',
   back: 'objectives',
+  nextstep: 'objectives',
   rewards: 'navigation',
   campaign: 'navigation',
   build: 'navigation',
@@ -77,6 +78,7 @@ export function voicePhraseGroup(phrase: VoicePhrase): VoicePhraseGroup {
 export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
   next: 'compass next',
   back: 'compass back',
+  nextstep: 'compass whats next',
   rewards: 'compass rewards',
   campaign: 'compass campaign',
   build: 'compass build',

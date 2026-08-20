@@ -48,7 +48,12 @@
   import { manualTimer, timerMode } from '$lib/manualTimer.svelte';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
   import { load as loadCampaignAutoProgress, handleScene as handleCampaignAutoProgressScene } from '$lib/campaignAutoProgress.svelte';
-  import { levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge } from '$lib/levelingRoute.svelte';
+  import {
+    levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge,
+    levelingPeekNext, levelingStepToText,
+  } from '$lib/levelingRoute.svelte';
+  import { CAMPAIGN_DATA } from '$lib/campaign';
+  import { trObjective, trZone } from '$lib/dataI18n';
   import {
     voiceState,
     setVoiceEnabled,
@@ -443,6 +448,34 @@
     void speak(sentences.join(' '));
   }
 
+  /** Reads out what "compass next" would complete, without completing it. */
+  function speakNextStep() {
+    if (gameMode.current === 'poe1') {
+      if (!levelingRoute.sections.length) { void speak(m.voice_tts_next_step_no_route()); return; }
+      const next = levelingPeekNext();
+      if (!next) { void speak(m.voice_tts_next_step_done()); return; }
+      void speak(m.voice_tts_next_step_leveling({
+        step: levelingStepToText(next.step),
+        section: next.sectionName,
+      }));
+      return;
+    }
+    const id = campaignProgress.peekNext();
+    if (!id) { void speak(m.voice_tts_next_step_done()); return; }
+    for (const act of CAMPAIGN_DATA) {
+      for (const zone of act.zones) {
+        const obj = zone.objectives.find((o) => o.id === id);
+        if (!obj) continue;
+        void speak(m.voice_tts_next_step_campaign({
+          objective: trObjective(obj.id, obj.text),
+          zone: trZone(zone.id, zone.name),
+          act: String(act.number),
+        }));
+        return;
+      }
+    }
+  }
+
   function speakBuildInfo() {
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const b = pobBuild;
@@ -605,6 +638,7 @@
     switch (phrase) {
       case 'next': void GLOBAL_ACTIONS.campaignCompleteNext?.(); break;
       case 'back': void GLOBAL_ACTIONS.campaignUndoLast?.(); break;
+      case 'nextstep': speakNextStep(); break;
       case 'rewards': if (gameMode.current === 'poe2') mainView = 'rewards'; break;
       case 'campaign': if (gameMode.current === 'poe2') mainView = 'campaign'; break;
       case 'build': if (gameMode.current === 'poe2') mainView = 'build'; break;
@@ -662,6 +696,7 @@
     switch (phrase) {
       case 'next': return m.voice_phrase_next();
       case 'back': return m.voice_phrase_back();
+      case 'nextstep': return m.voice_phrase_nextstep();
       case 'rewards': return m.voice_phrase_rewards();
       case 'campaign': return m.voice_phrase_campaign();
       case 'build': return m.voice_phrase_build();

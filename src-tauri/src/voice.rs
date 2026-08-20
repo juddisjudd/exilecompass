@@ -66,6 +66,7 @@ impl LinearResampler {
 pub const PHRASES: &[&str] = &[
     "next",
     "back",
+    "nextstep",
     "rewards",
     "campaign",
     "build",

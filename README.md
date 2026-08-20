@@ -122,6 +122,7 @@ pause after "compass".
 | Say | Does |
 |-----|------|
 | **compass next** / **compass back** | Complete or undo the next objective (campaign or leveling step) |
+| **compass whats next** / **compass current step** | Hear the next objective without completing it |
 | **compass campaign · rewards · build · timer** | Switch tabs |
 | **compass start timer · stop timer · reset timer · split** | Drive whichever timer mode is showing |
 | **compass run time** | Hear the elapsed run time |

@@ -99,6 +99,15 @@ class CampaignProgress {
     this.#save();
   }
 
+  /** Id of the objective `completeNext()` would mark next, without marking it. */
+  peekNext(): string | null {
+    for (const o of ORDERED) {
+      if (isSkipped(o)) continue;
+      if (!this.completed.has(o.id)) return o.id;
+    }
+    return null;
+  }
+
   /** Mark the next incomplete required objective done. Returns its id, or null
    *  if the required path is already complete. Non-league optional objectives
    *  are always skipped (mark those by clicking); league objectives are only

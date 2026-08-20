@@ -581,6 +581,68 @@ function isDone(entry: (typeof _ordered)[number]): boolean {
     : poe1LevelingProgress.has(entry.id);
 }
 
+/** The step `levelingCompleteNext()` would mark next, without marking it. */
+export function levelingPeekNext(): { step: LevelingStep; sectionName: string } | null {
+  const entry = _ordered.find((e) => !isDone(e));
+  if (!entry) return null;
+  for (const section of _sections) {
+    const step = section.steps.find((s) => s.id === entry.id);
+    if (step) return { step, sectionName: section.name };
+  }
+  return null;
+}
+
+/** Spoken form of a route part (English, like the phrases themselves). */
+export function levelingPartToText(part: LevelingPart): string {
+  switch (part.type) {
+    case 'text':
+    case 'kill':
+    case 'arena':
+    case 'quest_text':
+    case 'generic':
+      return part.value;
+    case 'area':
+      return part.name;
+    case 'enter':
+      return `enter ${part.name}`;
+    case 'logout':
+      return `log out to ${part.name}`;
+    case 'portal_use':
+      return `take the portal to ${part.name}`;
+    case 'waypoint':
+      return 'take the waypoint';
+    case 'waypoint_use':
+      return `waypoint to ${part.name}`;
+    case 'waypoint_get':
+      return 'get the waypoint';
+    case 'portal_set':
+      return 'set a portal';
+    case 'quest':
+      return part.npcs.length ? `${part.name} with ${part.npcs.join(' and ')}` : part.name;
+    case 'reward_quest':
+      return `take ${part.item}`;
+    case 'reward_vendor':
+      return `buy ${part.item}`;
+    case 'trial':
+      return 'complete the trial';
+    case 'ascend':
+      return 'ascend';
+    case 'crafting':
+      return `crafting recipe: ${part.recipes.join(', ')}`;
+    default:
+      return '';
+  }
+}
+
+/** Spoken form of a whole step. */
+export function levelingStepToText(step: LevelingStep): string {
+  if (step.kind === 'gem') {
+    const verb = step.rewardType === 'quest' ? 'Take' : 'Buy';
+    return step.count > 1 ? `${verb} ${step.name}, ${step.count} of them` : `${verb} ${step.name}`;
+  }
+  return step.parts.map(levelingPartToText).filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+}
+
 /** Mark the next incomplete step (fragment or gem) done. Used by the global hotkey. */
 export function levelingCompleteNext(): string | null {
   for (const entry of _ordered) {
