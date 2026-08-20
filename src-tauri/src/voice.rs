@@ -183,7 +183,7 @@ fn run_listening_thread_inner(
 
     let (chunk_tx, chunk_rx) = mpsc::sync_channel::<AudioChunk>(32);
 
-    let stream = match build_capture_stream(app, &device_name, chunk_tx) {
+    let (stream, sample_rate) = match build_capture_stream(app, &device_name, chunk_tx) {
         Ok(s) => s,
         Err(e) => {
             let _ = ready_tx.send(Err(e));
@@ -199,7 +199,7 @@ fn run_listening_thread_inner(
     let app_for_decode = app.clone();
     let decode_thread = std::thread::spawn(move || {
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            decode_loop(kws, chunk_rx, app_for_decode);
+            decode_loop(kws, chunk_rx, app_for_decode, sample_rate);
         }));
     });
 
@@ -211,13 +211,13 @@ fn run_listening_thread_inner(
     let _ = app.emit("voice-listening-stopped", ());
 }
 
-fn decode_loop(kws: KeywordSpotter, chunk_rx: mpsc::Receiver<AudioChunk>, app: AppHandle) {
+fn decode_loop(kws: KeywordSpotter, chunk_rx: mpsc::Receiver<AudioChunk>, app: AppHandle, sample_rate: u32) {
     let stream_handle = kws.create_stream();
-    let emit_every_samples = 16_000u64 / 15; // ~15/sec at the model's 16kHz internal rate
+    let emit_every_samples = sample_rate as u64 / 15;
     let mut samples_since_emit: u64 = 0;
 
     while let Ok(chunk) = chunk_rx.recv() {
-        stream_handle.accept_waveform(16_000, &chunk.samples);
+        stream_handle.accept_waveform(sample_rate as i32, &chunk.samples);
         while kws.is_ready(&stream_handle) {
             kws.decode(&stream_handle);
             if let Some(result) = kws.get_result(&stream_handle) {
@@ -240,7 +240,7 @@ fn build_capture_stream(
     app: &AppHandle,
     device_name: &Option<String>,
     chunk_tx: mpsc::SyncSender<AudioChunk>,
-) -> Result<cpal::Stream, String> {
+) -> Result<(cpal::Stream, u32), String> {
     let device = resolve_input_device(device_name)?;
     let device_config = device.default_input_config().map_err(|e| e.to_string())?;
     let stream_config = cpal::StreamConfig {
@@ -248,14 +248,16 @@ fn build_capture_stream(
         sample_rate: device_config.sample_rate(),
         buffer_size: cpal::BufferSize::Default,
     };
+    let sample_rate = stream_config.sample_rate.0;
     let _ = app;
-    match device_config.sample_format() {
+    let stream = match device_config.sample_format() {
         cpal::SampleFormat::I8 => build_capture_stream_typed::<i8>(&device, &stream_config, chunk_tx),
         cpal::SampleFormat::I16 => build_capture_stream_typed::<i16>(&device, &stream_config, chunk_tx),
         cpal::SampleFormat::I32 => build_capture_stream_typed::<i32>(&device, &stream_config, chunk_tx),
         cpal::SampleFormat::F32 => build_capture_stream_typed::<f32>(&device, &stream_config, chunk_tx),
         other => Err(format!("Unsupported microphone sample format: {other:?}")),
-    }
+    }?;
+    Ok((stream, sample_rate))
 }
 
 fn build_capture_stream_typed<T>(
