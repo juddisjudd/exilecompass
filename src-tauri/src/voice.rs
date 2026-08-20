@@ -314,6 +314,15 @@ fn run_listening_thread(
     let _ = app.emit("voice-listening-stopped", ());
 }
 
+// Two fully independent Rustpotter instances (one per phrase) rather than one
+// instance with both wakewords loaded. Rustpotter tracks a single cross-
+// wakeword "best candidate" internally (`partial_detection` in detector.rs) —
+// with two wakewords sharing the "compass " prefix, whichever one edges out
+// the other on an early, acoustically-ambiguous frame can end up "owning" the
+// candidate slot, forcing the other phrase to out-score that stale peak
+// rather than accumulate its own evidence. Feeding the same audio into two
+// separate detectors sidesteps that entirely — each phrase's evidence is
+// tracked independently and neither can starve the other.
 fn build_listening_stream(
     app: &AppHandle,
     next_path: &Path,
@@ -335,9 +344,10 @@ fn build_listening_stream(
     .ok_or("Unsupported microphone audio format")?;
     config.detector.min_scores = LISTEN_MIN_SCORES;
 
-    let mut rustpotter = Rustpotter::new(&config)?;
-    rustpotter.add_wakeword_from_file("next", next_path.to_str().ok_or("Invalid model path")?)?;
-    rustpotter.add_wakeword_from_file("back", back_path.to_str().ok_or("Invalid model path")?)?;
+    let mut next_rp = Rustpotter::new(&config)?;
+    next_rp.add_wakeword_from_file("next", next_path.to_str().ok_or("Invalid model path")?)?;
+    let mut back_rp = Rustpotter::new(&config)?;
+    back_rp.add_wakeword_from_file("back", back_path.to_str().ok_or("Invalid model path")?)?;
 
     let stream_config = cpal::StreamConfig {
         channels: device_config.channels(),
@@ -346,10 +356,10 @@ fn build_listening_stream(
     };
     let app = app.clone();
     match device_config.sample_format() {
-        cpal::SampleFormat::I8 => build_spot_stream::<i8>(&device, &stream_config, rustpotter, app),
-        cpal::SampleFormat::I16 => build_spot_stream::<i16>(&device, &stream_config, rustpotter, app),
-        cpal::SampleFormat::I32 => build_spot_stream::<i32>(&device, &stream_config, rustpotter, app),
-        cpal::SampleFormat::F32 => build_spot_stream::<f32>(&device, &stream_config, rustpotter, app),
+        cpal::SampleFormat::I8 => build_spot_stream::<i8>(&device, &stream_config, next_rp, back_rp, app),
+        cpal::SampleFormat::I16 => build_spot_stream::<i16>(&device, &stream_config, next_rp, back_rp, app),
+        cpal::SampleFormat::I32 => build_spot_stream::<i32>(&device, &stream_config, next_rp, back_rp, app),
+        cpal::SampleFormat::F32 => build_spot_stream::<f32>(&device, &stream_config, next_rp, back_rp, app),
         other => Err(format!("Unsupported microphone sample format: {other:?}")),
     }
 }
@@ -357,19 +367,25 @@ fn build_listening_stream(
 fn build_spot_stream<S>(
     device: &cpal::Device,
     stream_config: &cpal::StreamConfig,
-    mut rustpotter: Rustpotter,
+    mut next_rp: Rustpotter,
+    mut back_rp: Rustpotter,
     app: AppHandle,
 ) -> Result<cpal::Stream, String>
 where
-    S: RpSample + SizedSample,
+    S: RpSample + SizedSample + Clone,
 {
-    let samples_per_frame = rustpotter.get_samples_per_frame();
+    // Both instances were built from the same config, so their frame size
+    // requirement is identical — only need to track one.
+    let samples_per_frame = next_rp.get_samples_per_frame();
     let mut buffer: Vec<S> = Vec::with_capacity(samples_per_frame * 2);
     let data_callback = move |data: &[S], _: &cpal::InputCallbackInfo| {
         buffer.extend_from_slice(data);
         while buffer.len() >= samples_per_frame {
             let frame: Vec<S> = buffer.drain(0..samples_per_frame).collect();
-            if let Some(detection) = rustpotter.process_samples(frame) {
+            if let Some(detection) = next_rp.process_samples(frame.clone()) {
+                let _ = app.emit("voice-command", detection.name.clone());
+            }
+            if let Some(detection) = back_rp.process_samples(frame) {
                 let _ = app.emit("voice-command", detection.name.clone());
             }
         }
