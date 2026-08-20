@@ -888,12 +888,36 @@ fn restore_window_bounds(app: &AppHandle, window: &WebviewWindow) {
 // ── Log file detection ────────────────────────────────────────────────────────
 
 /// Try to locate the Client.txt log file automatically for the given game
-/// ("poe1" | "poe2"). On Windows, first checks the running process, then
-/// falls back to common install paths. On Linux, checks common Steam/Wine paths.
+/// ("poe1" | "poe2"), cheapest/most-precise first:
+///  1. Windows only: the actual running game process (100% certain, but only
+///     works while the game is open).
+///  2. The user's *real* configured Steam library folders, parsed from
+///     Steam's own `libraryfolders.vdf` — covers a Steam install on any
+///     drive without guessing, since Steam records exactly where it put
+///     things.
+///  3. Windows only: the Windows uninstall registry, for a direct
+///     (non-Steam) GGG launcher install — same idea as #2 but for the path
+///     Windows itself already knows about, again on any drive.
+///  4. A short list of the single most common hardcoded paths, as a last
+///     resort if none of the above found anything.
+/// Deliberately never brute-forces every drive letter × path combination —
+/// steps 2-3 make that unnecessary, since they ask something that already
+/// knows the real answer instead of guessing.
 #[tauri::command]
 fn detect_log_file(game: String) -> Option<String> {
     #[cfg(target_os = "windows")]
     if let Some(path) = detect_log_from_process_windows(&game) {
+        return Some(path);
+    }
+
+    for path in steam_library_log_paths(&game) {
+        if std::path::Path::new(&path).exists() {
+            return Some(path);
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    if let Some(path) = detect_log_from_uninstall_registry_windows(&game) {
         return Some(path);
     }
 
@@ -903,6 +927,25 @@ fn detect_log_file(game: String) -> Option<String> {
         }
     }
     None
+}
+
+/// Runs a PowerShell command and returns its trimmed stdout, or None if it
+/// produced nothing / failed to launch. `-WindowStyle Hidden` plus the
+/// CREATE_NO_WINDOW process flag together suppress the console flash a
+/// spawned PowerShell would otherwise briefly show — this fires on every
+/// auto-detect click (and every game-window poll for #1 below), unlike a
+/// one-time setup action, so the flash is actually noticeable here.
+#[cfg(target_os = "windows")]
+fn run_powershell_hidden(script: &str) -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.is_empty() { None } else { Some(text) }
 }
 
 /// Ask PowerShell for the executable path of a running PathOfExile process
@@ -918,28 +961,131 @@ fn detect_log_from_process_windows(game: &str) -> Option<String> {
     } else {
         "(Get-Process -Name 'PathOfExile2*' -ErrorAction SilentlyContinue | Select-Object -First 1).Path"
     };
-
-    let output = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
-        .output()
-        .ok()?;
-
-    let exe_path = String::from_utf8_lossy(&output.stdout);
-    let exe = exe_path.trim();
-    if exe.is_empty() {
-        return None;
-    }
-
-    let candidate = std::path::Path::new(exe)
-        .parent()?
-        .join("logs")
-        .join("Client.txt");
-
+    let exe = run_powershell_hidden(script)?;
+    let candidate = std::path::Path::new(&exe).parent()?.join("logs").join("Client.txt");
     if candidate.exists() {
         Some(candidate.to_string_lossy().into_owned())
     } else {
         None
     }
+}
+
+/// Windows uninstall registry lookup for a *direct* (non-Steam) GGG launcher
+/// install — catches e.g. `S:\Grinding Gear Games\Path of Exile 2\`, a path
+/// no hardcoded candidate list or drive-letter guess would ever reach, the
+/// same way Windows' own "Apps & Features" list already knows about it.
+/// Mirrors `Resolve-InstallDir` in `scripts/add-defender-exclusion.ps1`,
+/// which does the same kind of lookup for ExileCompass's own install.
+#[cfg(target_os = "windows")]
+fn detect_log_from_uninstall_registry_windows(game: &str) -> Option<String> {
+    let filter = if game == "poe1" {
+        "$_.DisplayName -like 'Path of Exile*' -and $_.DisplayName -notlike 'Path of Exile 2*'"
+    } else {
+        "$_.DisplayName -like 'Path of Exile 2*'"
+    };
+    let script = format!(
+        "$keys = @(\
+           'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\
+           'HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\
+           'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\
+         ); \
+         (Get-ItemProperty $keys -ErrorAction SilentlyContinue | Where-Object {{ {filter} }} | Select-Object -First 1).InstallLocation"
+    );
+    let install_dir = run_powershell_hidden(&script)?;
+    let candidate = std::path::Path::new(&install_dir).join("logs").join("Client.txt");
+    if candidate.exists() {
+        Some(candidate.to_string_lossy().into_owned())
+    } else {
+        None
+    }
+}
+
+/// Every Client.txt path implied by the user's *actual* configured Steam
+/// library folders (parsed from Steam's own `libraryfolders.vdf`), covering
+/// any drive/mount without guessing. A second library on a bigger/faster
+/// drive is an extremely common real-world Steam setup that a hardcoded
+/// candidate list can never reach.
+fn steam_library_log_paths(game: &str) -> Vec<String> {
+    let steam_dir = if game == "poe1" { "Path of Exile" } else { "Path of Exile 2" };
+    let mut out = Vec::new();
+    for steam_root in steam_install_roots() {
+        let vdf = steam_root.join("steamapps").join("libraryfolders.vdf");
+        for lib in parse_steam_library_paths(&vdf) {
+            out.push(
+                std::path::Path::new(&lib)
+                    .join("steamapps")
+                    .join("common")
+                    .join(steam_dir)
+                    .join("logs")
+                    .join("Client.txt")
+                    .to_string_lossy()
+                    .into_owned(),
+            );
+        }
+    }
+    out
+}
+
+/// Candidate Steam install directories to look for `libraryfolders.vdf` in.
+/// Steam's own install dir always counts as one of its library folders, so
+/// finding it via the registry (Windows) or its well-known config paths
+/// (Linux, including the Flatpak sandbox location) is enough to then read
+/// every *other* library folder the user has added, on any drive/mount.
+fn steam_install_roots() -> Vec<std::path::PathBuf> {
+    let mut roots: Vec<std::path::PathBuf> = Vec::new();
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(path) = steam_path_from_registry_windows() {
+            roots.push(std::path::PathBuf::from(path));
+        }
+        roots.push(std::path::PathBuf::from(r"C:\Program Files (x86)\Steam"));
+        roots.push(std::path::PathBuf::from(r"C:\Program Files\Steam"));
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let data_home = std::env::var("XDG_DATA_HOME").unwrap_or_else(|_| format!("{home}/.local/share"));
+        roots.push(std::path::PathBuf::from(format!("{data_home}/Steam")));
+        roots.push(std::path::PathBuf::from(format!("{home}/.steam/steam")));
+        roots.push(std::path::PathBuf::from(format!(
+            "{home}/.var/app/com.valvesoftware.Steam/data/Steam"
+        )));
+    }
+
+    roots.retain(|p| p.join("steamapps").join("libraryfolders.vdf").is_file());
+    roots
+}
+
+#[cfg(target_os = "windows")]
+fn steam_path_from_registry_windows() -> Option<String> {
+    run_powershell_hidden(
+        "(Get-ItemProperty 'HKCU:\\Software\\Valve\\Steam' -ErrorAction SilentlyContinue).SteamPath",
+    )
+}
+
+/// Minimal VDF (Valve Data Format) extractor — just pulls `"path"  "<value>"`
+/// lines out of `libraryfolders.vdf` rather than implementing a full VDF
+/// parser, which is all this needs. VDF escapes backslashes as `\\`.
+fn parse_steam_library_paths(vdf_path: &std::path::Path) -> Vec<String> {
+    let Ok(content) = std::fs::read_to_string(vdf_path) else {
+        return Vec::new();
+    };
+    content
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if !trimmed.starts_with("\"path\"") {
+                return None;
+            }
+            let rest = &trimmed["\"path\"".len()..];
+            let mut parts = rest.splitn(3, '"');
+            parts.next(); // whitespace before the opening quote
+            let value = parts.next()?;
+            Some(value.replace("\\\\", "\\"))
+        })
+        .collect()
 }
 
 fn candidate_log_paths(game: &str) -> Vec<String> {
