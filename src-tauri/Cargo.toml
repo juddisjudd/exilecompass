@@ -28,6 +28,9 @@ raw-window-handle = "0.6"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 cpal = "0.15"
+# TTS playback on a user-chosen output device (ElevenLabs MP3 + SAPI WAV).
+# 0.20 shares cpal 0.15 with the voice-command capture above.
+rodio = "0.20"
 # Windows Credential Manager / Linux Secret Service (default features cover
 # both — Linux backend is a pure-Rust D-Bus client, no libsecret dev headers
 # needed at build time). Used only for the optional ElevenLabs API key; falls

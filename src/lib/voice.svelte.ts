@@ -127,6 +127,10 @@ export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
 
 const ENABLED_KEY = 'EXILECOMPASS_VOICE_ENABLED_V1';
 const INPUT_DEVICE_KEY = 'EXILECOMPASS_VOICE_INPUT_DEVICE_V1';
+/** Set just before the startup auto-start, cleared once it returns. Found
+ *  still set on the next launch ⇒ starting the listener took the whole app
+ *  down (a native crash never reaches our catch), so don't retry blindly. */
+const STARTING_MARKER_KEY = 'EXILECOMPASS_VOICE_STARTING_V1';
 
 /** How long the footer indicator stays "just heard something" green after a
  *  detection, before fading back to idle-red. Sherpa's KeywordSpotter only
@@ -147,6 +151,7 @@ let _selectedDevice = $state<string | null>(null);
 let _recentlyDetected = $state(false);
 let _lastDetectedPhrase = $state<VoicePhrase | null>(null);
 let _error = $state('');
+let _disabledAfterCrash = $state(false);
 let _detectedPulseTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const voiceState = {
@@ -168,6 +173,9 @@ export const voiceState = {
   get recentlyDetected() { return _recentlyDetected; },
   get lastDetectedPhrase() { return _lastDetectedPhrase; },
   get error() { return _error; },
+  /** True when this launch refused to auto-start because the previous launch
+   *  crashed while starting the listener. Cleared once the user re-enables. */
+  get disabledAfterCrash() { return _disabledAfterCrash; },
 };
 
 // ── Persisted enable preference ──────────────────────────────────────────────
@@ -254,29 +262,49 @@ export function markVoiceCommandDetected(phrase: VoicePhrase) {
   }, DETECTED_PULSE_MS);
 }
 
-/** Load the saved enable preference and device/phrase lists at startup —
- *  deliberately does NOT auto-start listening even if the preference is on.
- *  A prior version did; a failure inside the native listener (a real crash,
- *  not just a Rust-level error — see voice.rs's threading notes) then means
- *  every future launch immediately retries the same crashing call before the
- *  user can ever reach Settings to turn it back off. Requiring an explicit
- *  toggle each session is a small UX cost for a much safer failure mode: a
- *  bug in this feature can no longer take down the whole app's ability to
- *  start. */
+/** Startup: load the saved preference and device/phrase lists, then resume
+ *  listening if it was on. Guarded by STARTING_MARKER_KEY so a listener that
+ *  crashes the process can't relaunch-loop — after one bad start the
+ *  preference is switched off and `disabledAfterCrash` explains why. */
 export async function applyVoiceEnabledOnStartup(): Promise<void> {
   loadVoiceEnabled();
   await loadVoiceInputDevices();
   await loadVoicePhrases();
+  if (!_enabled) return;
+
+  if (window.localStorage.getItem(STARTING_MARKER_KEY)) {
+    window.localStorage.removeItem(STARTING_MARKER_KEY);
+    setVoiceEnabledPref(false);
+    _disabledAfterCrash = true;
+    return;
+  }
+
+  window.localStorage.setItem(STARTING_MARKER_KEY, '1');
+  try {
+    await startVoiceListening();
+  } catch {
+    setVoiceEnabledPref(false);
+  } finally {
+    window.localStorage.removeItem(STARTING_MARKER_KEY);
+  }
 }
 
-/** Toggle from Settings. Starts/stops the actual listener to match. */
+/** Turn voice commands on/off. The preference is only persisted as "on"
+ *  after the listener actually started, so the saved state never claims
+ *  more than what's running. */
 export async function setVoiceEnabled(value: boolean): Promise<void> {
-  setVoiceEnabledPref(value);
   if (value) {
     await startVoiceListening();
+    setVoiceEnabledPref(true);
+    _disabledAfterCrash = false;
   } else {
     await stopVoiceListening();
+    setVoiceEnabledPref(false);
   }
+}
+
+export async function toggleVoiceEnabled(): Promise<void> {
+  await setVoiceEnabled(!_listening);
 }
 
 /** Re-apply the (possibly just-changed) selected input device to a live

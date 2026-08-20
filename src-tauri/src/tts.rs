@@ -14,35 +14,75 @@
 // async client, so a multi-second SAPI utterance or a slow network response
 // can't freeze the overlay UI thread.
 
+use cpal::traits::{DeviceTrait, HostTrait};
+
+// ── Output device selection ──────────────────────────────────────────────────
+//
+// Playback goes through rodio on a cpal output device so the user can route
+// replies to a headset while game audio stays on speakers. Both TTS backends
+// feed this: ElevenLabs hands back MP3 bytes, SAPI is asked to render to a
+// WAV file instead of speaking directly. With no device chosen, ElevenLabs
+// still plays through the webview's <audio> (proven path) and SAPI speaks
+// directly — this code only runs for an explicit device.
+
 #[tauri::command]
-pub async fn tts_speak_sapi(text: String) -> Result<(), String> {
+pub fn tts_list_output_devices() -> Result<Vec<String>, String> {
+    let host = cpal::default_host();
+    let devices = host.output_devices().map_err(|e| e.to_string())?;
+    Ok(devices.filter_map(|d| d.name().ok()).collect())
+}
+
+fn resolve_output_device(name: &Option<String>) -> Result<cpal::Device, String> {
+    let host = cpal::default_host();
+    if let Some(wanted) = name {
+        if let Ok(mut devices) = host.output_devices() {
+            if let Some(d) = devices.find(|d| d.name().map(|n| n == *wanted).unwrap_or(false)) {
+                return Ok(d);
+            }
+        }
+    }
+    host.default_output_device().ok_or_else(|| "No audio output device found".to_string())
+}
+
+fn play_bytes_blocking(bytes: Vec<u8>, device_name: &Option<String>) -> Result<(), String> {
+    let device = resolve_output_device(device_name)?;
+    let (_stream, handle) = rodio::OutputStream::try_from_device(&device).map_err(|e| e.to_string())?;
+    let sink = rodio::Sink::try_new(&handle).map_err(|e| e.to_string())?;
+    let source = rodio::Decoder::new(std::io::Cursor::new(bytes)).map_err(|e| e.to_string())?;
+    sink.append(source);
+    sink.sleep_until_end();
+    Ok(())
+}
+
+/// Play encoded audio (MP3/WAV) on `device_name`, or the default device.
+#[tauri::command]
+pub async fn tts_play_audio(bytes: Vec<u8>, device_name: Option<String>) -> Result<(), String> {
+    if bytes.is_empty() {
+        return Ok(());
+    }
+    tauri::async_runtime::spawn_blocking(move || play_bytes_blocking(bytes, &device_name))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn tts_speak_sapi(text: String, device_name: Option<String>) -> Result<(), String> {
     if text.trim().is_empty() {
         return Ok(());
     }
-    tauri::async_runtime::spawn_blocking(move || speak_sapi_blocking(&text))
+    tauri::async_runtime::spawn_blocking(move || speak_sapi_blocking(&text, &device_name))
         .await
         .map_err(|e| e.to_string())?
 }
 
 #[cfg(target_os = "windows")]
-fn speak_sapi_blocking(text: &str) -> Result<(), String> {
+fn run_sapi_script(script: &str) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
     // Prevents the console window PowerShell would otherwise briefly flash
-    // open — this fires on every TTS reply, unlike detect_log_from_process_windows
-    // (lib.rs) which only runs once at log-file setup and so never made the
-    // flash noticeable enough to matter there.
+    // open — this fires on every TTS reply.
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-
-    // Single-quoted PowerShell string literal — the only escape needed is
-    // doubling embedded single quotes.
-    let escaped = text.replace('\'', "''");
-    let script = format!(
-        "Add-Type -AssemblyName System.Speech; \
-         $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
-         $s.Speak('{escaped}')"
-    );
     let output = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
         .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| e.to_string())?;
@@ -52,9 +92,68 @@ fn speak_sapi_blocking(text: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(target_os = "windows")]
+fn speak_sapi_blocking(text: &str, device_name: &Option<String>) -> Result<(), String> {
+    // Single-quoted PowerShell string literal — the only escape needed is
+    // doubling embedded single quotes.
+    let escaped = text.replace('\'', "''");
+
+    let Some(_) = device_name else {
+        return run_sapi_script(&format!(
+            "Add-Type -AssemblyName System.Speech; \
+             $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
+             $s.Speak('{escaped}')"
+        ));
+    };
+
+    let wav = std::env::temp_dir().join(format!("exilecompass-tts-{}.wav", std::process::id()));
+    let wav_str = wav.to_string_lossy().replace('\'', "''");
+    let result = run_sapi_script(&format!(
+        "Add-Type -AssemblyName System.Speech; \
+         $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
+         $s.SetOutputToWaveFile('{wav_str}'); \
+         $s.Speak('{escaped}'); \
+         $s.Dispose()"
+    ))
+    .and_then(|_| std::fs::read(&wav).map_err(|e| e.to_string()))
+    .and_then(|bytes| play_bytes_blocking(bytes, device_name));
+    let _ = std::fs::remove_file(&wav);
+    result
+}
+
+/// Linux/macOS: use whichever system engine is installed, preferring ones
+/// that can render to WAV so playback goes through the chosen output device
+/// like SAPI does. espeak-ng ships with speech-dispatcher on most desktops;
+/// pico2wave is the better-sounding but less common SVOX voice. `spd-say`
+/// is the last resort and can only speak on the default device.
 #[cfg(not(target_os = "windows"))]
-fn speak_sapi_blocking(_text: &str) -> Result<(), String> {
-    Err("Built-in text-to-speech is only available on Windows".to_string())
+fn speak_sapi_blocking(text: &str, device_name: &Option<String>) -> Result<(), String> {
+    use std::process::Command;
+
+    let wav = std::env::temp_dir().join(format!("exilecompass-tts-{}.wav", std::process::id()));
+    let wav_s = wav.to_string_lossy().into_owned();
+    let renderers: [(&str, Vec<&str>); 3] = [
+        ("espeak-ng", vec!["-w", &wav_s, text]),
+        ("espeak", vec!["-w", &wav_s, text]),
+        ("pico2wave", vec!["-w", &wav_s, text]),
+    ];
+    for (bin, args) in renderers.iter() {
+        let rendered = matches!(Command::new(bin).args(args).output(), Ok(out) if out.status.success());
+        if !rendered {
+            continue;
+        }
+        let bytes = std::fs::read(&wav).map_err(|e| e.to_string());
+        let _ = std::fs::remove_file(&wav);
+        return play_bytes_blocking(bytes?, device_name);
+    }
+
+    if let Ok(out) = Command::new("spd-say").args(["-w", text]).output() {
+        if out.status.success() {
+            return Ok(());
+        }
+    }
+
+    Err("No system text-to-speech engine found. Install espeak-ng (or speech-dispatcher), or add an ElevenLabs key in Settings.".to_string())
 }
 
 /// Synthesize `text` via the caller's own ElevenLabs account and return the

@@ -59,6 +59,7 @@ const FALLBACK_VOICES: ElevenLabsVoice[] = [
 
 const FALLBACK_KEY_KEY = 'EXILECOMPASS_ELEVENLABS_KEY_FALLBACK_V1'; // disk (settings.json), plaintext — see keyStorage
 const VOICE_ID_KEY = 'EXILECOMPASS_ELEVENLABS_VOICE_ID_V1'; // not sensitive — plain localStorage
+const OUTPUT_DEVICE_KEY = 'EXILECOMPASS_TTS_OUTPUT_DEVICE_V1'; // device name; absent = system default
 
 // ── Reactive state (Svelte 5 runes) ───────────────────────────────────────────
 
@@ -68,8 +69,13 @@ let _voices = $state<ElevenLabsVoice[]>([]);
 let _voiceId = $state('');
 let _speaking = $state(false);
 let _error = $state('');
+let _outputDevices = $state<string[]>([]);
+let _outputDevice = $state<string | null>(null);
 
 export const ttsState = {
+  get outputDevices() { return _outputDevices; },
+  /** null = system default output. Applies to both ElevenLabs and SAPI. */
+  get outputDevice() { return _outputDevice; },
   get hasKey() { return _hasKey; },
   /** Where the ElevenLabs key actually ended up — drives the Settings UI's
    *  "not stored in your system keychain" notice when it's 'fallback'. */
@@ -171,6 +177,28 @@ export function setVoiceId(id: string) {
   window.localStorage.setItem(VOICE_ID_KEY, id);
 }
 
+// ── Output device ─────────────────────────────────────────────────────────
+
+export async function loadTtsOutputDevices(): Promise<void> {
+  try {
+    _outputDevices = await invoke<string[]>('tts_list_output_devices');
+  } catch (e) {
+    _error = String(e);
+    return;
+  }
+  // Only honor the saved pick if that device is still present — otherwise
+  // fall back to the system default rather than erroring on an unplugged
+  // headset.
+  const saved = window.localStorage.getItem(OUTPUT_DEVICE_KEY);
+  _outputDevice = saved && _outputDevices.includes(saved) ? saved : null;
+}
+
+export function setTtsOutputDevice(name: string | null) {
+  _outputDevice = name;
+  if (name) window.localStorage.setItem(OUTPUT_DEVICE_KEY, name);
+  else window.localStorage.removeItem(OUTPUT_DEVICE_KEY);
+}
+
 // ── Speaking ──────────────────────────────────────────────────────────────
 
 let _audioEl: HTMLAudioElement | null = null;
@@ -209,9 +237,13 @@ export async function speak(text: string): Promise<void> {
         apiKey: key,
         voiceId: _voiceId,
       });
-      await playAudioBytes(bytes);
+      if (_outputDevice) {
+        await invoke('tts_play_audio', { bytes, deviceName: _outputDevice });
+      } else {
+        await playAudioBytes(bytes);
+      }
     } else {
-      await invoke('tts_speak_sapi', { text: trimmed });
+      await invoke('tts_speak_sapi', { text: trimmed, deviceName: _outputDevice });
     }
   } catch (e) {
     _error = String(e);

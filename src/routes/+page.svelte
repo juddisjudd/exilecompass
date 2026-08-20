@@ -62,7 +62,10 @@
     restartVoiceListeningForDeviceChange,
     type VoicePhrase,
   } from '$lib/voice.svelte';
-  import { speak, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId } from '$lib/tts.svelte';
+  import {
+    speak, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId,
+    loadTtsOutputDevices, setTtsOutputDevice,
+  } from '$lib/tts.svelte';
   import {
     importPoe1Build,
     clearPoe1Build,
@@ -278,8 +281,17 @@
 
   // ── Voice commands ─────────────────────────────────────────────────────────
 
+  let voiceStarting = $state(false);
+
   async function handleVoiceEnabledChange(checked: boolean) {
+    voiceStarting = checked;
     try { await setVoiceEnabled(checked); } catch { /* voiceState.error already set */ }
+    finally { voiceStarting = false; }
+  }
+
+  function handleVoiceToggle() {
+    if (voiceStarting) return;
+    void handleVoiceEnabledChange(!voiceState.listening);
   }
 
   async function handleVoiceInputDeviceChange(name: string) {
@@ -931,6 +943,7 @@
     void pushTriggers();
     void applyVoiceEnabledOnStartup();
     void loadTtsSettings();
+    void loadTtsOutputDevices();
     selectedLocale = getLocale() as AppLocale;
     pobBuild = loadStoredBuild();
     refreshPoe1Builds();
@@ -1896,11 +1909,15 @@
                 <input
                   type="checkbox"
                   class="ec-checkbox cfg-checkbox"
-                  checked={voiceState.enabled}
+                  checked={voiceState.listening}
+                  disabled={voiceStarting}
                   onchange={(e) => handleVoiceEnabledChange((e.currentTarget as HTMLInputElement).checked)}
                 />
-                <span>{m.voice_enable_toggle()}</span>
+                <span>{voiceStarting ? m.voice_toggle_starting() : m.voice_enable_toggle()}</span>
               </label>
+              {#if voiceState.disabledAfterCrash}
+                <p class="field-help voice-crash-note">{m.voice_disabled_after_crash()}</p>
+              {/if}
               {#if voiceState.listening}
                 <p class="voice-listening-indicator">🎙 {m.voice_listening_active()}</p>
                 <div class="voice-level-meter" role="meter" aria-label={m.voice_input_level_label()} aria-valuenow={Math.round(voiceState.micLevel * 100)} aria-valuemin={0} aria-valuemax={100}>
@@ -1944,6 +1961,21 @@
 
               <div class="settings-section-title" style="margin-top:16px">{m.voice_tts_title()}</div>
               <p class="field-help">{m.voice_tts_help()}</p>
+
+              <label class="field-label" for="tts-output-device-select" style="margin-top:8px">{m.voice_tts_output_device_label()}</label>
+              <select
+                id="tts-output-device-select"
+                class="field-select"
+                value={ttsState.outputDevice ?? ''}
+                onchange={(e) => setTtsOutputDevice((e.currentTarget as HTMLSelectElement).value || null)}
+              >
+                <option value="">{m.voice_tts_output_device_default()}</option>
+                {#each ttsState.outputDevices as device (device)}
+                  <option value={device}>{device}</option>
+                {/each}
+              </select>
+              <p class="field-help">{m.voice_tts_output_device_help()}</p>
+
               {#if ttsState.hasKey}
                 <p class="voice-listening-indicator">
                   {m.voice_tts_key_configured()}
@@ -2505,16 +2537,30 @@
       {/if}
     </div>
     <div class="footer-right">
-      {#if voiceState.listening}
-        <span
-          class="footer-voice-indicator"
-          class:active={voiceState.recentlyDetected}
-          title={voiceState.recentlyDetected ? m.voice_listening_active_match() : m.voice_listening_active()}
-        >
-          <span class="footer-voice-dot" aria-hidden="true"></span>
-          🎙 {voiceState.recentlyDetected ? m.voice_listening_hearing() : m.voice_listening_short()}
-        </span>
-      {/if}
+      <button
+        type="button"
+        class="footer-voice-toggle"
+        class:on={voiceState.listening}
+        class:active={voiceState.listening && voiceState.recentlyDetected}
+        class:starting={voiceStarting}
+        aria-pressed={voiceState.listening}
+        disabled={voiceStarting}
+        title={voiceState.listening ? m.voice_toggle_on_title() : m.voice_toggle_off_title()}
+        onclick={handleVoiceToggle}
+      >
+        <span class="footer-voice-dot" aria-hidden="true"></span>
+        <svg class="footer-voice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="9" y="3" width="6" height="11" rx="3" />
+          <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+        </svg>
+        {#if voiceStarting}
+          {m.voice_toggle_starting()}
+        {:else if voiceState.listening}
+          {voiceState.recentlyDetected ? m.voice_listening_hearing() : m.voice_listening_short()}
+        {:else}
+          {m.voice_enable_toggle()}
+        {/if}
+      </button>
       {#if gameMode.current === 'poe1' && levelingRoute.build}
         <span class="footer-build-chip">
           {levelingRoute.build.characterClass}{levelingRoute.build.ascendClassName
@@ -2736,45 +2782,72 @@
      never a surprise, plus the Settings → Voice setup/status UI. A red pill
      with a pulsing record-dot (not just a dimly-pulsing emoji) so it reads
      unambiguously as "actively listening," not decoration. */
-  .footer-voice-indicator {
+  /* Always-visible mic toggle: quiet ghost when off, red pulse while
+     listening, green the moment a phrase is heard. The visual state follows
+     voiceState.listening (what's actually running), never the saved pref. */
+  .footer-voice-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 8px 2px 6px;
+    gap: 5px;
+    height: 20px;
+    padding: 0 8px 0 7px;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--c-red) 55%, transparent);
-    color: var(--c-red-bright);
-    font-size: 10px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
+    background: transparent;
+    color: color-mix(in srgb, var(--c-accent) 75%, transparent);
+    font-family: 'Satoshi', 'Inter', sans-serif;
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     line-height: 1;
-    animation: voice-pulse-bg 1.6s ease-in-out infinite;
+    cursor: pointer;
+    transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+  }
+  .footer-voice-toggle:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--c-accent) 55%, transparent);
+    color: var(--c-primary);
+  }
+  .footer-voice-toggle:disabled {
+    cursor: progress;
+    opacity: 0.7;
+  }
+  .footer-voice-icon {
+    width: 11px;
+    height: 11px;
+    flex: none;
   }
   .footer-voice-dot {
     width: 6px;
     height: 6px;
     flex: none;
     border-radius: 50%;
-    background: var(--c-red-bright);
+    background: currentColor;
+    opacity: 0.45;
+  }
+  .footer-voice-toggle.on {
+    border-color: color-mix(in srgb, var(--c-red) 55%, transparent);
+    color: var(--c-red-bright);
+    animation: voice-pulse-bg 1.6s ease-in-out infinite;
+  }
+  .footer-voice-toggle.on .footer-voice-dot {
+    opacity: 1;
     animation: voice-pulse-dot 1.2s ease-in-out infinite;
   }
   @keyframes voice-pulse-bg {
     0%, 100% { background: color-mix(in srgb, var(--c-red) 20%, var(--c-bg)); }
     50% { background: color-mix(in srgb, var(--c-red) 42%, var(--c-bg)); }
   }
-
-  /* Switches red → green the instant any trained phrase starts scoring above
-     ACTIVE_SCORE_THRESHOLD (voice.svelte.ts) — "idle, listening in the
-     background" vs. "hearing something right now," not just decoration. */
-  .footer-voice-indicator.active {
+  .footer-voice-toggle.active {
     border-color: color-mix(in srgb, var(--c-success) 60%, transparent);
     color: var(--c-success);
     animation: voice-pulse-bg-active 0.5s ease-in-out infinite;
   }
-  .footer-voice-indicator.active .footer-voice-dot {
-    background: var(--c-success);
+  .footer-voice-toggle.active .footer-voice-dot {
     animation: voice-pulse-dot 0.4s ease-in-out infinite;
+  }
+  .voice-crash-note {
+    color: var(--c-warning);
   }
   @keyframes voice-pulse-bg-active {
     0%, 100% { background: color-mix(in srgb, var(--c-success) 22%, var(--c-bg)); }
