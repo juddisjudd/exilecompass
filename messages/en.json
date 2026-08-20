@@ -98,6 +98,7 @@
   "voice_tts_key_not_secure": "Not in system keychain",
   "voice_tts_key_not_secure_title": "Your system's secure credential store wasn't reachable (common on Linux without a keyring service running), so this key is stored in ExileCompass's local settings file instead of your OS keychain.",
   "voice_tts_voice_label": "Voice",
+  "voice_tts_voices_unavailable": "Couldn't load your ElevenLabs voices — check the key above, or see the error below.",
   "voice_tts_remove_key": "Remove key",
   "voice_tts_no_key_help": "No ElevenLabs key set — voice replies use Windows' built-in voice.",
   "voice_tts_key_placeholder": "ElevenLabs API key",

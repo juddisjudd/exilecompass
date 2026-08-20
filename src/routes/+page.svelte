@@ -63,7 +63,7 @@
     restartVoiceListeningForDeviceChange,
     type VoicePhrase,
   } from '$lib/voice.svelte';
-  import { speak, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId, ELEVENLABS_PRESET_VOICES } from '$lib/tts.svelte';
+  import { speak, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId } from '$lib/tts.svelte';
   import {
     importPoe1Build,
     clearPoe1Build,
@@ -1635,17 +1635,21 @@
                     <span class="badge badge-bad" title={m.voice_tts_key_not_secure_title()}>{m.voice_tts_key_not_secure()}</span>
                   {/if}
                 </p>
-                <label class="field-label" for="elevenlabs-voice-select">{m.voice_tts_voice_label()}</label>
-                <select
-                  id="elevenlabs-voice-select"
-                  class="field-select"
-                  value={ttsState.voiceId}
-                  onchange={(e) => setVoiceId((e.currentTarget as HTMLSelectElement).value)}
-                >
-                  {#each ELEVENLABS_PRESET_VOICES as v (v.id)}
-                    <option value={v.id}>{v.name}</option>
-                  {/each}
-                </select>
+                {#if ttsState.voices.length > 0}
+                  <label class="field-label" for="elevenlabs-voice-select">{m.voice_tts_voice_label()}</label>
+                  <select
+                    id="elevenlabs-voice-select"
+                    class="field-select"
+                    value={ttsState.voiceId}
+                    onchange={(e) => setVoiceId((e.currentTarget as HTMLSelectElement).value)}
+                  >
+                    {#each ttsState.voices as v (v.id)}
+                      <option value={v.id}>{v.name}</option>
+                    {/each}
+                  </select>
+                {:else}
+                  <p class="field-help">{m.voice_tts_voices_unavailable()}</p>
+                {/if}
                 <button class="btn btn-danger" type="button" style="margin-top:8px" onclick={handleClearElevenLabsKey}>
                   {m.voice_tts_remove_key()}
                 </button>

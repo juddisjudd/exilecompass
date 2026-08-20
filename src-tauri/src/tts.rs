@@ -26,6 +26,13 @@ pub async fn tts_speak_sapi(text: String) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn speak_sapi_blocking(text: &str) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    // Prevents the console window PowerShell would otherwise briefly flash
+    // open — this fires on every TTS reply, unlike detect_log_from_process_windows
+    // (lib.rs) which only runs once at log-file setup and so never made the
+    // flash noticeable enough to matter there.
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
     // Single-quoted PowerShell string literal — the only escape needed is
     // doubling embedded single quotes.
     let escaped = text.replace('\'', "''");
@@ -36,6 +43,7 @@ fn speak_sapi_blocking(text: &str) -> Result<(), String> {
     );
     let output = std::process::Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| e.to_string())?;
     if !output.status.success() {
@@ -86,6 +94,70 @@ pub async fn tts_speak_elevenlabs(
     }
     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
     Ok(bytes.to_vec())
+}
+
+/// One voice as returned by tts_list_elevenlabs_voices.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElevenLabsVoice {
+    pub voice_id: String,
+    pub name: String,
+}
+
+/// List voices the caller's own ElevenLabs account can actually use.
+///
+/// Previously the voice picker was a hardcoded list of well-known preset ids
+/// (Rachel, Adam, ...) — several of those turn out to be ElevenLabs Voice
+/// Library entries gated behind a paid plan (`available_for_tiers` in their
+/// API), so a free-tier account hit "402 Payment Required" on some of them
+/// with no way to tell which ones would work in advance. `voice_type=default`
+/// is ElevenLabs' own baseline voice set, included on every plan including
+/// free; `voice_type=personal` adds anything the account has explicitly
+/// added/cloned. Both are guaranteed-usable by construction, so there's
+/// nothing to gate or predict client-side.
+#[tauri::command]
+pub async fn tts_list_elevenlabs_voices(api_key: String) -> Result<Vec<ElevenLabsVoice>, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("ExileCompass")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut voices: Vec<ElevenLabsVoice> = Vec::new();
+    for voice_type in ["default", "personal"] {
+        let url = format!("https://api.elevenlabs.io/v2/voices?voice_type={voice_type}&page_size=100");
+        let response = client
+            .get(&url)
+            .header("xi-api-key", &api_key)
+            .send()
+            .await
+            .map_err(|e| format!("Network error contacting ElevenLabs: {e}"))?;
+        if !response.status().is_success() {
+            // Don't hard-fail the whole listing over one category (e.g. a
+            // fresh account may have zero 'personal' voices, or ElevenLabs
+            // could reject an unfamiliar voice_type in the future).
+            continue;
+        }
+        let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+        let Some(entries) = body.get("voices").and_then(|v| v.as_array()) else {
+            continue;
+        };
+        for entry in entries {
+            let (Some(voice_id), Some(name)) = (
+                entry.get("voice_id").and_then(|v| v.as_str()),
+                entry.get("name").and_then(|v| v.as_str()),
+            ) else {
+                continue;
+            };
+            if voices.iter().any(|v| v.voice_id == voice_id) {
+                continue; // a voice could conceivably show up in both categories
+            }
+            voices.push(ElevenLabsVoice { voice_id: voice_id.to_string(), name: name.to_string() });
+        }
+    }
+    if voices.is_empty() {
+        return Err("No usable ElevenLabs voices found for this account".to_string());
+    }
+    Ok(voices)
 }
 
 // ── ElevenLabs API key storage (OS keychain) ─────────────────────────────────

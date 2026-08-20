@@ -10,17 +10,7 @@ import { persistGet, persistSet, persistRemove } from '$lib/persist';
 //     there) rather than fail silently.
 
 export type TtsKeyStorage = 'keychain' | 'fallback' | 'none';
-
-/** A handful of ElevenLabs' stable premade voice ids, so most users don't
- *  need to go find one themselves — Settings also takes a pasted custom id
- *  (e.g. a cloned voice) via the same field. */
-export const ELEVENLABS_PRESET_VOICES: { id: string; name: string }[] = [
-  { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
-  { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' },
-  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella' },
-  { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni' },
-  { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh' },
-];
+export interface ElevenLabsVoice { id: string; name: string; }
 
 const FALLBACK_KEY_KEY = 'EXILECOMPASS_ELEVENLABS_KEY_FALLBACK_V1'; // disk (settings.json), plaintext — see keyStorage
 const VOICE_ID_KEY = 'EXILECOMPASS_ELEVENLABS_VOICE_ID_V1'; // not sensitive — plain localStorage
@@ -29,7 +19,8 @@ const VOICE_ID_KEY = 'EXILECOMPASS_ELEVENLABS_VOICE_ID_V1'; // not sensitive —
 
 let _hasKey = $state(false);
 let _keyStorage = $state<TtsKeyStorage>('none');
-let _voiceId = $state(ELEVENLABS_PRESET_VOICES[0].id);
+let _voices = $state<ElevenLabsVoice[]>([]);
+let _voiceId = $state('');
 let _speaking = $state(false);
 let _error = $state('');
 
@@ -38,6 +29,9 @@ export const ttsState = {
   /** Where the ElevenLabs key actually ended up — drives the Settings UI's
    *  "not stored in your system keychain" notice when it's 'fallback'. */
   get keyStorage() { return _keyStorage; },
+  /** Voices this account can actually use — fetched from ElevenLabs, not a
+   *  hardcoded list (see loadElevenLabsVoices for why that was a problem). */
+  get voices() { return _voices; },
   get voiceId() { return _voiceId; },
   get speaking() { return _speaking; },
   get error() { return _error; },
@@ -61,12 +55,14 @@ export async function loadTtsSettings(): Promise<void> {
   if (keychainKey) {
     _hasKey = true;
     _keyStorage = 'keychain';
+    await loadElevenLabsVoices();
     return;
   }
   const fallbackKey = await persistGet(FALLBACK_KEY_KEY);
   if (fallbackKey) {
     _hasKey = true;
     _keyStorage = 'fallback';
+    await loadElevenLabsVoices();
     return;
   }
   _hasKey = false;
@@ -86,6 +82,7 @@ export async function setElevenLabsKey(key: string): Promise<void> {
     _hasKey = true;
     _keyStorage = 'fallback';
   }
+  await loadElevenLabsVoices();
 }
 
 export async function clearElevenLabsKey(): Promise<void> {
@@ -93,12 +90,36 @@ export async function clearElevenLabsKey(): Promise<void> {
   await persistRemove(FALLBACK_KEY_KEY);
   _hasKey = false;
   _keyStorage = 'none';
+  _voices = [];
 }
 
 async function getElevenLabsKey(): Promise<string | null> {
   const keychainKey = await readKeychainKey();
   if (keychainKey) return keychainKey;
   return persistGet(FALLBACK_KEY_KEY);
+}
+
+/** Fetch the voices this account can actually use — not a hardcoded preset
+ *  list. ElevenLabs' broader Voice Library carries per-voice plan
+ *  restrictions (`available_for_tiers`); a hardcoded list of well-known
+ *  voice ids hit "402 Payment Required" on some of them for free-tier
+ *  accounts with no way to predict which ones client-side. Querying
+ *  voice_type=default (ElevenLabs' own baseline set, included on every
+ *  plan) + personal (anything the account has added/cloned) is
+ *  guaranteed-usable by construction instead. */
+export async function loadElevenLabsVoices(): Promise<void> {
+  const key = await getElevenLabsKey();
+  if (!key) { _voices = []; return; }
+  try {
+    const fetched = await invoke<{ voiceId: string; name: string }[]>('tts_list_elevenlabs_voices', { apiKey: key });
+    _voices = fetched.map((v) => ({ id: v.voiceId, name: v.name }));
+    if (!_voiceId || !_voices.some((v) => v.id === _voiceId)) {
+      setVoiceId(_voices[0]?.id ?? '');
+    }
+  } catch (e) {
+    _error = String(e);
+    _voices = [];
+  }
 }
 
 export function setVoiceId(id: string) {

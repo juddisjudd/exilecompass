@@ -15,8 +15,9 @@ use voice::{
 
 mod tts;
 use tts::{
-    tts_delete_elevenlabs_key_keychain, tts_get_elevenlabs_key_keychain, tts_speak_elevenlabs,
-    tts_speak_sapi, tts_set_elevenlabs_key_keychain,
+    tts_delete_elevenlabs_key_keychain, tts_get_elevenlabs_key_keychain,
+    tts_list_elevenlabs_voices, tts_speak_elevenlabs, tts_speak_sapi,
+    tts_set_elevenlabs_key_keychain,
 };
 
 /// Resolve the game-specific window finder for a `game` id ("poe1" | "poe2").
@@ -1479,6 +1480,7 @@ pub fn run() {
             voice_stop_listening,
             tts_speak_sapi,
             tts_speak_elevenlabs,
+            tts_list_elevenlabs_voices,
             tts_set_elevenlabs_key_keychain,
             tts_get_elevenlabs_key_keychain,
             tts_delete_elevenlabs_key_keychain,
