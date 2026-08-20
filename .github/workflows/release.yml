@@ -57,7 +57,8 @@ jobs:
             build-essential curl wget file \
             libxdo-dev libssl-dev \
             libayatana-appindicator3-dev \
-            librsvg2-dev patchelf
+            librsvg2-dev patchelf \
+            libasound2-dev
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
