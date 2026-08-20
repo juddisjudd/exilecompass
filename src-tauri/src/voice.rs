@@ -1,5 +1,13 @@
 // Voice commands: sherpa-onnx keyword spotting (Zipformer transducer,
 // GigaSpeech-trained). See resources/kws/README.md for keywords.txt provenance.
+//
+// We resample to 16kHz ourselves (LinearResampler) before ever calling
+// accept_waveform, always passing sample_rate=16000 — matching in==out
+// skips sherpa-onnx's own internal resampler entirely. That resampler was
+// reliably crashing (STATUS_STACK_BUFFER_OVERRUN, ONNX Reshape failure in
+// the encoder's downsample step) when fed a 44100/48000 device rate, and
+// upstream's own microphone example sidesteps it the same way by opening
+// the input device at 16kHz directly rather than resampling in the model.
 
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -9,6 +17,50 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, Sample as CpalSample, SizedSample};
 use sherpa_onnx::{KeywordSpotter, KeywordSpotterConfig};
 use tauri::{AppHandle, Emitter, Manager, State};
+
+const KWS_SAMPLE_RATE: u32 = 16000;
+
+struct LinearResampler {
+    in_rate: f64,
+    out_rate: f64,
+    pos: f64,
+    history: f32,
+}
+
+impl LinearResampler {
+    fn new(in_rate: u32, out_rate: u32) -> Self {
+        Self { in_rate: in_rate as f64, out_rate: out_rate as f64, pos: 0.0, history: 0.0 }
+    }
+
+    fn process(&mut self, input: &[f32]) -> Vec<f32> {
+        if input.is_empty() {
+            return Vec::new();
+        }
+        if (self.in_rate - self.out_rate).abs() < f64::EPSILON {
+            return input.to_vec();
+        }
+        let step = self.in_rate / self.out_rate;
+        let n = input.len() as i64;
+        let sample_at = |k: i64, history: f32| -> f32 {
+            if k < 0 { history } else { input[k as usize] }
+        };
+        let mut output = Vec::new();
+        loop {
+            let idx = self.pos.floor() as i64;
+            if idx + 1 > n - 1 {
+                break;
+            }
+            let s0 = sample_at(idx, self.history);
+            let s1 = sample_at(idx + 1, self.history);
+            let frac = (self.pos - idx as f64) as f32;
+            output.push(s0 + (s1 - s0) * frac);
+            self.pos += step;
+        }
+        self.pos -= n as f64;
+        self.history = *input.last().unwrap();
+        output
+    }
+}
 
 /// Must match the `@display` names in resources/kws/keywords.txt.
 pub const PHRASES: &[&str] = &[
@@ -183,7 +235,7 @@ fn run_listening_thread_inner(
 
     let (chunk_tx, chunk_rx) = mpsc::sync_channel::<AudioChunk>(32);
 
-    let (stream, sample_rate) = match build_capture_stream(app, &device_name, chunk_tx) {
+    let stream = match build_capture_stream(app, &device_name, chunk_tx) {
         Ok(s) => s,
         Err(e) => {
             let _ = ready_tx.send(Err(e));
@@ -199,7 +251,7 @@ fn run_listening_thread_inner(
     let app_for_decode = app.clone();
     let decode_thread = std::thread::spawn(move || {
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            decode_loop(kws, chunk_rx, app_for_decode, sample_rate);
+            decode_loop(kws, chunk_rx, app_for_decode);
         }));
     });
 
@@ -211,13 +263,13 @@ fn run_listening_thread_inner(
     let _ = app.emit("voice-listening-stopped", ());
 }
 
-fn decode_loop(kws: KeywordSpotter, chunk_rx: mpsc::Receiver<AudioChunk>, app: AppHandle, sample_rate: u32) {
+fn decode_loop(kws: KeywordSpotter, chunk_rx: mpsc::Receiver<AudioChunk>, app: AppHandle) {
     let stream_handle = kws.create_stream();
-    let emit_every_samples = sample_rate as u64 / 15;
+    let emit_every_samples = KWS_SAMPLE_RATE as u64 / 15;
     let mut samples_since_emit: u64 = 0;
 
     while let Ok(chunk) = chunk_rx.recv() {
-        stream_handle.accept_waveform(sample_rate as i32, &chunk.samples);
+        stream_handle.accept_waveform(KWS_SAMPLE_RATE as i32, &chunk.samples);
         while kws.is_ready(&stream_handle) {
             kws.decode(&stream_handle);
             if let Some(result) = kws.get_result(&stream_handle) {
@@ -240,7 +292,7 @@ fn build_capture_stream(
     app: &AppHandle,
     device_name: &Option<String>,
     chunk_tx: mpsc::SyncSender<AudioChunk>,
-) -> Result<(cpal::Stream, u32), String> {
+) -> Result<cpal::Stream, String> {
     let device = resolve_input_device(device_name)?;
     let device_config = device.default_input_config().map_err(|e| e.to_string())?;
     let stream_config = cpal::StreamConfig {
@@ -248,16 +300,14 @@ fn build_capture_stream(
         sample_rate: device_config.sample_rate(),
         buffer_size: cpal::BufferSize::Default,
     };
-    let sample_rate = stream_config.sample_rate.0;
     let _ = app;
-    let stream = match device_config.sample_format() {
+    match device_config.sample_format() {
         cpal::SampleFormat::I8 => build_capture_stream_typed::<i8>(&device, &stream_config, chunk_tx),
         cpal::SampleFormat::I16 => build_capture_stream_typed::<i16>(&device, &stream_config, chunk_tx),
         cpal::SampleFormat::I32 => build_capture_stream_typed::<i32>(&device, &stream_config, chunk_tx),
         cpal::SampleFormat::F32 => build_capture_stream_typed::<f32>(&device, &stream_config, chunk_tx),
         other => Err(format!("Unsupported microphone sample format: {other:?}")),
-    }?;
-    Ok((stream, sample_rate))
+    }
 }
 
 fn build_capture_stream_typed<T>(
@@ -270,6 +320,7 @@ where
     f32: FromSample<T>,
 {
     let channels = stream_config.channels as usize;
+    let mut resampler = LinearResampler::new(stream_config.sample_rate.0, KWS_SAMPLE_RATE);
     let data_callback = move |data: &[T], _: &cpal::InputCallbackInfo| {
         let mut samples = Vec::with_capacity(data.len() / channels.max(1) + 1);
         let mut sum_sq = 0f32;
@@ -291,7 +342,11 @@ where
             return;
         }
         let rms = (sum_sq / samples.len() as f32).sqrt().min(1.0);
-        let _ = chunk_tx.try_send(AudioChunk { samples, rms });
+        let resampled = resampler.process(&samples);
+        if resampled.is_empty() {
+            return;
+        }
+        let _ = chunk_tx.try_send(AudioChunk { samples: resampled, rms });
     };
     let error_callback = |err| eprintln!("voice listening stream error: {err}");
     device
