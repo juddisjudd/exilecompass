@@ -63,7 +63,15 @@ const MFCC_SIZE: u16 = 16;
 /// Minimum recordings before a phrase can be trained; rustpotter recommends
 /// 3-8 samples per wakeword reference.
 const MIN_SAMPLES: usize = 3;
-const SAMPLE_DURATION_MS: u64 = 2200;
+/// The frontend computes a per-phrase duration (roughly scaled to word count
+/// — "compass next" needs far less time than "compass third skill supports")
+/// and passes it per call; these are just sanity bounds against a bad value,
+/// not a real default. A single fixed duration used to be hardcoded here for
+/// every phrase regardless of length, which silently truncated recordings of
+/// the longer build-info phrases mid-sentence — every sample trained from a
+/// cut-off clip, so nothing built from them could ever reliably detect.
+const MIN_DURATION_MS: u64 = 1200;
+const MAX_DURATION_MS: u64 = 6000;
 /// Stricter than the library default (5) since this listens continuously in
 /// the background during gameplay — fewer accidental triggers from game
 /// audio/voice chat at the cost of needing a clearer, more deliberate phrase.
@@ -93,6 +101,35 @@ fn validate_phrase(phrase: &str) -> Result<(), String> {
 #[tauri::command]
 pub fn voice_list_phrases() -> Vec<String> {
     PHRASES.iter().map(|s| s.to_string()).collect()
+}
+
+/// Every input device the OS currently exposes, by name, for the Settings
+/// mic picker. `default_input_device()` isn't necessarily the mic the user
+/// actually wants — e.g. a game headset mic sitting alongside a webcam mic
+/// or a virtual audio device from OBS/Voicemeeter/Discord — and silently
+/// recording from the wrong one produces near-silent samples that train (and
+/// then never detect) just as "successfully" as good ones, with no error
+/// anywhere to point at it.
+#[tauri::command]
+pub fn voice_list_input_devices() -> Result<Vec<String>, String> {
+    let host = cpal::default_host();
+    let devices = host.input_devices().map_err(|e| e.to_string())?;
+    Ok(devices.filter_map(|d| d.name().ok()).collect())
+}
+
+/// Resolve the chosen device by name, falling back to the OS default if
+/// `selected` is None or no longer present (e.g. a headset that's been
+/// unplugged since it was picked).
+fn resolve_input_device(selected: &Option<String>) -> Result<cpal::Device, String> {
+    let host = cpal::default_host();
+    if let Some(name) = selected {
+        if let Ok(mut devices) = host.input_devices() {
+            if let Some(d) = devices.find(|d| d.name().map(|n| n == *name).unwrap_or(false)) {
+                return Ok(d);
+            }
+        }
+    }
+    host.default_input_device().ok_or_else(|| "No microphone found".to_string())
 }
 
 fn voice_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -150,19 +187,31 @@ pub fn voice_reset_phrase(app: AppHandle, phrase: String) -> Result<(), String> 
     Ok(())
 }
 
-/// Record one ~2.2s sample of the user saying `phrase` from the default input
-/// device. Runs the actual capture on a blocking thread so the ~2.2s wait
-/// doesn't freeze the overlay UI.
+/// Record one sample of the user saying `phrase` from the chosen (or
+/// default) input device. Runs the actual capture on a blocking thread so
+/// the wait doesn't freeze the overlay UI. Emits `voice-recording-level`
+/// (0.0-1.0 RMS, ~15/sec) for the duration so the frontend can show a live
+/// meter — the only real way for someone to tell "yes, my mic is actually
+/// being picked up" before wasting a training attempt on silence.
 #[tauri::command]
-pub async fn voice_record_sample(app: AppHandle, phrase: String) -> Result<(), String> {
+pub async fn voice_record_sample(
+    app: AppHandle,
+    phrase: String,
+    duration_ms: u64,
+    device_name: Option<String>,
+) -> Result<(), String> {
     validate_phrase(&phrase)?;
+    let duration_ms = duration_ms.clamp(MIN_DURATION_MS, MAX_DURATION_MS);
     let dir = samples_dir(&app, &phrase)?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let index = list_sample_files(&dir).len();
     let path = dir.join(format!("sample-{index}.wav"));
-    tauri::async_runtime::spawn_blocking(move || record_wav(&path, SAMPLE_DURATION_MS))
-        .await
-        .map_err(|e| e.to_string())?
+    let app_for_recording = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        record_wav(&app_for_recording, &path, duration_ms, &device_name)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Build a wakeword reference from all recorded samples for `phrase` and save
@@ -190,9 +239,13 @@ pub fn voice_train_model(app: AppHandle, phrase: String) -> Result<(), String> {
     Ok(())
 }
 
-fn record_wav(path: &Path, duration_ms: u64) -> Result<(), String> {
-    let host = cpal::default_host();
-    let device = host.default_input_device().ok_or("No microphone found")?;
+fn record_wav(
+    app: &AppHandle,
+    path: &Path,
+    duration_ms: u64,
+    device_name: &Option<String>,
+) -> Result<(), String> {
+    let device = resolve_input_device(device_name)?;
     let device_config = device.default_input_config().map_err(|e| e.to_string())?;
 
     let spec = hound::WavSpec {
@@ -212,16 +265,16 @@ fn record_wav(path: &Path, duration_ms: u64) -> Result<(), String> {
 
     let stream = match device_config.sample_format() {
         cpal::SampleFormat::I8 => {
-            build_record_stream::<i8>(&device, &stream_config, writer.clone(), tx, total_samples)?
+            build_record_stream::<i8>(&device, &stream_config, writer.clone(), tx, total_samples, app.clone())?
         }
         cpal::SampleFormat::I16 => {
-            build_record_stream::<i16>(&device, &stream_config, writer.clone(), tx, total_samples)?
+            build_record_stream::<i16>(&device, &stream_config, writer.clone(), tx, total_samples, app.clone())?
         }
         cpal::SampleFormat::I32 => {
-            build_record_stream::<i32>(&device, &stream_config, writer.clone(), tx, total_samples)?
+            build_record_stream::<i32>(&device, &stream_config, writer.clone(), tx, total_samples, app.clone())?
         }
         cpal::SampleFormat::F32 => {
-            build_record_stream::<f32>(&device, &stream_config, writer.clone(), tx, total_samples)?
+            build_record_stream::<f32>(&device, &stream_config, writer.clone(), tx, total_samples, app.clone())?
         }
         other => return Err(format!("Unsupported microphone sample format: {other:?}")),
     };
@@ -248,20 +301,31 @@ fn build_record_stream<T>(
     writer: Arc<Mutex<Option<hound::WavWriter<BufWriter<File>>>>>,
     tx: mpsc::Sender<()>,
     total_samples: u64,
+    app: AppHandle,
 ) -> Result<cpal::Stream, String>
 where
     T: CpalSample + SizedSample,
     f32: FromSample<T>,
 {
     let mut remaining = total_samples;
+    // Emit a level roughly 15x/sec rather than every callback (which can fire
+    // every few ms) — enough to feel live without spamming IPC from the
+    // real-time audio thread.
+    let emit_every_samples =
+        ((stream_config.sample_rate.0 as u64 * stream_config.channels as u64) / 15).max(1);
+    let mut samples_since_emit: u64 = 0;
     let data_callback = move |data: &[T], _: &cpal::InputCallbackInfo| {
         if remaining == 0 {
             return;
         }
+        let mut sum_sq = 0f32;
+        let mut count = 0u32;
         if let Ok(mut guard) = writer.try_lock() {
             if let Some(w) = guard.as_mut() {
                 for &sample in data {
                     let f: f32 = f32::from_sample(sample);
+                    sum_sq += f * f;
+                    count += 1;
                     let _ = w.write_sample(f);
                     remaining = remaining.saturating_sub(1);
                     if remaining == 0 {
@@ -270,6 +334,14 @@ where
                     }
                 }
             }
+        }
+        samples_since_emit += count as u64;
+        if count > 0 && samples_since_emit >= emit_every_samples {
+            samples_since_emit = 0;
+            // RMS of a roughly-[-1, 1] float signal — clamp defensively in
+            // case a device delivers hotter-than-unity samples.
+            let rms = (sum_sq / count as f32).sqrt().min(1.0);
+            let _ = app.emit("voice-recording-level", rms);
         }
     };
     let error_callback = |err| eprintln!("voice recording stream error: {err}");
@@ -289,6 +361,7 @@ pub fn voice_is_listening(state: State<'_, VoiceState>) -> bool {
 pub async fn voice_start_listening(
     app: AppHandle,
     state: State<'_, VoiceState>,
+    device_name: Option<String>,
 ) -> Result<(), String> {
     if state.stop_tx.lock().unwrap().is_some() {
         return Ok(()); // already running
@@ -311,7 +384,7 @@ pub async fn voice_start_listening(
     let (stop_tx, stop_rx) = mpsc::channel::<()>();
     let app_handle = app.clone();
     std::thread::spawn(move || {
-        run_listening_thread(app_handle, trained, ready_tx, stop_rx);
+        run_listening_thread(app_handle, trained, device_name, ready_tx, stop_rx);
     });
 
     let ready = tauri::async_runtime::spawn_blocking(move || ready_rx.recv())
@@ -334,10 +407,11 @@ pub fn voice_stop_listening(state: State<'_, VoiceState>) {
 fn run_listening_thread(
     app: AppHandle,
     trained: Vec<(String, PathBuf)>,
+    device_name: Option<String>,
     ready_tx: mpsc::Sender<Result<(), String>>,
     stop_rx: mpsc::Receiver<()>,
 ) {
-    let stream = match build_listening_stream(&app, &trained) {
+    let stream = match build_listening_stream(&app, &trained, &device_name) {
         Ok(s) => s,
         Err(e) => {
             let _ = ready_tx.send(Err(e));
@@ -371,9 +445,9 @@ fn run_listening_thread(
 fn build_listening_stream(
     app: &AppHandle,
     trained: &[(String, PathBuf)],
+    device_name: &Option<String>,
 ) -> Result<cpal::Stream, String> {
-    let host = cpal::default_host();
-    let device = host.default_input_device().ok_or("No microphone found")?;
+    let device = resolve_input_device(device_name)?;
     let device_config = device.default_input_config().map_err(|e| e.to_string())?;
     let bits_per_sample = (device_config.sample_format().sample_size() * 8) as u16;
 

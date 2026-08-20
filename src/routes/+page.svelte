@@ -55,7 +55,12 @@
     setVoiceEnabled,
     applyVoiceEnabledOnStartup,
     markVoiceListeningStopped,
+    setVoiceRecordingLevel,
     voicePhraseGroup,
+    VOICE_PHRASE_EXAMPLES,
+    loadVoiceInputDevices,
+    setVoiceInputDevice,
+    restartVoiceListeningForDeviceChange,
     type VoicePhrase,
   } from '$lib/voice.svelte';
   import { speak, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId, ELEVENLABS_PRESET_VOICES } from '$lib/tts.svelte';
@@ -294,6 +299,11 @@
     }
   }
 
+  async function handleVoiceInputDeviceChange(name: string) {
+    setVoiceInputDevice(name === '' ? null : name);
+    await restartVoiceListeningForDeviceChange();
+  }
+
   // Build-query voice commands ("compass, first skill", "...supports", etc.) —
   // resolved against the primary skill set of the currently imported PoE2
   // build. Deliberately always skillSets[0] rather than mirroring whatever tab
@@ -377,22 +387,6 @@
       default: return phrase;
     }
   }
-
-  const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
-    next: 'compass next',
-    back: 'compass back',
-    rewards: 'compass rewards',
-    campaign: 'compass campaign',
-    build: 'compass build',
-    skill1: 'compass first skill',
-    skill2: 'compass second skill',
-    skill3: 'compass third skill',
-    spirit: 'compass spirit gem',
-    skill1supports: 'compass first skill supports',
-    skill2supports: 'compass second skill supports',
-    skill3supports: 'compass third skill supports',
-    spiritsupports: 'compass spirit gem supports',
-  };
 
   const VOICE_GROUP_ORDER = ['objectives', 'navigation', 'buildInfo', 'other'] as const;
   function voicePhraseGroupLabel(group: (typeof VOICE_GROUP_ORDER)[number]): string {
@@ -760,12 +754,16 @@
     // point for every phrase in voice.rs's PHRASES registry.
     let unlistenVoiceCommand: (() => void) | undefined;
     let unlistenVoiceStopped: (() => void) | undefined;
+    let unlistenVoiceLevel: (() => void) | undefined;
     (async () => {
       unlistenVoiceCommand = await listen<string>('voice-command', (event) => {
         handleVoiceCommand(event.payload);
       });
       unlistenVoiceStopped = await listen('voice-listening-stopped', () => {
         markVoiceListeningStopped();
+      });
+      unlistenVoiceLevel = await listen<number>('voice-recording-level', (event) => {
+        setVoiceRecordingLevel(event.payload);
       });
     })();
 
@@ -795,6 +793,7 @@
       unlistenTrigger?.();
       unlistenVoiceCommand?.();
       unlistenVoiceStopped?.();
+      unlistenVoiceLevel?.();
       unlistenMoved?.();
       unlistenResized?.();
       if (boundsSaveTimer) clearTimeout(boundsSaveTimer);
@@ -1564,6 +1563,20 @@
                 <p class="inline-error">{voiceState.error}</p>
               {/if}
 
+              <label class="field-label" for="voice-input-device-select" style="margin-top:12px">{m.voice_input_device_label()}</label>
+              <select
+                id="voice-input-device-select"
+                class="field-select"
+                value={voiceState.selectedDevice ?? ''}
+                onchange={(e) => handleVoiceInputDeviceChange((e.currentTarget as HTMLSelectElement).value)}
+              >
+                <option value="">{m.voice_input_device_default()}</option>
+                {#each voiceState.inputDevices as device (device)}
+                  <option value={device}>{device}</option>
+                {/each}
+              </select>
+              <p class="field-help">{m.voice_input_device_help()}</p>
+
               <div class="settings-section-title" style="margin-top:16px">{m.voice_setup_title()}</div>
               <p class="field-help">{m.voice_setup_help({ count: VOICE_MIN_SAMPLES })}</p>
               {#each VOICE_GROUP_ORDER as group (group)}
@@ -1582,6 +1595,11 @@
                         {m.voice_say_this()} <em>"{VOICE_PHRASE_EXAMPLES[phrase] ?? phrase}"</em>
                         &middot; {m.voice_samples_recorded({ count: voiceState.sampleCounts[phrase] ?? 0 })}
                       </p>
+                      {#if voiceState.recordingPhrase === phrase}
+                        <div class="voice-level-meter" role="meter" aria-label={m.voice_input_level_label()} aria-valuenow={Math.round(voiceState.recordingLevel * 100)} aria-valuemin={0} aria-valuemax={100}>
+                          <div class="voice-level-meter-fill" style="width:{Math.min(100, voiceState.recordingLevel * 220)}%"></div>
+                        </div>
+                      {/if}
                       <div class="voice-phrase-actions">
                         <button
                           class="btn"
@@ -2417,6 +2435,19 @@
     display: flex;
     gap: 6px;
     margin-top: 4px;
+  }
+
+  .voice-level-meter {
+    height: 6px;
+    background: color-mix(in srgb, var(--c-mid) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-accent) 25%, transparent);
+    overflow: hidden;
+  }
+  .voice-level-meter-fill {
+    height: 100%;
+    background: var(--c-success);
+    /* Fast response to actually feel "live" rather than smoothed/laggy. */
+    transition: width 0.05s linear;
   }
 
   /* Theme picker (Settings → Appearance) */

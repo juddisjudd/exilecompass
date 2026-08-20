@@ -27,7 +27,39 @@ export function voicePhraseGroup(phrase: VoicePhrase): VoicePhraseGroup {
   return GROUP_MAP[phrase] ?? 'other';
 }
 
+/** The literal (always-English) phrase to say for each id — not translatable
+ *  content, it's the fixed wake-phrase this feature is built around
+ *  regardless of UI locale. Also drives the per-phrase recording duration
+ *  below, since it's the only place word count is known. */
+export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
+  next: 'compass next',
+  back: 'compass back',
+  rewards: 'compass rewards',
+  campaign: 'compass campaign',
+  build: 'compass build',
+  skill1: 'compass first skill',
+  skill2: 'compass second skill',
+  skill3: 'compass third skill',
+  spirit: 'compass spirit gem',
+  skill1supports: 'compass first skill supports',
+  skill2supports: 'compass second skill supports',
+  skill3supports: 'compass third skill supports',
+  spiritsupports: 'compass spirit gem supports',
+};
+
+/** Recording window scaled to roughly how long the phrase takes to say.
+ *  A single fixed ~2.2s window used to apply to every phrase regardless of
+ *  length — fine for "compass next", but it silently truncated the longer
+ *  build-info phrases mid-sentence on every single recording, so nothing
+ *  trained from them could ever detect reliably. The Rust side still clamps
+ *  this to a sane range regardless (see MIN/MAX_DURATION_MS in voice.rs). */
+function phraseDurationMs(phrase: VoicePhrase): number {
+  const words = (VOICE_PHRASE_EXAMPLES[phrase] ?? phrase).split(/\s+/).filter(Boolean).length || 1;
+  return Math.round(1400 + words * 450);
+}
+
 const ENABLED_KEY = 'EXILECOMPASS_VOICE_ENABLED_V1';
+const INPUT_DEVICE_KEY = 'EXILECOMPASS_VOICE_INPUT_DEVICE_V1';
 
 // ── Reactive state (Svelte 5 runes) ───────────────────────────────────────────
 
@@ -37,6 +69,9 @@ let _listening = $state(false);
 let _sampleCounts = $state<Record<VoicePhrase, number>>({});
 let _trained = $state<Record<VoicePhrase, boolean>>({});
 let _recordingPhrase = $state<VoicePhrase | null>(null);
+let _recordingLevel = $state(0);
+let _inputDevices = $state<string[]>([]);
+let _selectedDevice = $state<string | null>(null);
 let _error = $state('');
 
 export const voiceState = {
@@ -52,6 +87,12 @@ export const voiceState = {
    *  whichever phrases are trained rather than requiring the full set. */
   get setupComplete() { return _phrases.some((p) => _trained[p]); },
   get recordingPhrase() { return _recordingPhrase; },
+  /** 0.0-1.0 live input level while recordingPhrase is set — the actual
+   *  answer to "is my mic being picked up," rather than just hoping. */
+  get recordingLevel() { return _recordingLevel; },
+  get inputDevices() { return _inputDevices; },
+  /** null = OS default device. */
+  get selectedDevice() { return _selectedDevice; },
   get error() { return _error; },
 };
 
@@ -65,6 +106,33 @@ export function loadVoiceEnabled(): boolean {
 function setVoiceEnabledPref(value: boolean) {
   _enabled = value;
   window.localStorage.setItem(ENABLED_KEY, value ? '1' : '0');
+}
+
+// ── Input device selection ───────────────────────────────────────────────────
+
+export async function loadVoiceInputDevices(): Promise<void> {
+  try {
+    _inputDevices = await invoke<string[]>('voice_list_input_devices');
+  } catch (e) {
+    _error = String(e);
+    return;
+  }
+  const saved = window.localStorage.getItem(INPUT_DEVICE_KEY);
+  // Only honor the saved pick if that device is still actually present —
+  // otherwise silently fall back to the OS default rather than erroring on
+  // a headset that's since been unplugged.
+  _selectedDevice = saved && _inputDevices.includes(saved) ? saved : null;
+}
+
+export function setVoiceInputDevice(name: string | null) {
+  _selectedDevice = name;
+  if (name) window.localStorage.setItem(INPUT_DEVICE_KEY, name);
+  else window.localStorage.removeItem(INPUT_DEVICE_KEY);
+}
+
+/** Called from the `voice-recording-level` Tauri event. */
+export function setVoiceRecordingLevel(level: number) {
+  _recordingLevel = level;
 }
 
 // ── Setup: recording samples & training ──────────────────────────────────────
@@ -82,18 +150,27 @@ export async function refreshVoiceSetupStatus(): Promise<void> {
   }
 }
 
-/** Record one sample (~2.2s) of the user saying `phrase`. Resolves once the clip is saved. */
+/** Record one sample of the user saying `phrase` (duration scaled to its
+ *  length — see phraseDurationMs). Resolves once the clip is saved;
+ *  `voiceState.recordingLevel` updates live for the duration via the
+ *  `voice-recording-level` event. */
 export async function recordVoiceSample(phrase: VoicePhrase): Promise<void> {
   _recordingPhrase = phrase;
+  _recordingLevel = 0;
   _error = '';
   try {
-    await invoke('voice_record_sample', { phrase });
+    await invoke('voice_record_sample', {
+      phrase,
+      durationMs: phraseDurationMs(phrase),
+      deviceName: _selectedDevice,
+    });
     _sampleCounts[phrase] = await invoke<number>('voice_sample_count', { phrase });
   } catch (e) {
     _error = String(e);
     throw e;
   } finally {
     _recordingPhrase = null;
+    _recordingLevel = 0;
   }
 }
 
@@ -124,7 +201,7 @@ export async function resetVoicePhrase(phrase: VoicePhrase): Promise<void> {
 export async function startVoiceListening(): Promise<void> {
   _error = '';
   try {
-    await invoke('voice_start_listening');
+    await invoke('voice_start_listening', { deviceName: _selectedDevice });
     _listening = true;
   } catch (e) {
     _error = String(e);
@@ -148,6 +225,7 @@ export function markVoiceListeningStopped() {
  *  commands on and at least one phrase is trained, start listening immediately. */
 export async function applyVoiceEnabledOnStartup(): Promise<void> {
   loadVoiceEnabled();
+  await loadVoiceInputDevices();
   await refreshVoiceSetupStatus();
   if (_enabled && voiceState.setupComplete) {
     try { await startVoiceListening(); } catch { /* surfaced via voiceState.error */ }
@@ -163,4 +241,12 @@ export async function setVoiceEnabled(value: boolean): Promise<void> {
   } else {
     await stopVoiceListening();
   }
+}
+
+/** Re-apply the (possibly just-changed) selected input device to a live
+ *  listening session — stop/start, since the stream is built once at start. */
+export async function restartVoiceListeningForDeviceChange(): Promise<void> {
+  if (!_listening) return;
+  await stopVoiceListening();
+  await startVoiceListening();
 }
