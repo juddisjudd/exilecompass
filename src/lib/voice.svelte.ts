@@ -177,16 +177,19 @@ export function markVoiceCommandDetected(phrase: VoicePhrase) {
   }, DETECTED_PULSE_MS);
 }
 
-/** Apply the saved enable preference at startup. The keyword-spotting model
- *  ships bundled and ready — unlike the old rustpotter setup, there's no
- *  per-phrase training gate to check before starting. */
+/** Load the saved enable preference and device/phrase lists at startup —
+ *  deliberately does NOT auto-start listening even if the preference is on.
+ *  A prior version did; a failure inside the native listener (a real crash,
+ *  not just a Rust-level error — see voice.rs's threading notes) then means
+ *  every future launch immediately retries the same crashing call before the
+ *  user can ever reach Settings to turn it back off. Requiring an explicit
+ *  toggle each session is a small UX cost for a much safer failure mode: a
+ *  bug in this feature can no longer take down the whole app's ability to
+ *  start. */
 export async function applyVoiceEnabledOnStartup(): Promise<void> {
   loadVoiceEnabled();
   await loadVoiceInputDevices();
   await loadVoicePhrases();
-  if (_enabled) {
-    try { await startVoiceListening(); } catch { /* surfaced via voiceState.error */ }
-  }
 }
 
 /** Toggle from Settings. Starts/stops the actual listener to match. */

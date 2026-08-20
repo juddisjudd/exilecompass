@@ -1,32 +1,5 @@
 // Voice commands: sherpa-onnx keyword spotting (Zipformer transducer,
-// GigaSpeech-trained, Apache-2.0) — replaces an earlier rustpotter-based
-// implementation. rustpotter (github.com/GiviMAD/rustpotter) hadn't been
-// touched since Oct 2023, and its own README explicitly says "this is not
-// intended to be a production-grade tool" — worth taking seriously for a
-// feature that's actually shipping.
-//
-// sherpa-onnx's keyword-spotting model works fundamentally differently in a
-// way that fits this app much better than rustpotter did: keywords are added
-// as *text*, converted to tokens once, offline, against one shared
-// pre-trained model — not per-user audio recordings needing an in-app
-// training wizard. Our phrases are fixed/developer-defined (not something a
-// user invents), so that's a strictly better fit: zero setup, one bundled
-// ~5MB model instead of N per-phrase reference files, and accuracy from a
-// model trained on 10,000 hours of real speech (GigaSpeech) instead of a
-// handful of one person's recordings in one room with one mic. See
-// resources/kws/README.md for exactly how keywords.txt was generated and how
-// to regenerate it if the phrase set ever changes.
-//
-// One real capability this trades away: rustpotter exposed a live,
-// continuously updating confidence score per phrase
-// (`Rustpotter::get_partial_detection`), which drove a "how close is this to
-// firing" meter in Settings. Sherpa's `KeywordSpotter` only exposes pass/fail
-// results after a keyword actually fires — there's no equivalent partial-
-// match introspection in its API. The mic input-level meter (ours, computed
-// directly from captured samples, independent of whichever engine is
-// listening) is what's left to answer "is my mic even being picked up";
-// "did it just hear something" is now answered by the `voice-command` event
-// itself rather than a live-building score.
+// GigaSpeech-trained). See resources/kws/README.md for keywords.txt provenance.
 
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -37,12 +10,7 @@ use cpal::{FromSample, Sample as CpalSample, SizedSample};
 use sherpa_onnx::{KeywordSpotter, KeywordSpotterConfig};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-/// Every phrase id the app can dispatch on. Matched 1:1 against the
-/// `@display` name baked into resources/kws/keywords.txt at generation time
-/// — `KeywordSpotter::get_result()` returns exactly this string as
-/// `.keyword`, so there is no separate id-translation table to keep in sync.
-/// Changing this list means regenerating keywords.txt (see that file's
-/// README), not just editing Rust/TS.
+/// Must match the `@display` names in resources/kws/keywords.txt.
 pub const PHRASES: &[&str] = &[
     "next",
     "back",
@@ -76,12 +44,7 @@ impl VoiceState {
     }
 }
 
-/// Resolves the bundled keyword-spotting model directory. Tries the real
-/// packaged-app resource location first; falls back to a path baked in at
-/// compile time pointing straight at `src-tauri/resources/kws` in the source
-/// tree. The fallback exists because `resource_dir()`'s exact behavior under
-/// `tauri dev` (unbundled) isn't clearly documented one way or the other —
-/// rather than assume, this just works either way.
+/// Packaged resource dir, falling back to the source-tree path under `tauri dev`.
 fn kws_resource_dir(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(dir) = app.path().resource_dir() {
         let candidate = dir.join("resources").join("kws");
@@ -96,21 +59,26 @@ fn kws_resource_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Err("Keyword-spotting model resources not found (checked both the packaged resource dir and the dev-mode source path)".to_string())
 }
 
+/// Validates model files exist before handing paths to the FFI loader, which
+/// fails opaquely (and possibly unsafely) on a bad path.
 fn build_keyword_spotter(app: &AppHandle) -> Result<KeywordSpotter, String> {
     let dir = kws_resource_dir(app)?;
-    let path = |name: &str| dir.join(name).to_string_lossy().into_owned();
+    let resolved = |name: &str| -> Result<String, String> {
+        let p = dir.join(name);
+        if !p.is_file() {
+            return Err(format!("Missing keyword-spotting model file: {}", p.display()));
+        }
+        Ok(p.to_string_lossy().into_owned())
+    };
 
     let mut config = KeywordSpotterConfig::default();
-    config.model_config.transducer.encoder = Some(path("encoder.onnx"));
-    config.model_config.transducer.decoder = Some(path("decoder.onnx"));
-    config.model_config.transducer.joiner = Some(path("joiner.onnx"));
-    config.model_config.tokens = Some(path("tokens.txt"));
+    config.model_config.transducer.encoder = Some(resolved("encoder.onnx")?);
+    config.model_config.transducer.decoder = Some(resolved("decoder.onnx")?);
+    config.model_config.transducer.joiner = Some(resolved("joiner.onnx")?);
+    config.model_config.tokens = Some(resolved("tokens.txt")?);
     config.model_config.provider = Some("cpu".to_string());
-    config.keywords_file = Some(path("keywords.txt"));
-    // Several of our phrases share a prefix with a longer sibling
-    // ("skill1" vs "skill1supports") — the upstream docs specifically call
-    // out raising this when keywords have overlapping tokens, to stop the
-    // shorter phrase from firing prematurely partway through the longer one.
+    config.keywords_file = Some(resolved("keywords.txt")?);
+    // Raised because some phrases share a prefix (e.g. skill1/skill1supports).
     config.num_trailing_blanks = 6;
 
     KeywordSpotter::create(&config).ok_or_else(|| "Failed to create keyword spotter".to_string())
@@ -118,10 +86,6 @@ fn build_keyword_spotter(app: &AppHandle) -> Result<KeywordSpotter, String> {
 
 // ── Input devices ────────────────────────────────────────────────────────
 
-/// Every input device the OS currently exposes, by name, for the Settings
-/// mic picker. `default_input_device()` isn't necessarily the mic the user
-/// actually wants — e.g. a game headset mic sitting alongside a webcam mic
-/// or a virtual audio device from OBS/Voicemeeter/Discord.
 #[tauri::command]
 pub fn voice_list_input_devices() -> Result<Vec<String>, String> {
     let host = cpal::default_host();
@@ -129,9 +93,6 @@ pub fn voice_list_input_devices() -> Result<Vec<String>, String> {
     Ok(devices.filter_map(|d| d.name().ok()).collect())
 }
 
-/// Resolve the chosen device by name, falling back to the OS default if
-/// `selected` is None or no longer present (e.g. a headset unplugged since
-/// it was picked).
 fn resolve_input_device(selected: &Option<String>) -> Result<cpal::Device, String> {
     let host = cpal::default_host();
     if let Some(name) = selected {
@@ -185,13 +146,44 @@ pub fn voice_stop_listening(state: State<'_, VoiceState>) {
     }
 }
 
+struct AudioChunk {
+    samples: Vec<f32>,
+    rms: f32,
+}
+
 fn run_listening_thread(
     app: AppHandle,
     device_name: Option<String>,
     ready_tx: mpsc::Sender<Result<(), String>>,
     stop_rx: mpsc::Receiver<()>,
 ) {
-    let stream = match build_listening_stream(&app, &device_name) {
+    // catch_unwind only guards against Rust panics, not a C++/FFI-level fault in sherpa-onnx.
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        run_listening_thread_inner(&app, device_name, &ready_tx, &stop_rx)
+    }));
+    if let Err(_) = result {
+        let _ = ready_tx.send(Err("Voice listening crashed (see logs)".to_string()));
+        let _ = app.emit("voice-listening-stopped", ());
+    }
+}
+
+fn run_listening_thread_inner(
+    app: &AppHandle,
+    device_name: Option<String>,
+    ready_tx: &mpsc::Sender<Result<(), String>>,
+    stop_rx: &mpsc::Receiver<()>,
+) {
+    let kws = match build_keyword_spotter(app) {
+        Ok(k) => k,
+        Err(e) => {
+            let _ = ready_tx.send(Err(e));
+            return;
+        }
+    };
+
+    let (chunk_tx, chunk_rx) = mpsc::sync_channel::<AudioChunk>(32);
+
+    let stream = match build_capture_stream(app, &device_name, chunk_tx) {
         Ok(s) => s,
         Err(e) => {
             let _ = ready_tx.send(Err(e));
@@ -202,88 +194,30 @@ fn run_listening_thread(
         let _ = ready_tx.send(Err(e.to_string()));
         return;
     }
+
+    // Decode runs off the real-time audio callback thread.
+    let app_for_decode = app.clone();
+    let decode_thread = std::thread::spawn(move || {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            decode_loop(kws, chunk_rx, app_for_decode);
+        }));
+    });
+
     let _ = ready_tx.send(Ok(()));
 
-    // Block until voice_stop_listening signals us. A hardware-level stream
-    // error only logs (see build_spot_stream's error_callback) — cpal doesn't
-    // hand back a way to detect that from here, so this thread keeps waiting
-    // for an explicit stop rather than reacting to it.
     let _ = stop_rx.recv();
-    drop(stream);
+    drop(stream); // stops capture, drops chunk_tx, ending decode_loop
+    let _ = decode_thread.join();
     let _ = app.emit("voice-listening-stopped", ());
 }
 
-fn build_listening_stream(
-    app: &AppHandle,
-    device_name: &Option<String>,
-) -> Result<cpal::Stream, String> {
-    let kws = build_keyword_spotter(app)?;
-
-    let device = resolve_input_device(device_name)?;
-    let device_config = device.default_input_config().map_err(|e| e.to_string())?;
-    let stream_config = cpal::StreamConfig {
-        channels: device_config.channels(),
-        sample_rate: device_config.sample_rate(),
-        buffer_size: cpal::BufferSize::Default,
-    };
-    let app = app.clone();
-    match device_config.sample_format() {
-        cpal::SampleFormat::I8 => build_spot_stream::<i8>(&device, &stream_config, kws, app),
-        cpal::SampleFormat::I16 => build_spot_stream::<i16>(&device, &stream_config, kws, app),
-        cpal::SampleFormat::I32 => build_spot_stream::<i32>(&device, &stream_config, kws, app),
-        cpal::SampleFormat::F32 => build_spot_stream::<f32>(&device, &stream_config, kws, app),
-        other => Err(format!("Unsupported microphone sample format: {other:?}")),
-    }
-}
-
-fn build_spot_stream<T>(
-    device: &cpal::Device,
-    stream_config: &cpal::StreamConfig,
-    kws: KeywordSpotter,
-    app: AppHandle,
-) -> Result<cpal::Stream, String>
-where
-    T: CpalSample + SizedSample,
-    f32: FromSample<T>,
-{
-    let sample_rate = stream_config.sample_rate.0 as i32;
-    let channels = stream_config.channels as usize;
+fn decode_loop(kws: KeywordSpotter, chunk_rx: mpsc::Receiver<AudioChunk>, app: AppHandle) {
     let stream_handle = kws.create_stream();
-
-    // Live mic-input level meter, independent of the keyword spotter —
-    // throttled like the recording-time version, ~15/sec.
-    let emit_every_samples =
-        ((stream_config.sample_rate.0 as u64 * stream_config.channels as u64) / 15).max(1);
+    let emit_every_samples = 16_000u64 / 15; // ~15/sec at the model's 16kHz internal rate
     let mut samples_since_emit: u64 = 0;
 
-    // Reused across callbacks so each invocation doesn't reallocate; sized
-    // generously since cpal buffer sizes vary by device/backend.
-    let mut mono_buffer: Vec<f32> = Vec::with_capacity(4096);
-
-    let data_callback = move |data: &[T], _: &cpal::InputCallbackInfo| {
-        mono_buffer.clear();
-        let mut sum_sq = 0f32;
-        if channels <= 1 {
-            for &s in data {
-                let f: f32 = f32::from_sample(s);
-                sum_sq += f * f;
-                mono_buffer.push(f);
-            }
-        } else {
-            // Downmix to mono by averaging channels — the model only wants
-            // one channel, and a lone level meter has no use for stereo.
-            for frame in data.chunks(channels) {
-                let mut sum = 0f32;
-                for &s in frame {
-                    sum += f32::from_sample(s);
-                }
-                let f = sum / channels as f32;
-                sum_sq += f * f;
-                mono_buffer.push(f);
-            }
-        }
-
-        stream_handle.accept_waveform(sample_rate, &mono_buffer);
+    while let Ok(chunk) = chunk_rx.recv() {
+        stream_handle.accept_waveform(16_000, &chunk.samples);
         while kws.is_ready(&stream_handle) {
             kws.decode(&stream_handle);
             if let Some(result) = kws.get_result(&stream_handle) {
@@ -294,12 +228,68 @@ where
             }
         }
 
-        samples_since_emit += mono_buffer.len() as u64;
-        if !mono_buffer.is_empty() && samples_since_emit >= emit_every_samples {
+        samples_since_emit += chunk.samples.len() as u64;
+        if samples_since_emit >= emit_every_samples {
             samples_since_emit = 0;
-            let rms = (sum_sq / mono_buffer.len() as f32).sqrt().min(1.0);
-            let _ = app.emit("voice-recording-level", rms);
+            let _ = app.emit("voice-recording-level", chunk.rms);
         }
+    }
+}
+
+fn build_capture_stream(
+    app: &AppHandle,
+    device_name: &Option<String>,
+    chunk_tx: mpsc::SyncSender<AudioChunk>,
+) -> Result<cpal::Stream, String> {
+    let device = resolve_input_device(device_name)?;
+    let device_config = device.default_input_config().map_err(|e| e.to_string())?;
+    let stream_config = cpal::StreamConfig {
+        channels: device_config.channels(),
+        sample_rate: device_config.sample_rate(),
+        buffer_size: cpal::BufferSize::Default,
+    };
+    let _ = app;
+    match device_config.sample_format() {
+        cpal::SampleFormat::I8 => build_capture_stream_typed::<i8>(&device, &stream_config, chunk_tx),
+        cpal::SampleFormat::I16 => build_capture_stream_typed::<i16>(&device, &stream_config, chunk_tx),
+        cpal::SampleFormat::I32 => build_capture_stream_typed::<i32>(&device, &stream_config, chunk_tx),
+        cpal::SampleFormat::F32 => build_capture_stream_typed::<f32>(&device, &stream_config, chunk_tx),
+        other => Err(format!("Unsupported microphone sample format: {other:?}")),
+    }
+}
+
+fn build_capture_stream_typed<T>(
+    device: &cpal::Device,
+    stream_config: &cpal::StreamConfig,
+    chunk_tx: mpsc::SyncSender<AudioChunk>,
+) -> Result<cpal::Stream, String>
+where
+    T: CpalSample + SizedSample,
+    f32: FromSample<T>,
+{
+    let channels = stream_config.channels as usize;
+    let data_callback = move |data: &[T], _: &cpal::InputCallbackInfo| {
+        let mut samples = Vec::with_capacity(data.len() / channels.max(1) + 1);
+        let mut sum_sq = 0f32;
+        if channels <= 1 {
+            for &s in data {
+                let f: f32 = f32::from_sample(s);
+                sum_sq += f * f;
+                samples.push(f);
+            }
+        } else {
+            for frame in data.chunks(channels) {
+                let sum: f32 = frame.iter().map(|&s| f32::from_sample(s)).sum();
+                let f = sum / frame.len() as f32;
+                sum_sq += f * f;
+                samples.push(f);
+            }
+        }
+        if samples.is_empty() {
+            return;
+        }
+        let rms = (sum_sq / samples.len() as f32).sqrt().min(1.0);
+        let _ = chunk_tx.try_send(AudioChunk { samples, rms });
     };
     let error_callback = |err| eprintln!("voice listening stream error: {err}");
     device
