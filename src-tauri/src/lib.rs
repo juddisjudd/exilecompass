@@ -8,9 +8,8 @@ use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
 mod voice;
 use voice::{
-    voice_has_model, voice_is_listening, voice_list_input_devices, voice_list_phrases,
-    voice_record_sample, voice_reset_phrase, voice_sample_count, voice_start_listening,
-    voice_stop_listening, voice_train_model, VoiceState,
+    voice_is_listening, voice_list_input_devices, voice_list_phrases, voice_start_listening,
+    voice_stop_listening, VoiceState,
 };
 
 mod tts;
@@ -1470,11 +1469,6 @@ pub fn run() {
             addons_load_registry,
             voice_list_phrases,
             voice_list_input_devices,
-            voice_sample_count,
-            voice_has_model,
-            voice_reset_phrase,
-            voice_record_sample,
-            voice_train_model,
             voice_is_listening,
             voice_start_listening,
             voice_stop_listening,

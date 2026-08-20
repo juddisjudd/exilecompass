@@ -27,10 +27,11 @@ export function voicePhraseGroup(phrase: VoicePhrase): VoicePhraseGroup {
   return GROUP_MAP[phrase] ?? 'other';
 }
 
-/** The literal (always-English) phrase to say for each id — not translatable
- *  content, it's the fixed wake-phrase this feature is built around
- *  regardless of UI locale. Also drives the per-phrase recording duration
- *  below, since it's the only place word count is known. */
+/** The literal (always-English) phrase each id listens for — not
+ *  translatable content, it's the fixed wake-phrase baked into the bundled
+ *  keyword-spotting model (resources/kws/keywords.txt) regardless of UI
+ *  locale. Shown in Settings purely as documentation now — there's no
+ *  recording step left to attach it to, the model ships ready to use. */
 export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
   next: 'compass next',
   back: 'compass back',
@@ -47,52 +48,48 @@ export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
   spiritsupports: 'compass spirit gem supports',
 };
 
-/** Recording window scaled to roughly how long the phrase takes to say.
- *  A single fixed ~2.2s window used to apply to every phrase regardless of
- *  length — fine for "compass next", but it silently truncated the longer
- *  build-info phrases mid-sentence on every single recording, so nothing
- *  trained from them could ever detect reliably. The Rust side still clamps
- *  this to a sane range regardless (see MIN/MAX_DURATION_MS in voice.rs). */
-function phraseDurationMs(phrase: VoicePhrase): number {
-  const words = (VOICE_PHRASE_EXAMPLES[phrase] ?? phrase).split(/\s+/).filter(Boolean).length || 1;
-  return Math.round(1400 + words * 450);
-}
-
 const ENABLED_KEY = 'EXILECOMPASS_VOICE_ENABLED_V1';
 const INPUT_DEVICE_KEY = 'EXILECOMPASS_VOICE_INPUT_DEVICE_V1';
+
+/** How long the footer indicator stays "just heard something" green after a
+ *  detection, before fading back to idle-red. Sherpa's KeywordSpotter only
+ *  reports pass/fail on an actual match — unlike rustpotter, there's no
+ *  continuously-building confidence score to react to earlier, so this pulses
+ *  reactively off the `voice-command` event itself rather than tracking
+ *  "getting close." */
+const DETECTED_PULSE_MS = 1800;
 
 // ── Reactive state (Svelte 5 runes) ───────────────────────────────────────────
 
 let _phrases = $state<VoicePhrase[]>([]);
 let _enabled = $state(false);
 let _listening = $state(false);
-let _sampleCounts = $state<Record<VoicePhrase, number>>({});
-let _trained = $state<Record<VoicePhrase, boolean>>({});
-let _recordingPhrase = $state<VoicePhrase | null>(null);
-let _recordingLevel = $state(0);
+let _micLevel = $state(0);
 let _inputDevices = $state<string[]>([]);
 let _selectedDevice = $state<string | null>(null);
+let _recentlyDetected = $state(false);
+let _lastDetectedPhrase = $state<VoicePhrase | null>(null);
 let _error = $state('');
+let _detectedPulseTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const voiceState = {
-  /** Every phrase id the backend knows how to train/listen for (voice.rs's PHRASES). */
+  /** Every phrase id the bundled model can recognize (voice.rs's PHRASES). */
   get phrases() { return _phrases; },
   /** User's saved preference — does not by itself mean the mic is active; see `listening`. */
   get enabled() { return _enabled; },
   /** Whether the detector is actually running right now (drives the "you're being listened to" indicator). */
   get listening() { return _listening; },
-  get sampleCounts() { return _sampleCounts; },
-  get trained() { return _trained; },
-  /** At least one phrase trained — matches the backend, which listens for
-   *  whichever phrases are trained rather than requiring the full set. */
-  get setupComplete() { return _phrases.some((p) => _trained[p]); },
-  get recordingPhrase() { return _recordingPhrase; },
-  /** 0.0-1.0 live input level while recordingPhrase is set — the actual
-   *  answer to "is my mic being picked up," rather than just hoping. */
-  get recordingLevel() { return _recordingLevel; },
+  /** 0.0-1.0 live mic input level while listening — the practical "is my mic
+   *  even being picked up" signal, independent of whether anything's
+   *  actually being recognized. */
+  get micLevel() { return _micLevel; },
   get inputDevices() { return _inputDevices; },
   /** null = OS default device. */
   get selectedDevice() { return _selectedDevice; },
+  /** True for a couple seconds right after a phrase fires — drives the
+   *  footer indicator's red→green pulse. */
+  get recentlyDetected() { return _recentlyDetected; },
+  get lastDetectedPhrase() { return _lastDetectedPhrase; },
   get error() { return _error; },
 };
 
@@ -130,70 +127,16 @@ export function setVoiceInputDevice(name: string | null) {
   else window.localStorage.removeItem(INPUT_DEVICE_KEY);
 }
 
-/** Called from the `voice-recording-level` Tauri event. */
-export function setVoiceRecordingLevel(level: number) {
-  _recordingLevel = level;
+/** Called from the `voice-recording-level` Tauri event (name kept from
+ *  before this became a listening-time meter rather than a recording-time
+ *  one — see voice.rs). */
+export function setVoiceMicLevel(level: number) {
+  _micLevel = level;
 }
-
-// ── Setup: recording samples & training ──────────────────────────────────────
 
 export async function loadVoicePhrases(): Promise<VoicePhrase[]> {
   _phrases = await invoke<string[]>('voice_list_phrases');
   return _phrases;
-}
-
-export async function refreshVoiceSetupStatus(): Promise<void> {
-  if (_phrases.length === 0) await loadVoicePhrases();
-  for (const phrase of _phrases) {
-    _sampleCounts[phrase] = await invoke<number>('voice_sample_count', { phrase });
-    _trained[phrase] = await invoke<boolean>('voice_has_model', { phrase });
-  }
-}
-
-/** Record one sample of the user saying `phrase` (duration scaled to its
- *  length — see phraseDurationMs). Resolves once the clip is saved;
- *  `voiceState.recordingLevel` updates live for the duration via the
- *  `voice-recording-level` event. */
-export async function recordVoiceSample(phrase: VoicePhrase): Promise<void> {
-  _recordingPhrase = phrase;
-  _recordingLevel = 0;
-  _error = '';
-  try {
-    await invoke('voice_record_sample', {
-      phrase,
-      durationMs: phraseDurationMs(phrase),
-      deviceName: _selectedDevice,
-    });
-    _sampleCounts[phrase] = await invoke<number>('voice_sample_count', { phrase });
-  } catch (e) {
-    _error = String(e);
-    throw e;
-  } finally {
-    _recordingPhrase = null;
-    _recordingLevel = 0;
-  }
-}
-
-export async function trainVoicePhrase(phrase: VoicePhrase): Promise<void> {
-  _error = '';
-  try {
-    await invoke('voice_train_model', { phrase });
-    _trained[phrase] = true;
-  } catch (e) {
-    _error = String(e);
-    throw e;
-  }
-}
-
-/** Delete all recordings + the trained model for `phrase`, to start over. */
-export async function resetVoicePhrase(phrase: VoicePhrase): Promise<void> {
-  await invoke('voice_reset_phrase', { phrase });
-  _sampleCounts[phrase] = 0;
-  _trained[phrase] = false;
-  // The backend just re-derives its trained-phrase list from disk on next
-  // start, so a live session doesn't need restarting for one phrase reset —
-  // only stop if that was the last trained phrase (nothing left to listen for).
-  if (_listening && !voiceState.setupComplete) await stopVoiceListening();
 }
 
 // ── Live listening ────────────────────────────────────────────────────────
@@ -213,21 +156,35 @@ export async function startVoiceListening(): Promise<void> {
 export async function stopVoiceListening(): Promise<void> {
   await invoke('voice_stop_listening');
   _listening = false;
+  _micLevel = 0;
 }
 
 /** Called from the `voice-listening-stopped` Tauri event so the indicator
  *  stays honest if the backend thread stops itself. */
 export function markVoiceListeningStopped() {
   _listening = false;
+  _micLevel = 0;
 }
 
-/** Apply the saved enable preference at startup: if the user left voice
- *  commands on and at least one phrase is trained, start listening immediately. */
+/** Called from the `voice-command` Tauri event — records which phrase fired
+ *  and pulses `recentlyDetected` for DETECTED_PULSE_MS. */
+export function markVoiceCommandDetected(phrase: VoicePhrase) {
+  _lastDetectedPhrase = phrase;
+  _recentlyDetected = true;
+  if (_detectedPulseTimer) clearTimeout(_detectedPulseTimer);
+  _detectedPulseTimer = setTimeout(() => {
+    _recentlyDetected = false;
+  }, DETECTED_PULSE_MS);
+}
+
+/** Apply the saved enable preference at startup. The keyword-spotting model
+ *  ships bundled and ready — unlike the old rustpotter setup, there's no
+ *  per-phrase training gate to check before starting. */
 export async function applyVoiceEnabledOnStartup(): Promise<void> {
   loadVoiceEnabled();
   await loadVoiceInputDevices();
-  await refreshVoiceSetupStatus();
-  if (_enabled && voiceState.setupComplete) {
+  await loadVoicePhrases();
+  if (_enabled) {
     try { await startVoiceListening(); } catch { /* surfaced via voiceState.error */ }
   }
 }
@@ -236,7 +193,6 @@ export async function applyVoiceEnabledOnStartup(): Promise<void> {
 export async function setVoiceEnabled(value: boolean): Promise<void> {
   setVoiceEnabledPref(value);
   if (value) {
-    if (!voiceState.setupComplete) return; // UI gates the toggle on setupComplete already
     await startVoiceListening();
   } else {
     await stopVoiceListening();

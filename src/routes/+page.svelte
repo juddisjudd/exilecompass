@@ -48,17 +48,13 @@
   import { levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge } from '$lib/levelingRoute.svelte';
   import {
     voiceState,
-    recordVoiceSample,
-    trainVoicePhrase,
-    resetVoicePhrase,
-    refreshVoiceSetupStatus,
     setVoiceEnabled,
     applyVoiceEnabledOnStartup,
     markVoiceListeningStopped,
-    setVoiceRecordingLevel,
+    markVoiceCommandDetected,
+    setVoiceMicLevel,
     voicePhraseGroup,
     VOICE_PHRASE_EXAMPLES,
-    loadVoiceInputDevices,
     setVoiceInputDevice,
     restartVoiceListeningForDeviceChange,
     type VoicePhrase,
@@ -277,26 +273,8 @@
 
   // ── Voice commands ─────────────────────────────────────────────────────────
 
-  const VOICE_MIN_SAMPLES = 3;
-
   async function handleVoiceEnabledChange(checked: boolean) {
     try { await setVoiceEnabled(checked); } catch { /* voiceState.error already set */ }
-  }
-
-  async function handleRecordVoiceSample(phrase: VoicePhrase) {
-    try { await recordVoiceSample(phrase); } catch { /* voiceState.error already set */ }
-  }
-
-  async function handleTrainVoicePhrase(phrase: VoicePhrase) {
-    try { await trainVoicePhrase(phrase); } catch { /* voiceState.error already set */ }
-  }
-
-  async function handleResetVoicePhrase(phrase: VoicePhrase) {
-    await resetVoicePhrase(phrase);
-    // Setup no longer complete — the toggle can't stay on without any models left.
-    if (voiceState.enabled && !voiceState.setupComplete) {
-      await setVoiceEnabled(false);
-    }
   }
 
   async function handleVoiceInputDeviceChange(name: string) {
@@ -348,6 +326,7 @@
    *  tabs don't exist in PoE1 mode, so they're silently ignored there rather
    *  than erroring, matching how toggleActDecoder is PoE1-only the other way. */
   function handleVoiceCommand(phrase: string) {
+    markVoiceCommandDetected(phrase);
     switch (phrase) {
       case 'next': void GLOBAL_ACTIONS.campaignCompleteNext?.(); break;
       case 'back': void GLOBAL_ACTIONS.campaignUndoLast?.(); break;
@@ -365,10 +344,10 @@
     }
   }
 
-  /** What Settings shows for a phrase id: a translated label, and the literal
-   *  (always-English) example phrase to say while recording it — the phrase
-   *  itself isn't translatable content, it's the fixed wake-phrase this
-   *  feature is built around regardless of UI locale. */
+  /** What Settings shows for a phrase id: a translated label, paired with the
+   *  literal (always-English) phrase from VOICE_PHRASE_EXAMPLES — not
+   *  translatable content, it's the fixed wake-phrase baked into the bundled
+   *  model regardless of UI locale. */
   function voicePhraseLabel(phrase: VoicePhrase): string {
     switch (phrase) {
       case 'next': return m.voice_phrase_next();
@@ -407,6 +386,14 @@
 
   async function handleClearElevenLabsKey() {
     await clearElevenLabsKey();
+  }
+
+  /** Speaks a fixed test line through whichever backend speak() would
+   *  normally pick (ElevenLabs if a key's configured, else SAPI) — a way to
+   *  confirm the voice/key/audio path actually works without needing to
+   *  trigger a real build-info voice command first. */
+  async function handleTestVoice() {
+    await speak(m.voice_tts_test_phrase());
   }
 
   // Apply/remove transparency whenever click-through state or opacity changes
@@ -763,7 +750,7 @@
         markVoiceListeningStopped();
       });
       unlistenVoiceLevel = await listen<number>('voice-recording-level', (event) => {
-        setVoiceRecordingLevel(event.payload);
+        setVoiceMicLevel(event.payload);
       });
     })();
 
@@ -1549,15 +1536,15 @@
                   type="checkbox"
                   class="ec-checkbox cfg-checkbox"
                   checked={voiceState.enabled}
-                  disabled={!voiceState.setupComplete}
                   onchange={(e) => handleVoiceEnabledChange((e.currentTarget as HTMLInputElement).checked)}
                 />
                 <span>{m.voice_enable_toggle()}</span>
               </label>
               {#if voiceState.listening}
                 <p class="voice-listening-indicator">🎙 {m.voice_listening_active()}</p>
-              {:else if !voiceState.setupComplete}
-                <p class="field-help">{m.voice_setup_required_help()}</p>
+                <div class="voice-level-meter" role="meter" aria-label={m.voice_input_level_label()} aria-valuenow={Math.round(voiceState.micLevel * 100)} aria-valuemin={0} aria-valuemax={100}>
+                  <div class="voice-level-meter-fill" style="width:{Math.min(100, voiceState.micLevel * 220)}%"></div>
+                </div>
               {/if}
               {#if voiceState.error}
                 <p class="inline-error">{voiceState.error}</p>
@@ -1577,49 +1564,17 @@
               </select>
               <p class="field-help">{m.voice_input_device_help()}</p>
 
-              <div class="settings-section-title" style="margin-top:16px">{m.voice_setup_title()}</div>
-              <p class="field-help">{m.voice_setup_help({ count: VOICE_MIN_SAMPLES })}</p>
+              <div class="settings-section-title" style="margin-top:16px">{m.voice_phrases_title()}</div>
+              <p class="field-help">{m.voice_phrases_help()}</p>
               {#each VOICE_GROUP_ORDER as group (group)}
                 {@const phrasesInGroup = voiceState.phrases.filter((p) => voicePhraseGroup(p) === group)}
                 {#if phrasesInGroup.length > 0}
                   <div class="voice-group-label">{voicePhraseGroupLabel(group)}</div>
                   {#each phrasesInGroup as phrase (phrase)}
-                    <div class="voice-phrase-card ec-panel">
+                    <div class="voice-phrase-card ec-panel" class:just-detected={voiceState.lastDetectedPhrase === phrase && voiceState.recentlyDetected}>
                       <div class="voice-phrase-header">
                         <strong>{voicePhraseLabel(phrase)}</strong>
-                        {#if voiceState.trained[phrase]}
-                          <span class="badge badge-ok">{m.voice_trained_badge()}</span>
-                        {/if}
-                      </div>
-                      <p class="field-help">
-                        {m.voice_say_this()} <em>"{VOICE_PHRASE_EXAMPLES[phrase] ?? phrase}"</em>
-                        &middot; {m.voice_samples_recorded({ count: voiceState.sampleCounts[phrase] ?? 0 })}
-                      </p>
-                      {#if voiceState.recordingPhrase === phrase}
-                        <div class="voice-level-meter" role="meter" aria-label={m.voice_input_level_label()} aria-valuenow={Math.round(voiceState.recordingLevel * 100)} aria-valuemin={0} aria-valuemax={100}>
-                          <div class="voice-level-meter-fill" style="width:{Math.min(100, voiceState.recordingLevel * 220)}%"></div>
-                        </div>
-                      {/if}
-                      <div class="voice-phrase-actions">
-                        <button
-                          class="btn"
-                          type="button"
-                          disabled={voiceState.recordingPhrase !== null}
-                          onclick={() => handleRecordVoiceSample(phrase)}
-                        >
-                          {voiceState.recordingPhrase === phrase ? m.voice_recording() : m.voice_record_sample()}
-                        </button>
-                        <button
-                          class="btn btn-primary"
-                          type="button"
-                          disabled={(voiceState.sampleCounts[phrase] ?? 0) < VOICE_MIN_SAMPLES || voiceState.recordingPhrase !== null}
-                          onclick={() => handleTrainVoicePhrase(phrase)}
-                        >
-                          {m.voice_train()}
-                        </button>
-                        <button class="btn btn-ghost" type="button" onclick={() => handleResetVoicePhrase(phrase)}>
-                          {m.voice_reset()}
-                        </button>
+                        <em>"{VOICE_PHRASE_EXAMPLES[phrase] ?? phrase}"</em>
                       </div>
                     </div>
                   {/each}
@@ -1650,11 +1605,19 @@
                 {:else}
                   <p class="field-help">{m.voice_tts_voices_unavailable()}</p>
                 {/if}
-                <button class="btn btn-danger" type="button" style="margin-top:8px" onclick={handleClearElevenLabsKey}>
-                  {m.voice_tts_remove_key()}
-                </button>
+                <div class="voice-phrase-actions" style="margin-top:8px">
+                  <button class="btn btn-primary" type="button" disabled={ttsState.speaking} onclick={handleTestVoice}>
+                    {ttsState.speaking ? m.voice_tts_testing() : m.voice_tts_test()}
+                  </button>
+                  <button class="btn btn-danger" type="button" onclick={handleClearElevenLabsKey}>
+                    {m.voice_tts_remove_key()}
+                  </button>
+                </div>
               {:else}
                 <p class="field-help">{m.voice_tts_no_key_help()}</p>
+                <button class="btn" type="button" style="margin-top:4px" disabled={ttsState.speaking} onclick={handleTestVoice}>
+                  {ttsState.speaking ? m.voice_tts_testing() : m.voice_tts_test()}
+                </button>
                 <div class="trigger-add-row">
                   <input
                     class="hotkey-input trigger-add-input"
@@ -2161,9 +2124,13 @@
     <span class="app-version">{appVersion ? `v${appVersion}` : ''}</span>
     <div class="footer-right">
       {#if voiceState.listening}
-        <span class="footer-voice-indicator" title={m.voice_listening_active()}>
+        <span
+          class="footer-voice-indicator"
+          class:active={voiceState.recentlyDetected}
+          title={voiceState.recentlyDetected ? m.voice_listening_active_match() : m.voice_listening_active()}
+        >
           <span class="footer-voice-dot" aria-hidden="true"></span>
-          🎙 {m.voice_listening_short()}
+          🎙 {voiceState.recentlyDetected ? m.voice_listening_hearing() : m.voice_listening_short()}
         </span>
       {/if}
       {#if gameMode.current === 'poe1' && levelingRoute.build}
@@ -2400,6 +2367,23 @@
     0%, 100% { background: color-mix(in srgb, var(--c-red) 20%, var(--c-bg)); }
     50% { background: color-mix(in srgb, var(--c-red) 42%, var(--c-bg)); }
   }
+
+  /* Switches red → green the instant any trained phrase starts scoring above
+     ACTIVE_SCORE_THRESHOLD (voice.svelte.ts) — "idle, listening in the
+     background" vs. "hearing something right now," not just decoration. */
+  .footer-voice-indicator.active {
+    border-color: color-mix(in srgb, var(--c-success) 60%, transparent);
+    color: var(--c-success);
+    animation: voice-pulse-bg-active 0.5s ease-in-out infinite;
+  }
+  .footer-voice-indicator.active .footer-voice-dot {
+    background: var(--c-success);
+    animation: voice-pulse-dot 0.4s ease-in-out infinite;
+  }
+  @keyframes voice-pulse-bg-active {
+    0%, 100% { background: color-mix(in srgb, var(--c-success) 22%, var(--c-bg)); }
+    50% { background: color-mix(in srgb, var(--c-success) 45%, var(--c-bg)); }
+  }
   @keyframes voice-pulse-dot {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.35; transform: scale(0.7); }
@@ -2427,12 +2411,26 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    border-color: transparent;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  /* Brief confirmation flash on whichever phrase card just fired — mirrors
+     the footer indicator's red→green pulse, at the source. */
+  .voice-phrase-card.just-detected {
+    border-color: color-mix(in srgb, var(--c-success) 60%, transparent);
+    background: color-mix(in srgb, var(--c-success) 10%, var(--c-mid));
   }
 
   .voice-phrase-header {
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+  .voice-phrase-header em {
+    color: var(--c-accent);
+    font-size: 11px;
+    font-style: normal;
   }
 
   .voice-phrase-actions {

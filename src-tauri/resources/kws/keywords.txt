@@ -1,0 +1,13 @@
+▁COMP AS S ▁NEXT @next
+▁COMP AS S ▁BACK @back
+▁COMP AS S ▁RE WARD S @rewards
+▁COMP AS S ▁CA M P A IG N @campaign
+▁COMP AS S ▁BUILD @build
+▁COMP AS S ▁FIRST ▁S K I LL @skill1
+▁COMP AS S ▁SECOND ▁S K I LL @skill2
+▁COMP AS S ▁TH IR D ▁S K I LL @skill3
+▁COMP AS S ▁SP IR IT ▁G E M @spirit
+▁COMP AS S ▁FIRST ▁S K I LL ▁SU P PORT S @skill1supports
+▁COMP AS S ▁SECOND ▁S K I LL ▁SU P PORT S @skill2supports
+▁COMP AS S ▁TH IR D ▁S K I LL ▁SU P PORT S @skill3supports
+▁COMP AS S ▁SP IR IT ▁G E M ▁SU P PORT S @spiritsupports

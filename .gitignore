@@ -22,5 +22,11 @@ src-tauri/updater-key.txt.pub
 ./src-tauri/updater-key.txt.pub
 scripts/*.mjs
 resources
+# The bundled keyword-spotting model (voice commands) needs to actually be
+# committed — see src-tauri/resources/kws/README.md for what it is. Narrow
+# exception rather than removing the broad `resources` rule above, since it's
+# unclear what else that was meant to exclude.
+!src-tauri/resources/
+!src-tauri/resources/**
 AGENTS.md
 docs
