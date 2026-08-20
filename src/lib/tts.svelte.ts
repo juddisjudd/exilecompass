@@ -12,6 +12,23 @@ import { persistGet, persistSet, persistRemove } from '$lib/persist';
 export type TtsKeyStorage = 'keychain' | 'fallback' | 'none';
 export interface ElevenLabsVoice { id: string; name: string; }
 
+/** ElevenLabs' own premade voice roster — confirmed working on a free-tier
+ *  account. Used only if `tts_list_elevenlabs_voices` fails (network hiccup,
+ *  ElevenLabs API change, etc.) so the picker never dead-ends with nothing
+ *  selectable; the live account fetch is still what actually runs normally,
+ *  since it also picks up any voices the account has cloned/added. */
+const FALLBACK_VOICES: ElevenLabsVoice[] = [
+  { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum' },
+  { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger' },
+  { id: 'nPczCjzI2devNBz1zQrb', name: 'Brian' },
+  { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel' },
+  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily' },
+  { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' },
+  { id: 'pqHfZKP75CvOlQylNhV4', name: 'Bill' },
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' },
+  { id: 'Xb7hH8MSUJpSbSDYk0k2', name: 'Alice' },
+];
+
 const FALLBACK_KEY_KEY = 'EXILECOMPASS_ELEVENLABS_KEY_FALLBACK_V1'; // disk (settings.json), plaintext — see keyStorage
 const VOICE_ID_KEY = 'EXILECOMPASS_ELEVENLABS_VOICE_ID_V1'; // not sensitive — plain localStorage
 
@@ -100,25 +117,24 @@ async function getElevenLabsKey(): Promise<string | null> {
 }
 
 /** Fetch the voices this account can actually use — not a hardcoded preset
- *  list. ElevenLabs' broader Voice Library carries per-voice plan
- *  restrictions (`available_for_tiers`); a hardcoded list of well-known
- *  voice ids hit "402 Payment Required" on some of them for free-tier
- *  accounts with no way to predict which ones client-side. Querying
- *  voice_type=default (ElevenLabs' own baseline set, included on every
- *  plan) + personal (anything the account has added/cloned) is
- *  guaranteed-usable by construction instead. */
+ *  list, so it also picks up any voice the account has cloned/added. Falls
+ *  back to FALLBACK_VOICES (confirmed-working premade voices) rather than
+ *  leaving the picker empty if the fetch itself fails for any reason —
+ *  the error is still recorded on `ttsState.error` so it's visible, but a
+ *  transient failure here shouldn't leave voice replies with nothing
+ *  selectable. */
 export async function loadElevenLabsVoices(): Promise<void> {
   const key = await getElevenLabsKey();
   if (!key) { _voices = []; return; }
   try {
     const fetched = await invoke<{ voiceId: string; name: string }[]>('tts_list_elevenlabs_voices', { apiKey: key });
     _voices = fetched.map((v) => ({ id: v.voiceId, name: v.name }));
-    if (!_voiceId || !_voices.some((v) => v.id === _voiceId)) {
-      setVoiceId(_voices[0]?.id ?? '');
-    }
   } catch (e) {
     _error = String(e);
-    _voices = [];
+    _voices = FALLBACK_VOICES;
+  }
+  if (!_voiceId || !_voices.some((v) => v.id === _voiceId)) {
+    setVoiceId(_voices[0]?.id ?? '');
   }
 }
 

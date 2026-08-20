@@ -106,15 +106,19 @@ pub struct ElevenLabsVoice {
 
 /// List voices the caller's own ElevenLabs account can actually use.
 ///
-/// Previously the voice picker was a hardcoded list of well-known preset ids
-/// (Rachel, Adam, ...) — several of those turn out to be ElevenLabs Voice
-/// Library entries gated behind a paid plan (`available_for_tiers` in their
-/// API), so a free-tier account hit "402 Payment Required" on some of them
-/// with no way to tell which ones would work in advance. `voice_type=default`
-/// is ElevenLabs' own baseline voice set, included on every plan including
-/// free; `voice_type=personal` adds anything the account has explicitly
-/// added/cloned. Both are guaranteed-usable by construction, so there's
-/// nothing to gate or predict client-side.
+/// Previously this filtered `GET /v2/voices` by `voice_type=default,personal`
+/// on the theory that would scope the result to guaranteed-usable voices —
+/// that came back empty even for an account with plenty of working premade
+/// voices (Adam, Sarah, etc.), and the error was silently swallowed (see the
+/// old `continue` on a non-success status below) so there was no way to tell
+/// why. Simplified to the plain, unfiltered `GET /v1/voices` — the
+/// long-standing baseline "list my available voices" call every ElevenLabs
+/// SDK/tutorial uses — and a real HTTP failure now actually surfaces instead
+/// of being swallowed. (The free-tier restriction that's real: the *Voice
+/// Library* — ElevenLabs' community/marketplace voice browser — isn't
+/// reachable via the API on a free plan at all. Premade/default voices and
+/// anything already in the account's own collection aren't part of that
+/// restriction, which is what this call returns.)
 #[tauri::command]
 pub async fn tts_list_elevenlabs_voices(api_key: String) -> Result<Vec<ElevenLabsVoice>, String> {
     let client = reqwest::Client::builder()
@@ -122,40 +126,35 @@ pub async fn tts_list_elevenlabs_voices(api_key: String) -> Result<Vec<ElevenLab
         .build()
         .map_err(|e| e.to_string())?;
 
-    let mut voices: Vec<ElevenLabsVoice> = Vec::new();
-    for voice_type in ["default", "personal"] {
-        let url = format!("https://api.elevenlabs.io/v2/voices?voice_type={voice_type}&page_size=100");
-        let response = client
-            .get(&url)
-            .header("xi-api-key", &api_key)
-            .send()
-            .await
-            .map_err(|e| format!("Network error contacting ElevenLabs: {e}"))?;
-        if !response.status().is_success() {
-            // Don't hard-fail the whole listing over one category (e.g. a
-            // fresh account may have zero 'personal' voices, or ElevenLabs
-            // could reject an unfamiliar voice_type in the future).
-            continue;
-        }
-        let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-        let Some(entries) = body.get("voices").and_then(|v| v.as_array()) else {
-            continue;
-        };
-        for entry in entries {
-            let (Some(voice_id), Some(name)) = (
-                entry.get("voice_id").and_then(|v| v.as_str()),
-                entry.get("name").and_then(|v| v.as_str()),
-            ) else {
-                continue;
-            };
-            if voices.iter().any(|v| v.voice_id == voice_id) {
-                continue; // a voice could conceivably show up in both categories
-            }
-            voices.push(ElevenLabsVoice { voice_id: voice_id.to_string(), name: name.to_string() });
-        }
+    let response = client
+        .get("https://api.elevenlabs.io/v1/voices")
+        .header("xi-api-key", &api_key)
+        .send()
+        .await
+        .map_err(|e| format!("Network error contacting ElevenLabs: {e}"))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let detail = response.text().await.unwrap_or_default();
+        return Err(format!("ElevenLabs returned HTTP {status}: {detail}"));
     }
+
+    let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+    let entries = body
+        .get("voices")
+        .and_then(|v| v.as_array())
+        .ok_or("ElevenLabs response didn't include a voices list")?;
+
+    let voices: Vec<ElevenLabsVoice> = entries
+        .iter()
+        .filter_map(|entry| {
+            let voice_id = entry.get("voice_id").and_then(|v| v.as_str())?;
+            let name = entry.get("name").and_then(|v| v.as_str())?;
+            Some(ElevenLabsVoice { voice_id: voice_id.to_string(), name: name.to_string() })
+        })
+        .collect();
     if voices.is_empty() {
-        return Err("No usable ElevenLabs voices found for this account".to_string());
+        return Err("ElevenLabs returned no voices for this account".to_string());
     }
     Ok(voices)
 }
