@@ -6,8 +6,24 @@
 ▁COMP AS S ▁FIRST ▁S K I LL @skill1
 ▁COMP AS S ▁SECOND ▁S K I LL @skill2
 ▁COMP AS S ▁TH IR D ▁S K I LL @skill3
-▁COMP AS S ▁SP IR IT ▁G E M @spirit
+▁COMP AS S ▁FOUR TH ▁S K I LL @skill4
+▁COMP AS S ▁FI F TH ▁S K I LL @skill5
+▁COMP AS S ▁S K I LL S @skills
 ▁COMP AS S ▁FIRST ▁S K I LL ▁SU P PORT S @skill1supports
 ▁COMP AS S ▁SECOND ▁S K I LL ▁SU P PORT S @skill2supports
 ▁COMP AS S ▁TH IR D ▁S K I LL ▁SU P PORT S @skill3supports
+▁COMP AS S ▁FOUR TH ▁S K I LL ▁SU P PORT S @skill4supports
+▁COMP AS S ▁FI F TH ▁S K I LL ▁SU P PORT S @skill5supports
+▁COMP AS S ▁SP IR IT ▁G E M @spirit
+▁COMP AS S ▁SP IR IT ▁G E M S @spirit
 ▁COMP AS S ▁SP IR IT ▁G E M ▁SU P PORT S @spiritsupports
+▁COMP AS S ▁SP IR IT ▁G E M S ▁SU P PORT S @spiritsupports
+▁COMP AS S ▁WE A P ON @weapon
+▁COMP AS S ▁HE L ME T @helmet
+▁COMP AS S ▁BO D Y ▁A R MO UR @bodyarmour
+▁COMP AS S ▁G LO VE S @gloves
+▁COMP AS S ▁BO O T S @boots
+▁COMP AS S ▁A M UL ET @amulet
+▁COMP AS S ▁ R ING S @rings
+▁COMP AS S ▁BE L T @belt
+▁COMP AS S ▁UN I QU ES @uniques

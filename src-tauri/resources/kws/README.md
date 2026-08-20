@@ -11,8 +11,9 @@ Reshape abort, uncatchable across FFI) on the first decode. Verify any swap
 with `cargo run --example kws_repro` before shipping.
 
 `keywords.txt` is **not** from upstream — it's ExileCompass's own compass
-phrase list, generated from `keywords_raw.txt` (see `voice.rs`'s module docs
-for the exact phrase set) via the official conversion tool. Each line's
+phrase list, generated from `keywords_raw.txt` (committed here; ids must match
+`voice.rs`'s `PHRASES`) via the official conversion tool. Multiple spoken forms
+may map to one `@id` (e.g. "spirit gem"/"spirit gems"). Each line's
 `@display` name is deliberately the same lowercase id used everywhere else in
 the app (`voice.rs`'s `PHRASES`, the frontend dispatch table) — `result.keyword`
 from `KeywordSpotter::get_result()` comes back as exactly that string, so

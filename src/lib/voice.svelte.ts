@@ -5,7 +5,7 @@ export type VoicePhrase = string;
 /** Category grouping for the Settings UI — purely a display concern, the
  *  backend's PHRASES registry (voice.rs) is a flat list. Keep in sync with it:
  *  any id present there but missing here falls into 'other' automatically. */
-export type VoicePhraseGroup = 'objectives' | 'navigation' | 'buildInfo' | 'other';
+export type VoicePhraseGroup = 'objectives' | 'navigation' | 'buildInfo' | 'equipment' | 'other';
 
 const GROUP_MAP: Record<string, VoicePhraseGroup> = {
   next: 'objectives',
@@ -16,11 +16,25 @@ const GROUP_MAP: Record<string, VoicePhraseGroup> = {
   skill1: 'buildInfo',
   skill2: 'buildInfo',
   skill3: 'buildInfo',
+  skill4: 'buildInfo',
+  skill5: 'buildInfo',
+  skills: 'buildInfo',
   spirit: 'buildInfo',
   skill1supports: 'buildInfo',
   skill2supports: 'buildInfo',
   skill3supports: 'buildInfo',
+  skill4supports: 'buildInfo',
+  skill5supports: 'buildInfo',
   spiritsupports: 'buildInfo',
+  weapon: 'equipment',
+  helmet: 'equipment',
+  bodyarmour: 'equipment',
+  gloves: 'equipment',
+  boots: 'equipment',
+  amulet: 'equipment',
+  rings: 'equipment',
+  belt: 'equipment',
+  uniques: 'equipment',
 };
 
 export function voicePhraseGroup(phrase: VoicePhrase): VoicePhraseGroup {
@@ -41,11 +55,25 @@ export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
   skill1: 'compass first skill',
   skill2: 'compass second skill',
   skill3: 'compass third skill',
-  spirit: 'compass spirit gem',
+  skill4: 'compass fourth skill',
+  skill5: 'compass fifth skill',
+  skills: 'compass skills',
+  spirit: 'compass spirit gems',
   skill1supports: 'compass first skill supports',
   skill2supports: 'compass second skill supports',
   skill3supports: 'compass third skill supports',
+  skill4supports: 'compass fourth skill supports',
+  skill5supports: 'compass fifth skill supports',
   spiritsupports: 'compass spirit gem supports',
+  weapon: 'compass weapon',
+  helmet: 'compass helmet',
+  bodyarmour: 'compass body armour',
+  gloves: 'compass gloves',
+  boots: 'compass boots',
+  amulet: 'compass amulet',
+  rings: 'compass rings',
+  belt: 'compass belt',
+  uniques: 'compass uniques',
 };
 
 const ENABLED_KEY = 'EXILECOMPASS_VOICE_ENABLED_V1';

@@ -30,7 +30,9 @@
     detectBuildFolder,
     BUILD_FOLDER_KEY,
     BUILD_ACTIVE_PATH_KEY,
+    SLOT_LABEL,
     type PobBuild,
+    type PobItem,
     type BuildFileEntry,
   } from '$lib/pob';
   import {
@@ -292,31 +294,107 @@
     return pobBuild?.skillSets[0]?.skillGroups ?? [];
   }
 
-  function speakNthSkill(n: 1 | 2 | 3) {
+  function activeItems(): PobItem[] {
+    if (!pobBuild) return [];
+    const sets = pobBuild.itemSets;
+    return (sets[pobBuild.activeItemSet] ?? sets[0])?.items ?? [];
+  }
+
+  /** "A, B, and C" — comma-joined with a spoken conjunction before the last
+   *  item, which TTS reads far more naturally than a flat comma list. */
+  function joinSpoken(names: string[]): string {
+    if (names.length <= 1) return names[0] ?? '';
+    if (names.length === 2) return `${names[0]} ${m.voice_tts_and()} ${names[1]}`;
+    return `${names.slice(0, -1).join(', ')}, ${m.voice_tts_and()} ${names[names.length - 1]}`;
+  }
+
+  function ordinalWord(n: number): string {
+    switch (n) {
+      case 1: return m.voice_tts_ordinal_1();
+      case 2: return m.voice_tts_ordinal_2();
+      case 3: return m.voice_tts_ordinal_3();
+      case 4: return m.voice_tts_ordinal_4();
+      default: return m.voice_tts_ordinal_5();
+    }
+  }
+
+  function speakNthSkill(n: number) {
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const skill = activeSkillGroups().filter((g) => g.mainType === 'skill')[n - 1];
-    void speak(skill ? skill.mainSkill : m.voice_tts_no_skill_at_position());
+    if (!skill) { void speak(m.voice_tts_no_skill_at_position()); return; }
+    void speak(m.voice_tts_skill_reply({ ordinal: ordinalWord(n), name: skill.mainSkill }));
+  }
+
+  function speakAllSkills() {
+    if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
+    const skills = activeSkillGroups().filter((g) => g.mainType === 'skill').map((g) => g.mainSkill);
+    if (!skills.length) { void speak(m.voice_tts_no_skills()); return; }
+    void speak(m.voice_tts_skills_list({ list: joinSpoken(skills) }));
   }
 
   function speakSpiritGem() {
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
-    const spirits = activeSkillGroups().filter((g) => g.mainType === 'spirit');
-    void speak(spirits.length ? spirits.map((g) => g.mainSkill).join(', ') : m.voice_tts_no_spirit_gem());
+    const spirits = activeSkillGroups().filter((g) => g.mainType === 'spirit').map((g) => g.mainSkill);
+    if (!spirits.length) { void speak(m.voice_tts_no_spirit_gem()); return; }
+    void speak(
+      spirits.length === 1
+        ? m.voice_tts_spirit_reply_one({ name: spirits[0] })
+        : m.voice_tts_spirit_reply_many({ list: joinSpoken(spirits) })
+    );
   }
 
-  function speakNthSkillSupports(n: 1 | 2 | 3) {
+  function speakNthSkillSupports(n: number) {
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const skill = activeSkillGroups().filter((g) => g.mainType === 'skill')[n - 1];
     if (!skill) { void speak(m.voice_tts_no_skill_at_position()); return; }
-    void speak(skill.supports.length ? skill.supports.map((s) => s.name).join(', ') : m.voice_tts_no_supports());
+    if (!skill.supports.length) { void speak(m.voice_tts_no_supports()); return; }
+    void speak(m.voice_tts_supports_reply({
+      skill: skill.mainSkill,
+      list: joinSpoken(skill.supports.map((s) => s.name)),
+    }));
   }
 
   function speakSpiritSupports() {
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const spirits = activeSkillGroups().filter((g) => g.mainType === 'spirit');
     if (!spirits.length) { void speak(m.voice_tts_no_spirit_gem()); return; }
-    const supports = spirits.flatMap((g) => g.supports.map((s) => s.name));
-    void speak(supports.length ? supports.join(', ') : m.voice_tts_no_supports());
+    const parts = spirits
+      .filter((g) => g.supports.length)
+      .map((g) => m.voice_tts_supports_reply({
+        skill: g.mainSkill,
+        list: joinSpoken(g.supports.map((s) => s.name)),
+      }));
+    void speak(parts.length ? parts.join(' ') : m.voice_tts_no_supports());
+  }
+
+  function describeItemSpoken(item: PobItem): string {
+    const slot = SLOT_LABEL[item.slot] ?? item.slot;
+    if (item.rarity === 'Unique') {
+      return m.voice_tts_slot_unique({ slot, name: item.name, base: item.base });
+    }
+    if (item.rarity === 'Normal') {
+      return m.voice_tts_slot_plain({ slot, base: item.base || item.name });
+    }
+    return m.voice_tts_slot_item({ slot, rarity: item.rarity, base: item.base || item.name });
+  }
+
+  /** One reply covering one or more equipment slots (rings/weapon span two). */
+  function speakSlots(slotKeys: string[]) {
+    if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
+    const items = activeItems().filter((i) => slotKeys.includes(i.slot));
+    if (!items.length) {
+      const slot = SLOT_LABEL[slotKeys[0]] ?? slotKeys[0];
+      void speak(m.voice_tts_slot_empty({ slot }));
+      return;
+    }
+    void speak(items.map(describeItemSpoken).join(' '));
+  }
+
+  function speakUniques() {
+    if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
+    const uniques = activeItems().filter((i) => i.rarity === 'Unique').map((i) => i.name);
+    if (!uniques.length) { void speak(m.voice_tts_no_uniques()); return; }
+    void speak(m.voice_tts_uniques_reply({ list: joinSpoken(uniques) }));
   }
 
   /** Routes a `voice-command` detection to whatever that phrase id does.
@@ -336,11 +414,25 @@
       case 'skill1': speakNthSkill(1); break;
       case 'skill2': speakNthSkill(2); break;
       case 'skill3': speakNthSkill(3); break;
+      case 'skill4': speakNthSkill(4); break;
+      case 'skill5': speakNthSkill(5); break;
+      case 'skills': speakAllSkills(); break;
       case 'spirit': speakSpiritGem(); break;
       case 'skill1supports': speakNthSkillSupports(1); break;
       case 'skill2supports': speakNthSkillSupports(2); break;
       case 'skill3supports': speakNthSkillSupports(3); break;
+      case 'skill4supports': speakNthSkillSupports(4); break;
+      case 'skill5supports': speakNthSkillSupports(5); break;
       case 'spiritsupports': speakSpiritSupports(); break;
+      case 'weapon': speakSlots(['weapon1', 'offhand']); break;
+      case 'helmet': speakSlots(['helm']); break;
+      case 'bodyarmour': speakSlots(['body']); break;
+      case 'gloves': speakSlots(['gloves']); break;
+      case 'boots': speakSlots(['boots']); break;
+      case 'amulet': speakSlots(['amulet']); break;
+      case 'rings': speakSlots(['ring1', 'ring2']); break;
+      case 'belt': speakSlots(['belt']); break;
+      case 'uniques': speakUniques(); break;
     }
   }
 
@@ -358,21 +450,36 @@
       case 'skill1': return m.voice_phrase_skill1();
       case 'skill2': return m.voice_phrase_skill2();
       case 'skill3': return m.voice_phrase_skill3();
+      case 'skill4': return m.voice_phrase_skill4();
+      case 'skill5': return m.voice_phrase_skill5();
+      case 'skills': return m.voice_phrase_skills();
       case 'spirit': return m.voice_phrase_spirit();
       case 'skill1supports': return m.voice_phrase_skill1_supports();
       case 'skill2supports': return m.voice_phrase_skill2_supports();
       case 'skill3supports': return m.voice_phrase_skill3_supports();
+      case 'skill4supports': return m.voice_phrase_skill4_supports();
+      case 'skill5supports': return m.voice_phrase_skill5_supports();
       case 'spiritsupports': return m.voice_phrase_spirit_supports();
+      case 'weapon': return m.voice_phrase_weapon();
+      case 'helmet': return m.voice_phrase_helmet();
+      case 'bodyarmour': return m.voice_phrase_bodyarmour();
+      case 'gloves': return m.voice_phrase_gloves();
+      case 'boots': return m.voice_phrase_boots();
+      case 'amulet': return m.voice_phrase_amulet();
+      case 'rings': return m.voice_phrase_rings();
+      case 'belt': return m.voice_phrase_belt();
+      case 'uniques': return m.voice_phrase_uniques();
       default: return phrase;
     }
   }
 
-  const VOICE_GROUP_ORDER = ['objectives', 'navigation', 'buildInfo', 'other'] as const;
+  const VOICE_GROUP_ORDER = ['objectives', 'navigation', 'buildInfo', 'equipment', 'other'] as const;
   function voicePhraseGroupLabel(group: (typeof VOICE_GROUP_ORDER)[number]): string {
     switch (group) {
       case 'objectives': return m.voice_group_objectives();
       case 'navigation': return m.voice_group_navigation();
       case 'buildInfo': return m.voice_group_build_info();
+      case 'equipment': return m.voice_group_equipment();
       default: return group;
     }
   }
