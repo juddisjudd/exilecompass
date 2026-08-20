@@ -609,6 +609,7 @@
 
   // About
   let appVersion = $state('');
+  let resourceUsage = $state<{ cpuPercent: number; memoryBytes: number } | null>(null);
 
   // First-run (and one-time, for anyone updating from before this existed)
   // setup wizard: forces a log file + a hotkey review before the rest of the
@@ -763,6 +764,19 @@
     syncOverlayAttachment();
     pollTimer = setInterval(syncOverlayAttachment, 1000);
 
+    // App CPU/memory for the footer — cheap enough to poll every few seconds;
+    // the Rust side reads the whole process tree (WebView2 children included).
+    const syncResourceUsage = async () => {
+      if (cancelled) return;
+      try {
+        resourceUsage = await invoke('get_resource_usage');
+      } catch {
+        resourceUsage = null;
+      }
+    };
+    syncResourceUsage();
+    const resourceTimer = setInterval(syncResourceUsage, 3000);
+
     // Log file polling — runs every 2 s, independent of game detection
     const syncLog = async () => {
       if (cancelled || !logFilePath || !logWatcherState) return;
@@ -883,6 +897,7 @@
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
       clearInterval(logTimer);
+      clearInterval(resourceTimer);
       unlistenDrop?.();
       unlistenTrigger?.();
       unlistenVoiceCommand?.();
@@ -2228,7 +2243,17 @@
 
   <!-- Slim footer: app version, imported PoE1 build identity, which game the overlay targets -->
   <footer class="app-footer">
-    <span class="app-version">{appVersion ? `v${appVersion}` : ''}</span>
+    <div class="footer-left">
+      <span class="app-version">{appVersion ? `v${appVersion}` : ''}</span>
+      {#if resourceUsage}
+        <span class="app-resource-usage" title={m.footer_resource_usage_help()}>
+          {m.footer_resource_usage({
+            cpu: Math.round(resourceUsage.cpuPercent).toString(),
+            mem: Math.round(resourceUsage.memoryBytes / 1024 / 1024).toString(),
+          })}
+        </span>
+      {/if}
+    </div>
     <div class="footer-right">
       {#if voiceState.listening}
         <span
@@ -2376,11 +2401,27 @@
     flex-shrink: 0;
   }
 
+  .footer-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
   .app-version {
     font-family: 'Fira Mono', ui-monospace, monospace;
     font-size: 9px;
     letter-spacing: 0.05em;
     color: color-mix(in srgb, var(--c-accent) 70%, transparent);
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .app-resource-usage {
+    font-family: 'Fira Mono', ui-monospace, monospace;
+    font-size: 9px;
+    letter-spacing: 0.03em;
+    color: color-mix(in srgb, var(--c-accent) 50%, transparent);
     user-select: none;
     flex-shrink: 0;
   }

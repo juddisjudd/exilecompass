@@ -52,6 +52,62 @@ impl OverlayState {
     }
 }
 
+// ── App resource usage (footer display) ──────────────────────────────────────
+
+struct SysMonState(Mutex<sysinfo::System>);
+
+impl SysMonState {
+    fn new() -> Self {
+        Self(Mutex::new(sysinfo::System::new()))
+    }
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ResourceUsage {
+    cpu_percent: f32,
+    memory_bytes: u64,
+}
+
+/// CPU/memory for the whole process tree (the Rust process plus WebView2
+/// children, which hold most of the memory). CPU is % of total across all
+/// cores; the first call after startup reports 0 since sysinfo measures
+/// between refreshes.
+#[tauri::command]
+fn get_resource_usage(state: State<'_, SysMonState>) -> Option<ResourceUsage> {
+    let mut sys = state.0.lock().unwrap();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    let own_pid = sysinfo::get_current_pid().ok()?;
+    let procs = sys.processes();
+
+    let mut cpu = 0f32;
+    let mut mem = 0u64;
+    for (pid, proc_) in procs {
+        let mut cur = Some(*pid);
+        let mut depth = 0;
+        let in_tree = loop {
+            match cur {
+                Some(p) if p == own_pid => break true,
+                Some(p) if depth < 16 => {
+                    depth += 1;
+                    cur = procs.get(&p).and_then(|pr| pr.parent());
+                }
+                _ => break false,
+            }
+        };
+        if in_tree {
+            cpu += proc_.cpu_usage();
+            mem += proc_.memory();
+        }
+    }
+
+    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as f32;
+    Some(ResourceUsage {
+        cpu_percent: cpu / cores,
+        memory_bytes: mem,
+    })
+}
+
 // ── Persistent settings store (disk-backed) ──────────────────────────────────
 //
 // WebView2's localStorage is not reliably persisted across dev restarts, so
@@ -1393,6 +1449,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(OverlayState::new())
         .manage(VoiceState::new())
+        .manage(SysMonState::new())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Window is built here (not in tauri.conf.json) so transparency can be
@@ -1448,6 +1505,7 @@ pub fn run() {
             create_widget_window,
             focus_game,
             get_overlay_status,
+            get_resource_usage,
             detect_log_file,
             read_log_tail,
             read_text_file,

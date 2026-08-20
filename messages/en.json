@@ -101,6 +101,8 @@
   "voice_phrase_belt": "Belt",
   "voice_phrase_uniques": "List unique items",
   "voice_group_equipment": "Equipment",
+  "footer_resource_usage": "CPU {cpu}% · MEM {mem}MB",
+  "footer_resource_usage_help": "ExileCompass's own CPU and memory use",
   "voice_tts_title": "Voice Replies (Text-to-Speech)",
   "voice_tts_help": "Powers the build-info voice commands above (\"first skill\", \"...supports\", etc.) speaking their answer back to you. Without a key, replies use Windows' built-in voice for free; add your own ElevenLabs key here for higher-quality voices — you use your own ElevenLabs account and credits.",
   "voice_tts_key_configured": "ElevenLabs key saved.",
