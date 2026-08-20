@@ -7,6 +7,7 @@
     "dev": "vite dev",
     "dev:no-detect": "EXILECOMPASS_NO_DETECT=1 tauri dev",
     "build": "vite build",
+    "dev:app": "tauri dev --config src-tauri/tauri.dev.conf.json",
     "build:frontend": "vite build",
     "build:backend": "cargo build --manifest-path src-tauri/Cargo.toml --release",
     "build:release": "tauri build --no-bundle",

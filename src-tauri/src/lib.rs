@@ -6,6 +6,12 @@ use overlay_core::{
 };
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
+/// Native window titles and the crash-log folder. The user-facing name in the
+/// title bar comes from tauri.conf.json's productName (overridable per run via
+/// `bun run dev:app`); this constant stays the release name so a dev run never
+/// writes logs to a different folder than the README documents.
+const APP_NAME: &str = "ExileCompass";
+
 mod voice;
 use voice::{
     voice_is_listening, voice_list_input_devices, voice_list_phrases, voice_start_listening,
@@ -1398,7 +1404,7 @@ async fn create_widget_window(
 
     let url = tauri::WebviewUrl::App(format!("widget?widget={widget}").into());
     let mut builder = tauri::WebviewWindowBuilder::new(&app, &label, url)
-        .title("ExileCompass Dev")
+        .title(APP_NAME)
         .inner_size(320.0, 260.0)
         .decorations(false)
         .transparent(want_transparent())
@@ -1481,7 +1487,7 @@ fn crash_log_dir() -> Option<std::path::PathBuf> {
     #[cfg(target_os = "windows")]
     {
         std::env::var_os("APPDATA")
-            .map(|d| std::path::PathBuf::from(d).join("ExileCompass Dev").join("logs"))
+            .map(|d| std::path::PathBuf::from(d).join(APP_NAME).join("logs"))
     }
     #[cfg(target_os = "linux")]
     {
@@ -1601,7 +1607,7 @@ pub fn run() {
             // Window is built here (not in tauri.conf.json) so transparency can be
             // decided per-platform. Keep these props in sync with the config notes.
             let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
-                .title("ExileCompass Dev")
+                .title(APP_NAME)
                 .inner_size(553.0, 680.0)
                 .min_inner_size(328.0, 420.0)
                 // Start hidden on Linux so we can reveal after the first frontend

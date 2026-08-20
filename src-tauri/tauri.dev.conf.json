@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ExileCompass Dev",
+  "identifier": "com.juddisjudd.exilecompass.dev",
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/juddisjudd/exilecompass/releases/download/dev-build-no-channel/latest.json"
+      ]
+    }
+  }
+}

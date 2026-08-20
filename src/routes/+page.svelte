@@ -121,7 +121,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
   import { getCurrentWindow } from '@tauri-apps/api/window';
-  import { getVersion } from '@tauri-apps/api/app';
+  import { getVersion, getName } from '@tauri-apps/api/app';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { checkForUpdate, installUpdate, isUpdateSupported, RELEASES_URL } from '$lib/updater';
   import type { Update } from '@tauri-apps/plugin-updater';
@@ -894,6 +894,10 @@
 
   // About
   let appVersion = $state('');
+  // Title bar shows tauri.conf.json's productName, so `bun run dev:app`
+  // (tauri.dev.conf.json override) reads "ExileCompass Dev" while the
+  // committed default stays the release name.
+  let appName = $state('');
   let resourceUsage = $state<{ cpuPercent: number; memoryBytes: number } | null>(null);
 
   // First-run (and one-time, for anyone updating from before this existed)
@@ -987,6 +991,7 @@
     void getWidgetOpacity('act-decoder').then((v) => (actDecoderOpacity = v));
 
     getVersion().then((v) => (appVersion = v)).catch(() => {});
+    getName().then((n) => (appName = n)).catch(() => {});
 
     // First-run setup wizard — shows once, ever, for both new installs and
     // anyone updating from before this flag existed.
@@ -1721,7 +1726,7 @@
 <div class="app-shell" class:game-poe1={gameMode.current === 'poe1'}>
 
   <!-- Title bar sits above the frame -->
-  <TitleBar title={m.app_title()} />
+  <TitleBar title={appName || m.app_title()} />
 
   {#if updateHandle && !updateDismissed}
     <div class="update-banner">
