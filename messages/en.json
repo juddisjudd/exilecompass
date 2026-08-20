@@ -1,6 +1,6 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "app_title": "ExileCompass",
+  "app_title": "ExileCompass Dev",
   "status_running": "PoE2 Running",
   "status_not_found": "PoE2 Not Found",
   "badge_attached": "Attached",
