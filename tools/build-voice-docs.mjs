@@ -7,9 +7,10 @@
 //   bun run voice-docs --wiki <dir>    # also write <dir>/Voice-Commands.md
 //                                      # (a checkout of exilecompass.wiki.git)
 //
-// The GitHub wiki repo only exists after its first page is created in the web
-// UI (Wiki tab → "Create the first page"); until then `--wiki` has nothing to
-// clone into. Run this whenever keywords_raw.txt or the phrase labels change.
+// CI (.github/workflows/wiki-sync.yml) runs this with --wiki on every push to
+// main that touches the inputs and pushes the result to the wiki repository,
+// so the wiki page never needs a manual refresh. Run it locally to refresh
+// VOICE-COMMANDS.md in the repo when the phrase list or labels change.
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -51,7 +52,7 @@ lines.push('# Voice commands');
 lines.push('');
 lines.push(`Every command starts with **"compass"**. Say the whole phrase as one piece, without a pause after "compass". Recognition runs offline against a bundled keyword model; nothing is recorded or sent anywhere.`);
 lines.push('');
-lines.push('Turn voice commands on with the mic toggle in the footer, or in Settings → Voice Commands, where you can also pick the microphone. Commands that answer out loud use your system voice by default, or your own ElevenLabs key if you add one (Settings → Voice Replies).');
+lines.push('Turn voice commands on with the mic toggle in the footer, or in Settings → Voice Commands, where you can also pick the microphone. Commands that answer out loud use the voice engine chosen in Settings → Voice Replies: your system voice, a downloadable offline neural voice (Piper or Kokoro), or your own ElevenLabs key.');
 lines.push('');
 lines.push(`${ids.length} commands, ${[...spoken.values()].flat().length} spoken forms.`);
 lines.push('');

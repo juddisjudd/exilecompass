@@ -2,7 +2,7 @@
 
 Every command starts with **"compass"**. Say the whole phrase as one piece, without a pause after "compass". Recognition runs offline against a bundled keyword model; nothing is recorded or sent anywhere.
 
-Turn voice commands on with the mic toggle in the footer, or in Settings → Voice Commands, where you can also pick the microphone. Commands that answer out loud use your system voice by default, or your own ElevenLabs key if you add one (Settings → Voice Replies).
+Turn voice commands on with the mic toggle in the footer, or in Settings → Voice Commands, where you can also pick the microphone. Commands that answer out loud use the voice engine chosen in Settings → Voice Replies: your system voice, a downloadable offline neural voice (Piper or Kokoro), or your own ElevenLabs key.
 
 49 commands, 53 spoken forms.
 
