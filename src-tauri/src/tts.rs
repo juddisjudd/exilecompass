@@ -32,7 +32,7 @@ pub fn tts_list_output_devices() -> Result<Vec<String>, String> {
     Ok(devices.filter_map(|d| d.name().ok()).collect())
 }
 
-fn resolve_output_device(name: &Option<String>) -> Result<cpal::Device, String> {
+pub(crate) fn resolve_output_device(name: &Option<String>) -> Result<cpal::Device, String> {
     let host = cpal::default_host();
     if let Some(wanted) = name {
         if let Ok(mut devices) = host.output_devices() {

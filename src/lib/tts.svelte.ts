@@ -60,6 +60,27 @@ const FALLBACK_VOICES: ElevenLabsVoice[] = [
 const FALLBACK_KEY_KEY = 'EXILECOMPASS_ELEVENLABS_KEY_FALLBACK_V1'; // disk (settings.json), plaintext — see keyStorage
 const VOICE_ID_KEY = 'EXILECOMPASS_ELEVENLABS_VOICE_ID_V1'; // not sensitive — plain localStorage
 const OUTPUT_DEVICE_KEY = 'EXILECOMPASS_TTS_OUTPUT_DEVICE_V1'; // device name; absent = system default
+const ENGINE_KEY = 'EXILECOMPASS_TTS_ENGINE_V1'; // 'system' | 'offline' | 'elevenlabs'
+const OFFLINE_VOICE_KEY = 'EXILECOMPASS_TTS_OFFLINE_VOICE_V1';
+const OFFLINE_SPEAKER_KEY = 'EXILECOMPASS_TTS_OFFLINE_SPEAKER_V1';
+
+export type TtsEngine = 'system' | 'offline' | 'elevenlabs';
+
+export interface OfflineVoice {
+  id: string;
+  name: string;
+  description: string;
+  sizeMb: number;
+  installed: boolean;
+  speakers: string[];
+}
+
+export interface OfflineDownload {
+  id: string;
+  received: number;
+  total: number | null;
+  phase: 'download' | 'extract' | 'done';
+}
 
 // ── Reactive state (Svelte 5 runes) ───────────────────────────────────────────
 
@@ -71,8 +92,20 @@ let _speaking = $state(false);
 let _error = $state('');
 let _outputDevices = $state<string[]>([]);
 let _outputDevice = $state<string | null>(null);
+let _engine = $state<TtsEngine>('system');
+let _offlineVoices = $state<OfflineVoice[]>([]);
+let _offlineVoiceId = $state('');
+let _offlineSpeaker = $state(0);
+let _download = $state<OfflineDownload | null>(null);
 
 export const ttsState = {
+  /** Which backend speak() uses. 'elevenlabs' without a key falls back to 'system'. */
+  get engine() { return _engine; },
+  get offlineVoices() { return _offlineVoices; },
+  get offlineVoiceId() { return _offlineVoiceId; },
+  get offlineSpeaker() { return _offlineSpeaker; },
+  /** In-flight voice download, or null. */
+  get download() { return _download; },
   get outputDevices() { return _outputDevices; },
   /** null = system default output. Applies to both ElevenLabs and SAPI. */
   get outputDevice() { return _outputDevice; },
@@ -101,6 +134,15 @@ async function readKeychainKey(): Promise<string | null> {
 export async function loadTtsSettings(): Promise<void> {
   const savedVoice = window.localStorage.getItem(VOICE_ID_KEY);
   if (savedVoice) _voiceId = savedVoice;
+
+  const savedEngine = window.localStorage.getItem(ENGINE_KEY);
+  if (savedEngine === 'system' || savedEngine === 'offline' || savedEngine === 'elevenlabs') {
+    _engine = savedEngine;
+  }
+  _offlineVoiceId = window.localStorage.getItem(OFFLINE_VOICE_KEY) ?? '';
+  _offlineSpeaker = parseInt(window.localStorage.getItem(OFFLINE_SPEAKER_KEY) ?? '0', 10) || 0;
+  void loadOfflineVoices();
+  void subscribeOfflineProgress();
 
   const keychainKey = await readKeychainKey();
   if (keychainKey) {
@@ -199,6 +241,73 @@ export function setTtsOutputDevice(name: string | null) {
   else window.localStorage.removeItem(OUTPUT_DEVICE_KEY);
 }
 
+// ── Engine selection + offline voices ─────────────────────────────────────
+
+export function setTtsEngine(engine: TtsEngine) {
+  _engine = engine;
+  window.localStorage.setItem(ENGINE_KEY, engine);
+}
+
+export async function loadOfflineVoices(): Promise<void> {
+  try {
+    _offlineVoices = await invoke<OfflineVoice[]>('tts_offline_voices');
+  } catch (e) {
+    _error = String(e);
+    return;
+  }
+  const installed = _offlineVoices.filter((v) => v.installed);
+  if (!installed.some((v) => v.id === _offlineVoiceId)) {
+    setOfflineVoice(installed[0]?.id ?? '');
+  }
+}
+
+export function setOfflineVoice(id: string) {
+  _offlineVoiceId = id;
+  if (id) window.localStorage.setItem(OFFLINE_VOICE_KEY, id);
+  else window.localStorage.removeItem(OFFLINE_VOICE_KEY);
+  const v = _offlineVoices.find((x) => x.id === id);
+  if (v && _offlineSpeaker >= Math.max(1, v.speakers.length)) setOfflineSpeaker(0);
+}
+
+export function setOfflineSpeaker(index: number) {
+  _offlineSpeaker = index;
+  window.localStorage.setItem(OFFLINE_SPEAKER_KEY, String(index));
+}
+
+let _progressSubscribed = false;
+async function subscribeOfflineProgress() {
+  if (_progressSubscribed) return;
+  _progressSubscribed = true;
+  const { listen } = await import('@tauri-apps/api/event');
+  await listen<OfflineDownload>('tts-offline-progress', (e) => {
+    _download = e.payload.phase === 'done' ? null : e.payload;
+  });
+}
+
+export async function downloadOfflineVoice(id: string): Promise<void> {
+  _error = '';
+  _download = { id, received: 0, total: null, phase: 'download' };
+  try {
+    await invoke('tts_offline_download', { id });
+    await loadOfflineVoices();
+    setOfflineVoice(id);
+  } catch (e) {
+    _error = String(e);
+  } finally {
+    _download = null;
+  }
+}
+
+export async function removeOfflineVoice(id: string): Promise<void> {
+  _error = '';
+  try {
+    await invoke('tts_offline_remove', { id });
+    await loadOfflineVoices();
+  } catch (e) {
+    _error = String(e);
+  }
+}
+
 // ── Speaking ──────────────────────────────────────────────────────────────
 
 let _audioEl: HTMLAudioElement | null = null;
@@ -230,8 +339,8 @@ export async function speak(text: string): Promise<void> {
   _error = '';
   _speaking = true;
   try {
-    const key = await getElevenLabsKey();
-    if (key) {
+    const key = _engine === 'elevenlabs' ? await getElevenLabsKey() : null;
+    if (_engine === 'elevenlabs' && key) {
       const bytes = await invoke<number[]>('tts_speak_elevenlabs', {
         text: trimmed,
         apiKey: key,
@@ -242,7 +351,16 @@ export async function speak(text: string): Promise<void> {
       } else {
         await playAudioBytes(bytes);
       }
+    } else if (_engine === 'offline' && _offlineVoiceId) {
+      await invoke('tts_offline_speak', {
+        text: trimmed,
+        voiceId: _offlineVoiceId,
+        speaker: _offlineSpeaker,
+        speed: 1.0,
+        deviceName: _outputDevice,
+      });
     } else {
+      // 'system', or a chosen engine that isn't usable yet (no key / no voice).
       await invoke('tts_speak_sapi', { text: trimmed, deviceName: _outputDevice });
     }
   } catch (e) {

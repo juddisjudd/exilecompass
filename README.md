@@ -141,12 +141,20 @@ keeps it fast, offline and private.
 
 ### Voice replies
 
-Build-info and timer commands answer out loud. By default they use your
-system's built-in voice, which is free and needs no setup. For a higher-quality
-voice, add your own **ElevenLabs** key in Settings → Voice Replies. The key is
-stored in your OS keychain. You use your own account and credits. The voice
-picker shows which voices are free on every plan and which need a paid plan.
-With either voice you can choose the **output device**, so replies go to your
+Build-info and timer commands answer out loud. Pick the engine in Settings →
+Voice Replies:
+
+- **System voice.** The voice built into your operating system. Free, no
+  setup, basic quality.
+- **Offline neural.** High-quality voices (Piper, and Kokoro with 11 speakers)
+  that run on your PC with no internet and no account. Download a voice once
+  (64 MB for a Piper voice, 305 MB for Kokoro); after that nothing leaves your
+  machine.
+- **ElevenLabs.** Cloud voices from your own account. Add your key and it is
+  stored in your OS keychain; you use your own credits. The voice picker shows
+  which voices are free on every plan and which need a paid plan.
+
+With any engine you can choose the **output device**, so replies go to your
 headset while game audio stays on the speakers.
 
 ---
@@ -227,8 +235,10 @@ Network activity is limited to:
 - fetching crafting guides, guide ratings and the add-ons registry from
   `exilecompass.com`;
 - fetching a build if you paste a `pobb.in` link;
-- sending reply text to ElevenLabs to be spoken, **only if you add your own
-  key**. Without a key, the built-in system voice is used and nothing is sent.
+- downloading an offline voice from GitHub (`k2-fsa/sherpa-onnx` releases),
+  only when you click Download. Speech itself is then generated on your PC;
+- sending reply text to ElevenLabs to be spoken, **only if you choose the
+  ElevenLabs engine and add your own key**. Otherwise nothing is sent.
 
 ---
 

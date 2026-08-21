@@ -25,7 +25,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 overlay-core = { path = "overlay-core" }
 raw-window-handle = "0.6"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
+# Offline TTS voice downloads (sherpa-onnx tts-models release archives).
+futures-util = "0.3"
+tar = "0.4"
+bzip2 = "0.4"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 cpal = "0.15"
 # TTS playback on a user-chosen output device (ElevenLabs MP3 + SAPI WAV).

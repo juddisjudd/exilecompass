@@ -18,6 +18,11 @@ use voice::{
     voice_stop_listening, VoiceState,
 };
 
+mod tts_offline;
+use tts_offline::{
+    tts_offline_download, tts_offline_remove, tts_offline_speak, tts_offline_voices, TtsOfflineState,
+};
+
 mod tts;
 use tts::{
     tts_delete_elevenlabs_key_keychain, tts_get_elevenlabs_key_keychain,
@@ -1602,6 +1607,7 @@ pub fn run() {
         .manage(OverlayState::new())
         .manage(VoiceState::new())
         .manage(SysMonState::new())
+        .manage(TtsOfflineState::new())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Window is built here (not in tauri.conf.json) so transparency can be
@@ -1687,6 +1693,10 @@ pub fn run() {
             tts_list_elevenlabs_voices,
             tts_list_output_devices,
             tts_play_audio,
+            tts_offline_voices,
+            tts_offline_download,
+            tts_offline_remove,
+            tts_offline_speak,
             tts_set_elevenlabs_key_keychain,
             tts_get_elevenlabs_key_keychain,
             tts_delete_elevenlabs_key_keychain,

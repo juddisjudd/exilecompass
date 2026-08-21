@@ -71,6 +71,8 @@
   import {
     speak, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId,
     loadTtsOutputDevices, setTtsOutputDevice,
+    setTtsEngine, setOfflineVoice, setOfflineSpeaker, downloadOfflineVoice, removeOfflineVoice,
+    type TtsEngine,
   } from '$lib/tts.svelte';
   import {
     importPoe1Build,
@@ -1945,6 +1947,92 @@
               <div class="settings-section-title" style="margin-top:16px">{m.voice_tts_title()}</div>
               <p class="field-help">{m.voice_tts_help()}</p>
 
+              {@const TTS_ENGINES: { id: TtsEngine; label: string }[] = [
+                { id: 'system', label: m.voice_tts_engine_system() },
+                { id: 'offline', label: m.voice_tts_engine_offline() },
+                { id: 'elevenlabs', label: m.voice_tts_engine_elevenlabs() },
+              ]}
+              <span class="field-label" style="margin-top:8px">{m.voice_tts_engine_label()}</span>
+              <div class="tts-engine" role="radiogroup" aria-label={m.voice_tts_engine_label()}>
+                {#each TTS_ENGINES as eng (eng.id)}
+                  <button
+                    type="button"
+                    class="tts-engine-btn"
+                    class:active={ttsState.engine === eng.id}
+                    role="radio"
+                    aria-checked={ttsState.engine === eng.id}
+                    onclick={() => setTtsEngine(eng.id)}
+                  >{eng.label}</button>
+                {/each}
+              </div>
+              <p class="field-help">
+                {#if ttsState.engine === 'system'}{m.voice_tts_engine_help_system()}
+                {:else if ttsState.engine === 'offline'}{m.voice_tts_engine_help_offline()}
+                {:else}{m.voice_tts_engine_help_elevenlabs()}{/if}
+              </p>
+              {#if ttsState.engine === 'elevenlabs' && !ttsState.hasKey}
+                <p class="field-help voice-crash-note">{m.voice_tts_engine_elevenlabs_no_key()}</p>
+              {:else if ttsState.engine === 'offline' && !ttsState.offlineVoices.some((v) => v.installed)}
+                <p class="field-help voice-crash-note">{m.voice_tts_offline_no_voice()}</p>
+              {/if}
+
+              {#if ttsState.engine === 'offline'}
+                <span class="field-label" style="margin-top:10px">{m.voice_tts_offline_title()}</span>
+                <div class="tts-voices">
+                  {#each ttsState.offlineVoices as v (v.id)}
+                    {@const dl = ttsState.download?.id === v.id ? ttsState.download : null}
+                    {@const inUse = v.installed && ttsState.offlineVoiceId === v.id}
+                    <div class="tts-voice" class:in-use={inUse}>
+                      <div class="tts-voice-text">
+                        <span class="tts-voice-name">{v.name}</span>
+                        <span class="tts-voice-desc">{v.description}</span>
+                        <span class="tts-voice-size">{m.voice_tts_offline_size({ mb: String(v.sizeMb) })}</span>
+                      </div>
+                      <div class="tts-voice-actions">
+                        {#if dl}
+                          <span class="tts-voice-progress" aria-live="polite">
+                            {#if dl.phase === 'extract'}{m.voice_tts_offline_extracting()}
+                            {:else if dl.total}{Math.round((dl.received / dl.total) * 100)}%
+                            {:else}{m.voice_tts_offline_downloading()}{/if}
+                          </span>
+                        {:else if !v.installed}
+                          <button class="btn btn-ghost btn-sm" type="button" disabled={ttsState.download !== null} onclick={() => downloadOfflineVoice(v.id)}>
+                            {m.voice_tts_offline_download()}
+                          </button>
+                        {:else}
+                          {#if inUse}
+                            <span class="badge badge-ok">{m.voice_tts_offline_in_use()}</span>
+                          {:else}
+                            <button class="btn btn-ghost btn-sm" type="button" onclick={() => setOfflineVoice(v.id)}>{m.voice_tts_offline_use()}</button>
+                          {/if}
+                          <button class="btn btn-danger btn-sm" type="button" onclick={() => removeOfflineVoice(v.id)}>{m.voice_tts_offline_remove()}</button>
+                        {/if}
+                      </div>
+                      {#if dl && dl.total && dl.phase === 'download'}
+                        <div class="tts-voice-bar"><div class="tts-voice-bar-fill" style="width:{Math.round((dl.received / dl.total) * 100)}%"></div></div>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+                {@const activeVoice = ttsState.offlineVoices.find((v) => v.id === ttsState.offlineVoiceId)}
+                {#if activeVoice && activeVoice.speakers.length > 1}
+                  <label class="field-label" for="tts-offline-speaker" style="margin-top:8px">{m.voice_tts_offline_speaker_label()}</label>
+                  <select
+                    id="tts-offline-speaker"
+                    class="field-select"
+                    value={String(ttsState.offlineSpeaker)}
+                    onchange={(e) => setOfflineSpeaker(parseInt((e.currentTarget as HTMLSelectElement).value, 10) || 0)}
+                  >
+                    {#each activeVoice.speakers as name, i (name)}
+                      <option value={String(i)}>{name}</option>
+                    {/each}
+                  </select>
+                {/if}
+                <button class="btn" type="button" style="margin-top:8px" disabled={ttsState.speaking || !ttsState.offlineVoiceId} onclick={handleTestVoice}>
+                  {ttsState.speaking ? m.voice_tts_testing() : m.voice_tts_test()}
+                </button>
+              {/if}
+
               <label class="field-label" for="tts-output-device-select" style="margin-top:8px">{m.voice_tts_output_device_label()}</label>
               <select
                 id="tts-output-device-select"
@@ -2831,6 +2919,99 @@
   }
   .voice-crash-note {
     color: var(--c-warning);
+  }
+
+  /* Voice engine segmented control + offline voice list */
+  .tts-engine {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    margin-top: 4px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 24%, transparent);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--c-bg) 60%, transparent);
+  }
+  .tts-engine-btn {
+    padding: 4px 10px;
+    border: none;
+    border-radius: calc(var(--radius) - 2px);
+    background: transparent;
+    color: var(--c-accent);
+    font-family: var(--font-ui);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .tts-engine-btn:hover {
+    color: var(--c-primary);
+  }
+  .tts-engine-btn.active {
+    background: var(--c-red);
+    color: var(--c-on-accent);
+  }
+
+  .tts-voices {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .tts-voice {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 10px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
+  }
+  .tts-voice.in-use {
+    border-color: color-mix(in srgb, var(--c-success) 40%, transparent);
+  }
+  .tts-voice-text {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    min-width: 0;
+  }
+  .tts-voice-name {
+    font-weight: 600;
+    color: var(--c-primary);
+    font-size: 12px;
+  }
+  .tts-voice-desc {
+    font-size: 11px;
+    color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%);
+  }
+  .tts-voice-size {
+    font-size: 10px;
+    color: color-mix(in srgb, var(--c-muted) 90%, #fff 10%);
+    font-feature-settings: 'tnum';
+  }
+  .tts-voice-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .tts-voice-progress {
+    font-size: 11px;
+    font-weight: 600;
+    font-feature-settings: 'tnum';
+    color: var(--c-accent);
+  }
+  .tts-voice-bar {
+    grid-column: 1 / -1;
+    height: 2px;
+    background: color-mix(in srgb, var(--c-mid) 60%, transparent);
+  }
+  .tts-voice-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--c-accent), var(--c-primary));
+    transition: width 0.2s ease;
   }
   @keyframes voice-pulse-bg-active {
     0%, 100% { background: color-mix(in srgb, var(--c-success) 22%, var(--c-bg)); }
