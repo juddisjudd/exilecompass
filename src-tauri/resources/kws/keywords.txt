@@ -11,15 +11,14 @@
 ▁COMP AS S ▁FOUR TH ▁S K I LL @skill4
 ▁COMP AS S ▁FI F TH ▁S K I LL @skill5
 ▁COMP AS S ▁S K I LL S @skills
-▁COMP AS S ▁FIRST ▁S K I LL ▁SU P PORT S @skill1supports
-▁COMP AS S ▁SECOND ▁S K I LL ▁SU P PORT S @skill2supports
-▁COMP AS S ▁TH IR D ▁S K I LL ▁SU P PORT S @skill3supports
-▁COMP AS S ▁FOUR TH ▁S K I LL ▁SU P PORT S @skill4supports
-▁COMP AS S ▁FI F TH ▁S K I LL ▁SU P PORT S @skill5supports
+▁COMP AS S ▁FIRST ▁SU P PORT S @skill1supports
+▁COMP AS S ▁SECOND ▁SU P PORT S @skill2supports
+▁COMP AS S ▁TH IR D ▁SU P PORT S @skill3supports
+▁COMP AS S ▁FOUR TH ▁SU P PORT S @skill4supports
+▁COMP AS S ▁FI F TH ▁SU P PORT S @skill5supports
 ▁COMP AS S ▁SP IR IT ▁G E M @spirit
 ▁COMP AS S ▁SP IR IT ▁G E M S @spirit
-▁COMP AS S ▁SP IR IT ▁G E M ▁SU P PORT S @spiritsupports
-▁COMP AS S ▁SP IR IT ▁G E M S ▁SU P PORT S @spiritsupports
+▁COMP AS S ▁SP IR IT ▁SU P PORT S @spiritsupports
 ▁COMP AS S ▁WE A P ON @weapon
 ▁COMP AS S ▁HE L ME T @helmet
 ▁COMP AS S ▁BO D Y ▁A R MO UR @bodyarmour
@@ -31,15 +30,15 @@
 ▁COMP AS S ▁UN I QU ES @uniques
 ▁COMP AS S ▁F LA S K S @flasks
 ▁COMP AS S ▁CHA R M S @charms
-▁COMP AS S ▁BUILD ▁IN F O @buildinfo
-▁COMP AS S ▁WE A P ON ▁STA T S @weaponstats
-▁COMP AS S ▁HE L ME T ▁STA T S @helmetstats
-▁COMP AS S ▁BO D Y ▁A R MO UR ▁STA T S @bodyarmourstats
-▁COMP AS S ▁G LO VE S ▁STA T S @glovesstats
-▁COMP AS S ▁BO O T S ▁STA T S @bootsstats
-▁COMP AS S ▁A M UL ET ▁STA T S @amuletstats
-▁COMP AS S ▁ R ING S ▁STA T S @ringsstats
-▁COMP AS S ▁BE L T ▁STA T S @beltstats
+▁COMP AS S ▁ABOUT ▁BUILD @buildinfo
+▁COMP AS S ▁RE AD ▁WE A P ON @weaponstats
+▁COMP AS S ▁RE AD ▁HE L ME T @helmetstats
+▁COMP AS S ▁RE AD ▁BO D Y ▁A R MO UR @bodyarmourstats
+▁COMP AS S ▁RE AD ▁G LO VE S @glovesstats
+▁COMP AS S ▁RE AD ▁BO O T S @bootsstats
+▁COMP AS S ▁RE AD ▁A M UL ET @amuletstats
+▁COMP AS S ▁RE AD ▁ R ING S @ringsstats
+▁COMP AS S ▁RE AD ▁BE L T @beltstats
 ▁COMP AS S ▁START ▁TIME R @timerstart
 ▁COMP AS S ▁ST O P ▁TIME R @timerstop
 ▁COMP AS S ▁RE S ET ▁TIME R @timerreset
@@ -47,7 +46,7 @@
 ▁COMP AS S ▁RU N ▁TIME @timerstatus
 ▁COMP AS S ▁SP LI T @timersplit
 ▁COMP AS S ▁MAN U AL ▁TIME R @timermodemanual
-▁COMP AS S ▁CA M P A IG N ▁TIME R @timermodecampaign
+▁COMP AS S ▁A U T O ▁TIME R @timermodecampaign
 ▁COMP AS S ▁C LI CK ▁THROUGH ▁ON @clickthroughon
 ▁COMP AS S ▁C LI CK ▁THROUGH ▁OF F @clickthroughoff
 ▁COMP AS S ▁LO CK ▁OVER LA Y @clickthroughon

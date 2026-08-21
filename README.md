@@ -126,13 +126,13 @@ pause after "compass".
 | **compass campaign · rewards · build · timer** | Switch tabs |
 | **compass start timer · stop timer · reset timer · split** | Drive whichever timer mode is showing |
 | **compass run time** | Hear the elapsed run time |
-| **compass manual timer · campaign timer** | Switch timer mode |
+| **compass manual timer · auto timer** | Switch timer mode |
 | **compass click through on / off** (or **lock / unlock overlay**) | Toggle click-through. Useful when the mouse already passes through the overlay |
 | **compass first … fifth skill**, **compass skills** | Hear one skill gem, or list them all |
-| **compass first skill supports**, **compass spirit gems**, … | Hear what is linked |
+| **compass first supports**, **compass spirit supports**, … | Hear what is linked |
 | **compass helmet · weapon · rings · boots …** | Hear what is in a slot |
-| **compass helmet stats · weapon stats …** | Hear the slot's mods or stat priorities |
-| **compass uniques · flasks · charms · build info** | Lists and build identity |
+| **compass read helmet · read weapon …** | Hear the slot's mods or stat priorities |
+| **compass uniques · flasks · charms · about build** | Lists and build identity |
 
 The full grouped list is in Settings → Voice Commands. Phrases are fixed. This
 is keyword spotting, not dictation, which is what keeps it fast, offline and
