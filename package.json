@@ -16,6 +16,7 @@
     "preview": "vite preview",
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
     "sync-guides": "node tools/sync-guides-fallback.mjs",
+    "voice-docs": "bun tools/build-voice-docs.mjs",
     "build:tree": "bun tools/build-poe1-tree.mjs",
     "build:poe1-regex-data": "bun tools/build-poe1-regex-data.mjs",
     "build:act-decoder-manifest": "bun tools/build-act-decoder-manifest.mjs",

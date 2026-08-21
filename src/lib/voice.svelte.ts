@@ -1,131 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
 
-export type VoicePhrase = string;
-
-/** Category grouping for the Settings UI — purely a display concern, the
- *  backend's PHRASES registry (voice.rs) is a flat list. Keep in sync with it:
- *  any id present there but missing here falls into 'other' automatically. */
-export type VoicePhraseGroup =
-  | 'objectives'
-  | 'navigation'
-  | 'buildInfo'
-  | 'equipment'
-  | 'timer'
-  | 'overlay'
-  | 'other';
-
-const GROUP_MAP: Record<string, VoicePhraseGroup> = {
-  next: 'objectives',
-  back: 'objectives',
-  nextstep: 'objectives',
-  rewards: 'navigation',
-  campaign: 'navigation',
-  build: 'navigation',
-  timer: 'navigation',
-  skill1: 'buildInfo',
-  skill2: 'buildInfo',
-  skill3: 'buildInfo',
-  skill4: 'buildInfo',
-  skill5: 'buildInfo',
-  skills: 'buildInfo',
-  spirit: 'buildInfo',
-  skill1supports: 'buildInfo',
-  skill2supports: 'buildInfo',
-  skill3supports: 'buildInfo',
-  skill4supports: 'buildInfo',
-  skill5supports: 'buildInfo',
-  spiritsupports: 'buildInfo',
-  weapon: 'equipment',
-  helmet: 'equipment',
-  bodyarmour: 'equipment',
-  gloves: 'equipment',
-  boots: 'equipment',
-  amulet: 'equipment',
-  rings: 'equipment',
-  belt: 'equipment',
-  uniques: 'equipment',
-  flasks: 'equipment',
-  charms: 'equipment',
-  buildinfo: 'buildInfo',
-  weaponstats: 'equipment',
-  helmetstats: 'equipment',
-  bodyarmourstats: 'equipment',
-  glovesstats: 'equipment',
-  bootsstats: 'equipment',
-  amuletstats: 'equipment',
-  ringsstats: 'equipment',
-  beltstats: 'equipment',
-  timerstart: 'timer',
-  timerstop: 'timer',
-  timerreset: 'timer',
-  timerstatus: 'timer',
-  timersplit: 'timer',
-  timermodemanual: 'timer',
-  timermodecampaign: 'timer',
-  clickthroughon: 'overlay',
-  clickthroughoff: 'overlay',
-};
-
-export function voicePhraseGroup(phrase: VoicePhrase): VoicePhraseGroup {
-  return GROUP_MAP[phrase] ?? 'other';
-}
-
-/** The literal (always-English) phrase each id listens for — not
- *  translatable content, it's the fixed wake-phrase baked into the bundled
- *  keyword-spotting model (resources/kws/keywords.txt) regardless of UI
- *  locale. Shown in Settings purely as documentation now — there's no
- *  recording step left to attach it to, the model ships ready to use. */
-export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
-  next: 'compass next',
-  back: 'compass back',
-  nextstep: 'compass whats next',
-  rewards: 'compass rewards',
-  campaign: 'compass campaign',
-  build: 'compass build',
-  timer: 'compass timer',
-  skill1: 'compass first skill',
-  skill2: 'compass second skill',
-  skill3: 'compass third skill',
-  skill4: 'compass fourth skill',
-  skill5: 'compass fifth skill',
-  skills: 'compass skills',
-  spirit: 'compass spirit gems',
-  skill1supports: 'compass first supports',
-  skill2supports: 'compass second supports',
-  skill3supports: 'compass third supports',
-  skill4supports: 'compass fourth supports',
-  skill5supports: 'compass fifth supports',
-  spiritsupports: 'compass spirit supports',
-  weapon: 'compass weapon',
-  helmet: 'compass helmet',
-  bodyarmour: 'compass body armour',
-  gloves: 'compass gloves',
-  boots: 'compass boots',
-  amulet: 'compass amulet',
-  rings: 'compass rings',
-  belt: 'compass belt',
-  uniques: 'compass uniques',
-  flasks: 'compass flasks',
-  charms: 'compass charms',
-  buildinfo: 'compass about build',
-  weaponstats: 'compass read weapon',
-  helmetstats: 'compass read helmet',
-  bodyarmourstats: 'compass read body armour',
-  glovesstats: 'compass read gloves',
-  bootsstats: 'compass read boots',
-  amuletstats: 'compass read amulet',
-  ringsstats: 'compass read rings',
-  beltstats: 'compass read belt',
-  timerstart: 'compass start timer',
-  timerstop: 'compass stop timer',
-  timerreset: 'compass reset timer',
-  timerstatus: 'compass run time',
-  timersplit: 'compass split',
-  timermodemanual: 'compass manual timer',
-  timermodecampaign: 'compass auto timer',
-  clickthroughon: 'compass click through on',
-  clickthroughoff: 'compass click through off',
-};
+// Phrase metadata (groups, spoken examples, label keys) lives in the rune-free
+// voicePhrases.ts so the docs generator can import it; re-exported here for
+// existing importers.
+export {
+  VOICE_GROUP_ORDER, VOICE_GROUP_LABEL_KEYS, VOICE_PHRASE_GROUPS, VOICE_PHRASE_EXAMPLES,
+  VOICE_PHRASE_LABEL_KEYS, voicePhraseGroup,
+} from './voicePhrases';
+export type { VoicePhrase, VoicePhraseGroup } from './voicePhrases';
+import type { VoicePhrase } from './voicePhrases';
 
 const ENABLED_KEY = 'EXILECOMPASS_VOICE_ENABLED_V1';
 const INPUT_DEVICE_KEY = 'EXILECOMPASS_VOICE_INPUT_DEVICE_V1';

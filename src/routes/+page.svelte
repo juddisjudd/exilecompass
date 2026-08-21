@@ -67,6 +67,7 @@
     restartVoiceListeningForDeviceChange,
     type VoicePhrase,
   } from '$lib/voice.svelte';
+  import { VOICE_GROUP_ORDER, VOICE_GROUP_LABEL_KEYS, VOICE_PHRASE_LABEL_KEYS } from '$lib/voicePhrases';
   import {
     speak, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId,
     loadTtsOutputDevices, setTtsOutputDevice,
@@ -692,72 +693,15 @@
    *  literal (always-English) phrase from VOICE_PHRASE_EXAMPLES — not
    *  translatable content, it's the fixed wake-phrase baked into the bundled
    *  model regardless of UI locale. */
+  const messages = m as unknown as Record<string, (() => string) | undefined>;
   function voicePhraseLabel(phrase: VoicePhrase): string {
-    switch (phrase) {
-      case 'next': return m.voice_phrase_next();
-      case 'back': return m.voice_phrase_back();
-      case 'nextstep': return m.voice_phrase_nextstep();
-      case 'rewards': return m.voice_phrase_rewards();
-      case 'campaign': return m.voice_phrase_campaign();
-      case 'build': return m.voice_phrase_build();
-      case 'timer': return m.voice_phrase_timer();
-      case 'skill1': return m.voice_phrase_skill1();
-      case 'skill2': return m.voice_phrase_skill2();
-      case 'skill3': return m.voice_phrase_skill3();
-      case 'skill4': return m.voice_phrase_skill4();
-      case 'skill5': return m.voice_phrase_skill5();
-      case 'skills': return m.voice_phrase_skills();
-      case 'spirit': return m.voice_phrase_spirit();
-      case 'skill1supports': return m.voice_phrase_skill1_supports();
-      case 'skill2supports': return m.voice_phrase_skill2_supports();
-      case 'skill3supports': return m.voice_phrase_skill3_supports();
-      case 'skill4supports': return m.voice_phrase_skill4_supports();
-      case 'skill5supports': return m.voice_phrase_skill5_supports();
-      case 'spiritsupports': return m.voice_phrase_spirit_supports();
-      case 'weapon': return m.voice_phrase_weapon();
-      case 'helmet': return m.voice_phrase_helmet();
-      case 'bodyarmour': return m.voice_phrase_bodyarmour();
-      case 'gloves': return m.voice_phrase_gloves();
-      case 'boots': return m.voice_phrase_boots();
-      case 'amulet': return m.voice_phrase_amulet();
-      case 'rings': return m.voice_phrase_rings();
-      case 'belt': return m.voice_phrase_belt();
-      case 'uniques': return m.voice_phrase_uniques();
-      case 'flasks': return m.voice_phrase_flasks();
-      case 'charms': return m.voice_phrase_charms();
-      case 'buildinfo': return m.voice_phrase_build_info();
-      case 'weaponstats': return m.voice_phrase_weapon_stats();
-      case 'helmetstats': return m.voice_phrase_helmet_stats();
-      case 'bodyarmourstats': return m.voice_phrase_bodyarmour_stats();
-      case 'glovesstats': return m.voice_phrase_gloves_stats();
-      case 'bootsstats': return m.voice_phrase_boots_stats();
-      case 'amuletstats': return m.voice_phrase_amulet_stats();
-      case 'ringsstats': return m.voice_phrase_rings_stats();
-      case 'beltstats': return m.voice_phrase_belt_stats();
-      case 'timerstart': return m.voice_phrase_timer_start();
-      case 'timerstop': return m.voice_phrase_timer_stop();
-      case 'timerreset': return m.voice_phrase_timer_reset();
-      case 'timerstatus': return m.voice_phrase_timer_status();
-      case 'timersplit': return m.voice_phrase_timer_split();
-      case 'timermodemanual': return m.voice_phrase_timer_mode_manual();
-      case 'timermodecampaign': return m.voice_phrase_timer_mode_campaign();
-      case 'clickthroughon': return m.voice_phrase_click_through_on();
-      case 'clickthroughoff': return m.voice_phrase_click_through_off();
-      default: return phrase;
-    }
+    const key = VOICE_PHRASE_LABEL_KEYS[phrase];
+    return (key && messages[key]?.()) || phrase;
   }
 
-  const VOICE_GROUP_ORDER = ['objectives', 'timer', 'navigation', 'overlay', 'buildInfo', 'equipment', 'other'] as const;
   function voicePhraseGroupLabel(group: (typeof VOICE_GROUP_ORDER)[number]): string {
-    switch (group) {
-      case 'objectives': return m.voice_group_objectives();
-      case 'timer': return m.voice_group_timer();
-      case 'overlay': return m.voice_group_overlay();
-      case 'navigation': return m.voice_group_navigation();
-      case 'buildInfo': return m.voice_group_build_info();
-      case 'equipment': return m.voice_group_equipment();
-      default: return group;
-    }
+    const key = group === 'other' ? undefined : VOICE_GROUP_LABEL_KEYS[group];
+    return (key && messages[key]?.()) || group;
   }
 
   function voiceTierLabel(tier: 'free' | 'own' | 'paid' | 'unknown'): string {
