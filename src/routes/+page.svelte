@@ -1947,36 +1947,51 @@
               <div class="settings-section-title" style="margin-top:16px">{m.voice_tts_title()}</div>
               <p class="field-help">{m.voice_tts_help()}</p>
 
-              {@const TTS_ENGINES: { id: TtsEngine; label: string }[] = [
-                { id: 'system', label: m.voice_tts_engine_system() },
-                { id: 'offline', label: m.voice_tts_engine_offline() },
-                { id: 'elevenlabs', label: m.voice_tts_engine_elevenlabs() },
+              {@const TTS_ENGINES: { id: TtsEngine; label: string; help: string }[] = [
+                { id: 'system', label: m.voice_tts_engine_system(), help: m.voice_tts_engine_help_system() },
+                { id: 'offline', label: m.voice_tts_engine_offline(), help: m.voice_tts_engine_help_offline() },
+                { id: 'elevenlabs', label: m.voice_tts_engine_elevenlabs(), help: m.voice_tts_engine_help_elevenlabs() },
               ]}
+              {@const selectedEngine = TTS_ENGINES.find((e) => e.id === ttsState.engine) ?? TTS_ENGINES[0]}
               <span class="field-label" style="margin-top:8px">{m.voice_tts_engine_label()}</span>
-              <div class="tts-engine" role="radiogroup" aria-label={m.voice_tts_engine_label()}>
+              <div class="tts-engine-cards" role="radiogroup" aria-label={m.voice_tts_engine_label()}>
                 {#each TTS_ENGINES as eng (eng.id)}
                   <button
                     type="button"
-                    class="tts-engine-btn"
+                    class="tts-engine-card"
                     class:active={ttsState.engine === eng.id}
                     role="radio"
                     aria-checked={ttsState.engine === eng.id}
                     onclick={() => setTtsEngine(eng.id)}
-                  >{eng.label}</button>
+                  >
+                    <span class="tts-engine-card-check" aria-hidden="true">
+                      {#if ttsState.engine === eng.id}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7" /></svg>
+                      {/if}
+                    </span>
+                    <span class="tts-engine-card-text">
+                      <span class="tts-engine-card-name">{eng.label}</span>
+                      <span class="tts-engine-card-help">{eng.help}</span>
+                    </span>
+                  </button>
                 {/each}
               </div>
-              <p class="field-help">
-                {#if ttsState.engine === 'system'}{m.voice_tts_engine_help_system()}
-                {:else if ttsState.engine === 'offline'}{m.voice_tts_engine_help_offline()}
-                {:else}{m.voice_tts_engine_help_elevenlabs()}{/if}
-              </p>
-              {#if ttsState.engine === 'elevenlabs' && !ttsState.hasKey}
-                <p class="field-help voice-crash-note">{m.voice_tts_engine_elevenlabs_no_key()}</p>
-              {:else if ttsState.engine === 'offline' && !ttsState.offlineVoices.some((v) => v.installed)}
-                <p class="field-help voice-crash-note">{m.voice_tts_offline_no_voice()}</p>
-              {/if}
 
-              {#if ttsState.engine === 'offline'}
+              <div class="tts-engine-panel">
+                <div class="tts-engine-panel-head">
+                  <span>{selectedEngine.label}</span>
+                  <span class="badge badge-ok">{m.voice_tts_engine_selected()}</span>
+                </div>
+                {#if ttsState.engine === 'elevenlabs' && !ttsState.hasKey}
+                  <p class="field-help voice-crash-note">{m.voice_tts_engine_elevenlabs_no_key()}</p>
+                {:else if ttsState.engine === 'offline' && !ttsState.offlineVoices.some((v) => v.installed)}
+                  <p class="field-help voice-crash-note">{m.voice_tts_offline_no_voice()}</p>
+                {/if}
+                {#if ttsState.engine === 'system'}
+                  <button class="btn" type="button" disabled={ttsState.speaking} onclick={handleTestVoice}>
+                    {ttsState.speaking ? m.voice_tts_testing() : m.voice_tts_test()}
+                  </button>
+                {:else if ttsState.engine === 'offline'}
                 <span class="field-label" style="margin-top:10px">{m.voice_tts_offline_title()}</span>
                 <div class="tts-voices">
                   {#each ttsState.offlineVoices as v (v.id)}
@@ -2031,7 +2046,63 @@
                 <button class="btn" type="button" style="margin-top:8px" disabled={ttsState.speaking || !ttsState.offlineVoiceId} onclick={handleTestVoice}>
                   {ttsState.speaking ? m.voice_tts_testing() : m.voice_tts_test()}
                 </button>
-              {/if}
+                {:else}
+                {#if ttsState.hasKey}
+                  <p class="voice-listening-indicator">
+                    {m.voice_tts_key_configured()}
+                    {#if ttsState.keyStorage === 'fallback'}
+                      <span class="badge badge-bad" title={m.voice_tts_key_not_secure_title()}>{m.voice_tts_key_not_secure()}</span>
+                    {/if}
+                  </p>
+                  {#if ttsState.voices.length > 0}
+                    {@const tierGroups = (['free', 'own', 'paid', 'unknown'] as const)
+                      .map((tier) => ({ tier, voices: ttsState.voices.filter((v) => v.tier === tier) }))
+                      .filter((g) => g.voices.length > 0)}
+                    <label class="field-label" for="elevenlabs-voice-select">{m.voice_tts_voice_label()}</label>
+                    <select
+                      id="elevenlabs-voice-select"
+                      class="field-select"
+                      value={ttsState.voiceId}
+                      onchange={(e) => setVoiceId((e.currentTarget as HTMLSelectElement).value)}
+                    >
+                      {#each tierGroups as g (g.tier)}
+                        <optgroup label={voiceTierLabel(g.tier)}>
+                          {#each g.voices as v (v.id)}
+                            <option value={v.id}>{v.name}</option>
+                          {/each}
+                        </optgroup>
+                      {/each}
+                    </select>
+                    <p class="field-help">{m.voice_tts_tier_help()}</p>
+                  {:else}
+                    <p class="field-help">{m.voice_tts_voices_unavailable()}</p>
+                  {/if}
+                  <div class="voice-phrase-actions" style="margin-top:8px">
+                    <button class="btn btn-primary" type="button" disabled={ttsState.speaking} onclick={handleTestVoice}>
+                      {ttsState.speaking ? m.voice_tts_testing() : m.voice_tts_test()}
+                    </button>
+                    <button class="btn btn-danger" type="button" onclick={handleClearElevenLabsKey}>
+                      {m.voice_tts_remove_key()}
+                    </button>
+                  </div>
+                {:else}
+                  <p class="field-help">{m.voice_tts_no_key_help()}</p>
+                  <button class="btn" type="button" style="margin-top:4px" disabled={ttsState.speaking} onclick={handleTestVoice}>
+                    {ttsState.speaking ? m.voice_tts_testing() : m.voice_tts_test()}
+                  </button>
+                  <div class="trigger-add-row">
+                    <input
+                      class="hotkey-input trigger-add-input"
+                      type="password"
+                      bind:value={elevenLabsKeyInput}
+                      placeholder={m.voice_tts_key_placeholder()}
+                      onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveElevenLabsKey(); } }}
+                    />
+                    <button class="btn btn-primary" type="button" onclick={handleSaveElevenLabsKey}>{m.voice_tts_save_key()}</button>
+                  </div>
+                {/if}
+                {/if}
+              </div>
 
               <label class="field-label" for="tts-output-device-select" style="margin-top:8px">{m.voice_tts_output_device_label()}</label>
               <select
@@ -2047,60 +2118,6 @@
               </select>
               <p class="field-help">{m.voice_tts_output_device_help()}</p>
 
-              {#if ttsState.hasKey}
-                <p class="voice-listening-indicator">
-                  {m.voice_tts_key_configured()}
-                  {#if ttsState.keyStorage === 'fallback'}
-                    <span class="badge badge-bad" title={m.voice_tts_key_not_secure_title()}>{m.voice_tts_key_not_secure()}</span>
-                  {/if}
-                </p>
-                {#if ttsState.voices.length > 0}
-                  {@const tierGroups = (['free', 'own', 'paid', 'unknown'] as const)
-                    .map((tier) => ({ tier, voices: ttsState.voices.filter((v) => v.tier === tier) }))
-                    .filter((g) => g.voices.length > 0)}
-                  <label class="field-label" for="elevenlabs-voice-select">{m.voice_tts_voice_label()}</label>
-                  <select
-                    id="elevenlabs-voice-select"
-                    class="field-select"
-                    value={ttsState.voiceId}
-                    onchange={(e) => setVoiceId((e.currentTarget as HTMLSelectElement).value)}
-                  >
-                    {#each tierGroups as g (g.tier)}
-                      <optgroup label={voiceTierLabel(g.tier)}>
-                        {#each g.voices as v (v.id)}
-                          <option value={v.id}>{v.name}</option>
-                        {/each}
-                      </optgroup>
-                    {/each}
-                  </select>
-                  <p class="field-help">{m.voice_tts_tier_help()}</p>
-                {:else}
-                  <p class="field-help">{m.voice_tts_voices_unavailable()}</p>
-                {/if}
-                <div class="voice-phrase-actions" style="margin-top:8px">
-                  <button class="btn btn-primary" type="button" disabled={ttsState.speaking} onclick={handleTestVoice}>
-                    {ttsState.speaking ? m.voice_tts_testing() : m.voice_tts_test()}
-                  </button>
-                  <button class="btn btn-danger" type="button" onclick={handleClearElevenLabsKey}>
-                    {m.voice_tts_remove_key()}
-                  </button>
-                </div>
-              {:else}
-                <p class="field-help">{m.voice_tts_no_key_help()}</p>
-                <button class="btn" type="button" style="margin-top:4px" disabled={ttsState.speaking} onclick={handleTestVoice}>
-                  {ttsState.speaking ? m.voice_tts_testing() : m.voice_tts_test()}
-                </button>
-                <div class="trigger-add-row">
-                  <input
-                    class="hotkey-input trigger-add-input"
-                    type="password"
-                    bind:value={elevenLabsKeyInput}
-                    placeholder={m.voice_tts_key_placeholder()}
-                    onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveElevenLabsKey(); } }}
-                  />
-                  <button class="btn btn-primary" type="button" onclick={handleSaveElevenLabsKey}>{m.voice_tts_save_key()}</button>
-                </div>
-              {/if}
               {#if ttsState.error}
                 <p class="inline-error">{ttsState.error}</p>
               {/if}
@@ -2921,34 +2938,89 @@
     color: var(--c-warning);
   }
 
-  /* Voice engine segmented control + offline voice list */
-  .tts-engine {
-    display: inline-flex;
-    gap: 2px;
-    padding: 2px;
+  /* Voice engine: radio cards, then a panel holding only the selected
+     engine's controls. */
+  .tts-engine-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 6px;
     margin-top: 4px;
+  }
+  .tts-engine-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    text-align: left;
     border: 1px solid color-mix(in srgb, var(--c-accent) 24%, transparent);
     border-radius: var(--radius);
-    background: color-mix(in srgb, var(--c-bg) 60%, transparent);
-  }
-  .tts-engine-btn {
-    padding: 4px 10px;
-    border: none;
-    border-radius: calc(var(--radius) - 2px);
-    background: transparent;
+    background: color-mix(in srgb, var(--c-bg) 94%, var(--c-mid));
     color: var(--c-accent);
     font-family: var(--font-ui);
-    font-size: 11px;
-    font-weight: 600;
     cursor: pointer;
-    transition: background 0.12s ease, color 0.12s ease;
+    transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
   }
-  .tts-engine-btn:hover {
+  .tts-engine-card:hover {
+    border-color: color-mix(in srgb, var(--c-accent) 50%, transparent);
     color: var(--c-primary);
   }
-  .tts-engine-btn.active {
+  .tts-engine-card.active {
+    border-color: var(--c-red);
+    background: color-mix(in srgb, var(--c-red) 12%, var(--c-mid));
+    color: var(--c-primary);
+    box-shadow: inset 0 0 0 1px var(--c-red);
+  }
+  .tts-engine-card-check {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    border-radius: 50%;
+    border: 1.5px solid color-mix(in srgb, var(--c-accent) 55%, transparent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tts-engine-card.active .tts-engine-card-check {
+    border-color: var(--c-red);
     background: var(--c-red);
     color: var(--c-on-accent);
+  }
+  .tts-engine-card-check svg {
+    width: 10px;
+    height: 10px;
+  }
+  .tts-engine-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .tts-engine-card-name {
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .tts-engine-card-help {
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: color-mix(in srgb, var(--c-accent) 85%, #fff 15%);
+  }
+  .tts-engine-panel {
+    margin-top: 8px;
+    padding: 10px 12px 12px;
+    border: 1px solid color-mix(in srgb, var(--c-red) 35%, transparent);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--c-bg) 92%, var(--c-mid));
+  }
+  .tts-engine-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-primary);
   }
 
   .tts-voices {
