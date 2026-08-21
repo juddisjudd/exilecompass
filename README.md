@@ -134,8 +134,10 @@ pause after "compass".
 | **compass read helmet · read weapon …** | Hear the slot's mods or stat priorities |
 | **compass uniques · flasks · charms · about build** | Lists and build identity |
 
-The full list, with every spoken form, is in
-[VOICE-COMMANDS.md](VOICE-COMMANDS.md) and in Settings → Voice Commands.
+The full list, with every spoken form, is on the
+[Voice commands wiki page](https://github.com/juddisjudd/exilecompass/wiki/Voice-Commands)
+(also in [VOICE-COMMANDS.md](VOICE-COMMANDS.md) and in Settings → Voice
+Commands).
 Phrases are fixed. This is keyword spotting, not dictation, which is what
 keeps it fast, offline and private.
 
