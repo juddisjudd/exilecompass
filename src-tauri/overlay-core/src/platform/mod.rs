@@ -32,6 +32,11 @@ pub fn focus_window(hwnd: isize) -> bool {
     imp::focus_window(hwnd)
 }
 
+/// Full path of the executable that owns the window (None on non-Windows).
+pub fn window_exe_path(hwnd: isize) -> Option<String> {
+    imp::window_exe_path(hwnd)
+}
+
 /// Apply extended window styles that make a window behave as a non-intrusive overlay:
 /// on Windows this sets WS_EX_NOACTIVATE so the overlay never steals focus from the game.
 pub fn apply_overlay_styles(hwnd: isize) {

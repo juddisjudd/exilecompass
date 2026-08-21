@@ -1,0 +1,221 @@
+{
+  "riv_1": [
+    "Wounded Man: By the First Ones! You're alive!",
+    "Wounded Man: Reach... Clearfell... Find the Miller..."
+  ],
+  "riv_2": [
+    "Mortimer: You there! Please, aid us!",
+    "The Bloated Miller: Saw you in half!",
+    "Mortimer: Well done! Please come inside."
+  ],
+  "clf_2": [
+    "Beira of the Rotten Pack: Sleep in ice, wake in snow.",
+    "Beira of the Rotten Pack: Invader!"
+  ],
+  "rdv_1": [
+    "Ghostly Voice: Our will persists...",
+    "Ghostly Voice: This is our land, we stand united!"
+  ],
+  "rdv_2": [
+    "The Rust King: Usurper!",
+    "The Rust King: For the clan!",
+    "The Rust King: Interloper!"
+  ],
+  "cem_1": ["Lachlann the Lost: Quickly! My family has been abducted!"],
+  "cem_2": [
+    "Draven, the Eternal Praetor: You will have eternity to regret your intrusion here!",
+    "Draven, the Eternal Praetor: Rend your soul!"
+  ],
+  "cem_4": [
+    "Asinia, the Praetor's Consort: You will never leave this place!",
+    "Asinia, the Praetor's Consort: Rite of the Fourth Moon!"
+  ],
+  "cem_5": [
+    "Lachlann the Lost: You... you did it?",
+    "Lachlann of Endless Lament: Feel the chill of the grave!"
+  ],
+  "hnt_1b": [
+    "Delwyn: Oi! A word?",
+    "Delwyn: Straight to it, then! The hunt begins!"
+  ],
+  "hnt_2": ["Delwyn: Keep on 'em!"],
+  "fry_1": ["The King in the Mists: Ko leor... traveler."],
+  "fry_2": [
+    "The King in the Mists: You have your audience, traveller!",
+    "The King in the Mists: Thorngrip!",
+    "The King in the Mists: We will meet again..."
+  ],
+  "ogv_3": [
+    "Leitis: Please!",
+    "The Executioner: No escape... Not this time.",
+    "The Executioner: The Guillotine... drops!"
+  ],
+  "om_1": ["Count Geonor: The time is nigh! Our triumph is at hand!"],
+  "om_2": [
+    "The Countess: Husband, this interloper has the power we need!",
+    "Count Geonor: No noose this time.",
+    "Geonor, the Putrid Wolf: The air grows colder...",
+    "The Hooded One: Allow me to clear your mind"
+  ],
+  "om_3": ["The Hooded One: We must make haste. Let us return to Clearfell"],
+
+  "vst_1": ["Mortimer: Well, sir... We have arrived. The Vastiri awaits."],
+  "mm_1": [
+    "Rudja, Dread Engineer: Sand and steel... Fire and iron...",
+    "Rudja, Dread Engineer: Insane? Perhaps that is true!",
+    "Rudja, Dread Engineer: Burn, oppressors!"
+  ],
+  "mm_2": ["Risu, Faridun Defector: Winds praise you!"],
+  "hlg_1": [
+    "Sekhema Asala: Hold them back while I open the gate!",
+    "Sekhema Asala: The final gate is broken!"
+  ],
+  "hlg_2": [
+    "Jamanra, the Risen King: Noxious Sekhema...",
+    "Jamanra, the Risen King: Wrath of a King!",
+    "Jamanra, the Risen King: I shall dethrone you, Sekhema"
+  ],
+  "hlg_3": ["Sekhema Asala: This is no natural sandstorm!"],
+  "bp_2": ["Iktab, the Deathlord: Dagok!"],
+  "kth_3": [
+    "Kabala, Constrictor Queen: Kabala...",
+    "Kabala, Constrictor Queen: Wakes!",
+    "Kabala, Constrictor Queen: Trespasser!"
+  ],
+  "hk_1": [
+    "Azarian, the Forsaken Son: You left a child to die.",
+    "Azarian, the Forsaken Son: My King nears!",
+    "Azarian, the Forsaken Son: Embrace Corruption!"
+  ],
+  "hk_2": ["The Water Goddess: At last... death... Thank you..."],
+  "sp_3": [
+    "Jamanra, the Risen King: You are relentless...",
+    "Jamanra, the Risen King: The time of the Faridun is nigh!"
+  ],
+  "drd_1": [
+    "Sekhema Asala: Ready yourself. We must prevail, no matter what!",
+    "Jamanra, the Abomination: Ahh... the Sekhema of the Ardura.",
+    "Jamanra, the Abomination: The Era of the Faridun is now!",
+    "Sekhema Asala: It is done."
+  ],
+
+  "mch_3": ["BlackJaw: Blackjaw... awakens."],
+  "azk_3": [
+    "Ignagduk, the Bog Witch: Ackhh-tack, pok ta!",
+    "Ignagduk, the Bog Witch: Wak takh, kaal!"
+  ],
+  "apx_2": ["Queen of Filth: We share a love of gold..."],
+  "tpm_2": [
+    "Ketzuli, High Priest of the Sun: We humbly await your return, oh Great Kopec!",
+    "Ketzuli, High Priest of the Sun: Let the sun curl your flesh!"
+  ],
+  "tpm_3": ["Alva: Vaal ingenuity never ceases to amaze me..."],
+  "utz_1": [
+    "Alva: We're back in the Encampment?",
+    "Alva: There they are!"
+  ],
+  "utz_4": [
+    "Viper Napuatzi: Halt! Your rampage ends here!",
+    "Viper Napuatzi: Which one of you activated the gate?"
+  ],
+  "cmb_1": [
+    "Doryani: The intruder is here?",
+    "Doryani: So... at the eve of the end",
+    "Doryani: Inevitable!"
+  ],
+  "cmb_2": [
+    "Doryani: Hmm... the legacy of the Vaal must be protected",
+    "Alva: Best you start talking then."
+  ],
+  "zge_1": ["Doryani: Now then—it is time we departed."],
+  "zge_2": ["Alva: Help me get him through the gate!"],
+
+  "kng_1": [
+    "Alva: Wait a minute! Come back!",
+    "Alva: Do be careful out there!"
+  ],
+  "sng_2": [
+    "Diamora, the Song of Death: Have you come to join my beloved?",
+    "Diamora, the Song of Death: Admire me!"
+  ],
+  "shk_2": [
+    "Matiki: You there! Beat that bird senseless, will you?",
+    "Matiki: Now I'm getting out of this bloody nest!"
+  ],
+  "sol_1": [
+    "The Prisoner: Izaro... You traitor... Where are you!?",
+    "The Prisoner: Fear my undying will!"
+  ],
+  "sol_2": ["The Hooded One: Now, we must find the others. Make haste."],
+  "vlc_2": [
+    "Krutog, Lord of Kin: You don't bring sulphite?",
+    "Krutog, Lord of Kin: I'll crush you!"
+  ],
+  "eye_1": [
+    "Matiki: Ahh! There you are!",
+    "Hinekora: Tough and fearless."
+  ],
+  "eye_3": [
+    "Kaom: Now we test your mettle...",
+    "Maata: Face the guardians of the forest...",
+    "Rakiata: Show us you flow like the sea..."
+  ],
+  "eye_4": ["Hinekora: The Ancestors see you. You are welcome... in our Halls of the Dead."],
+  "hll_1": ["Hinekora: Death is not the end. There is always another."],
+  "hll_2": [
+    "Navali: Hinekora has seen you. But now... one final challenge.",
+    "Yama The White: A challenger!",
+    "Yama The White: Ahhh! Okay, okay. Yama sees you. You are worthy."
+  ],
+  "anc_1": ["Navali: Step forth. Behold the Mother."],
+  "jny_1": [
+    "Freya Hartlin: Stop! Don't come near the circle!",
+    "Tujen: Hey! Don't name him!"
+  ],
+  "jny_2": [
+    "Captain Hartlin: None may leave this accursed island!",
+    "Captain Hartlin: Discipline!"
+  ],
+  "jny_5": [
+    "Freya Hartlin: Heh heh... thank you kindly... I am finally free!",
+    "Strange Voice: This is all an illusion."
+  ],
+  "ars_1": [
+    "Missionary Lorandis: Your timing is quite remarkable, you know!",
+    "Benedictus, First Herald of Utopia: Ahh... the meddler. In the flesh."
+  ],
+  "ars_3": [
+    "Vel Anxa, of the Order: Torvian! Crush the intruder!",
+    "Vel Anxa, of the Order: Purge the unworthy!"
+  ],
+  "exc_1": [
+    "The Countess: You really are becoming quite a nuisance...",
+    "Benedictus, First Herald of Utopia: Utopia awaits, whether you like it or not.",
+    "Benedictus, First Herald of Utopia: Tomorrow is at hand. Let the gods die!"
+  ],
+  "exc_2": ["Tavakai: Behold! The might of the Karui!"],
+  "nga_2": [
+    "Tavakai: Another interfering with things they don't understand!",
+    "Tavakai: You dare challenge a chieftain?",
+    "Tavakai: I am the true Ngakuramakoi!"
+  ],
+  "nga_3": [
+    "The Hooded One: It is over, Tavakai.",
+    "Makoru: Father!"
+  ],
+
+  "il1_w_2": [
+    "Oswin, The Dread Warden: Another pig for the pens!",
+    "Oswin, The Dread Warden: Squeal!"
+  ],
+  "il2_kc_3": ["Torbik: I'm trapped in here! Could use your help!"],
+  "il2_ss_1": [
+    "Elzarah, the Cobra Lord: Azmadi promised us glory.",
+    "Elzarah, the Cobra Lord: Come forth!"
+  ],
+  "il3_kv_1": [
+    "Lythara, The Wayward Spear: My kin died by the Spirit's will.",
+    "Lythara, The Wayward Spear: Spirit guide me!"
+  ],
+  "il3_kp_1": ["Elder Madox: The Winter Owl has heard your name."]
+}

@@ -4,14 +4,18 @@ use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use windows_sys::Win32::{
-    Foundation::{BOOL, FALSE, HWND, LPARAM, LRESULT, RECT, TRUE, WPARAM},
+    Foundation::{CloseHandle, BOOL, FALSE, HWND, LPARAM, LRESULT, RECT, TRUE, WPARAM},
+    System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
+        PROCESS_QUERY_LIMITED_INFORMATION,
+    },
     UI::Input::KeyboardAndMouse::GetAsyncKeyState,
     UI::WindowsAndMessaging::{
         CallNextHookEx, DispatchMessageW, EnumWindows, GetForegroundWindow, GetMessageW,
         GetWindowLongPtrW, GetWindowRect as WinGetWindowRect, GetWindowTextLengthW, GetWindowTextW,
-        IsWindow, IsWindowVisible, SetForegroundWindow, SetWindowLongPtrW, SetWindowsHookExW,
-        TranslateMessage, GWL_EXSTYLE, HC_ACTION, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WM_KEYDOWN,
-        WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP, WS_EX_NOACTIVATE,
+        GetWindowThreadProcessId, IsWindow, IsWindowVisible, SetForegroundWindow, SetWindowLongPtrW,
+        SetWindowsHookExW, TranslateMessage, GWL_EXSTYLE, HC_ACTION, KBDLLHOOKSTRUCT, MSG,
+        WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP, WS_EX_NOACTIVATE,
     },
 };
 
@@ -123,6 +127,27 @@ pub fn is_window_alive(hwnd: isize) -> bool {
 
 pub fn focus_window(hwnd: isize) -> bool {
     unsafe { SetForegroundWindow(isize_to_hwnd(hwnd)) != 0 }
+}
+
+/// Full path of the executable that owns `hwnd`.
+pub fn window_exe_path(hwnd: isize) -> Option<String> {
+    let mut pid: u32 = 0;
+    unsafe { GetWindowThreadProcessId(isize_to_hwnd(hwnd), &mut pid) };
+    if pid == 0 {
+        return None;
+    }
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid) };
+    if process == 0 {
+        return None;
+    }
+    let mut buf = vec![0u16; 1024];
+    let mut len = buf.len() as u32;
+    let ok = unsafe { QueryFullProcessImageNameW(process, PROCESS_NAME_WIN32, buf.as_mut_ptr(), &mut len) };
+    unsafe { CloseHandle(process) };
+    if ok == 0 {
+        return None;
+    }
+    Some(OsString::from_wide(&buf[..len as usize]).to_string_lossy().into_owned())
 }
 
 /// Sets WS_EX_NOACTIVATE on the window so it never steals input focus.

@@ -32,7 +32,6 @@
   "act2_keth": "Keth",
   "act2_lostcity": "The Lost City",
   "act2_buried": "Buried Shrines",
-  "act2_heart": "The Heart of Keth",
   "act2_caravan5": "The Ardura Caravan",
   "act2_valley": "Valley of the Titans",
   "act2_titan": "The Titan Grotto",
@@ -82,5 +81,17 @@
   "act4_journey": "Journey's End",
   "act4_arastas": "Arastas",
   "act4_excavation": "The Excavation",
-  "act4_ngakanu": "Ngakanu"
+  "act4_ngakanu": "Ngakanu",
+
+  "il1_holten": "Holten",
+  "il1_wolvenhold": "Wolvenhold",
+
+  "il2_khari_crossing": "The Khari Crossing",
+  "il2_qimah": "Qimah",
+  "il2_sanctuary": "Sel Khari Sanctuary",
+
+  "il3_ashen_forest": "Ashen Forest",
+  "il3_kriar_village": "Kriar Village",
+  "il3_howling_caves": "Howling Caves",
+  "il3_kriar_peaks": "Kriar Peaks"
 }

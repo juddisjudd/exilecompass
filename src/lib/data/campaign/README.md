@@ -26,7 +26,25 @@ To disable an act or interlude without deleting it, set `"enabled": false`. Acts
 
 `scenes.json` is a separate, optional companion file: `{ "<zoneId>": "<exact [SCENE] log string>" }`. It drives the Campaign Guide's live position marker (`campaignAutoProgress.svelte.ts`), which watches the game log's `[SCENE] Set Source [...]` lines and follows along. It's kept out of the act files on purpose — this is log-matching plumbing, not guide content, the same reasoning `campaignTimer.ts`/`logWatcher.ts` already use for their own zone-name lookup tables.
 
-A zone with no entry here just never gets a marker — nothing breaks, and the guide content is unaffected. If you notice a missing or wrong scene string (best-effort, not verified against every zone in a live session), add or fix its line the same way you'd fix anything else in this folder — no TypeScript required, just make sure the string matches the log exactly (case and wording).
+A zone with no entry here just never gets a marker — nothing breaks, and the guide content is unaffected. If you notice a missing or wrong scene string (best-effort, not verified against every zone in a live session), add or fix its line the same way you'd fix anything else in this folder — no TypeScript required, just make sure the string matches the log exactly (case and wording). Town/hub scenes are listed in `HUB_SCENES` (`src/lib/campaignEdges.ts`) and behave differently — see below.
+
+---
+
+## `dialogue.json` — objective-level "you are here"
+
+`dialogue.json` narrows the marker from a zone down to an objective: `{ "<objectiveId>": ["Speaker: text", ...] }`, each line copied from Client.txt as it appears after the `[INFO Client N]` prefix (NPC and boss lines have no chat sigil; player chat does). When such a line shows up in the log, the marker jumps to that objective. Lines are matched on speaker plus a *prefix* of the text, case- and punctuation-insensitive, so a long line can be shortened to its first few words.
+
+Guidelines when adding anchors:
+
+- Prefer lines that fire *at* the objective — a boss's opening lines, the NPC's quest-accept line, the post-fight line that tells you to head back to town.
+- Several lines per objective are fine and make it more robust (whichever fires first wins). Keep every line unique across the whole file.
+- Avoid generic vendor/arrival barks ("Anything catch your eye?", "We've arrived.") — they repeat in many zones.
+- Matching is forward-only, so a line that replays later (on re-entering a zone, say) never drags the marker backward.
+- Only league objectives should be left out: they change every league anyway.
+
+Not every quest line reaches the log — many are voice-only — so some objectives simply can't be anchored. That's expected.
+
+Both tables were authored against one full campaign log. To re-check them after a game patch, replay a fresh Client.txt through `buildEdges`/`matchScene`/`matchDialogue` from `src/lib/campaignEdges.ts` with bun and look at where the marker moves.
 
 ---
 

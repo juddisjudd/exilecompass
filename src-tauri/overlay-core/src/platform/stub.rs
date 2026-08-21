@@ -16,6 +16,10 @@ pub fn focus_window(_hwnd: isize) -> bool {
     false
 }
 
+pub fn window_exe_path(_hwnd: isize) -> Option<String> {
+    None
+}
+
 pub fn apply_overlay_styles(_hwnd: isize) {}
 
 pub fn start_keyboard_hook<F: Fn() + Send + Sync + 'static>(_on_trigger: F) {}

@@ -47,7 +47,12 @@
   import { poe1CampaignTimer } from '$lib/poe1CampaignTimer.svelte';
   import { manualTimer, timerMode } from '$lib/manualTimer.svelte';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
-  import { load as loadCampaignAutoProgress, handleScene as handleCampaignAutoProgressScene } from '$lib/campaignAutoProgress.svelte';
+  import {
+    load as loadCampaignAutoProgress,
+    handleScene as handleCampaignAutoProgressScene,
+    handleDialogue as handleCampaignAutoProgressDialogue,
+  } from '$lib/campaignAutoProgress.svelte';
+  import { load as loadActiveCharacter, handleLevelUp as handleActiveCharacterLevelUp } from '$lib/activeCharacter.svelte';
   import {
     levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge,
     levelingPeekNext, levelingStepToText,
@@ -227,6 +232,7 @@
       await timerMode.load();
       campaignProgress.load();
       loadCampaignAutoProgress();
+      loadActiveCharacter(game);
       let path = await persistGet(logFileKey(game));
       if (!path && !legacyLogPathMigrated) {
         // One-time migration from the pre-PoE1 flat key (shared by both
@@ -1019,7 +1025,7 @@
       if (cancelled || !logFilePath || !logWatcherState) return;
       try {
         const collected = rewardsComponent?.getCollected() ?? new Set<string>();
-        const { ids, scenes, areaId, areaIdEvents, state } = await pollLog(logFilePath, logWatcherState, collected, logWatcherArea, gameMode.current);
+        const { ids, scenes, areaId, areaIdEvents, dialogue, levelUps, state } = await pollLog(logFilePath, logWatcherState, collected, logWatcherArea, gameMode.current);
         logWatcherState = state;
         // Feed transitions to whichever game's campaign timer is active (works
         // even if the rewards/timer tab isn't mounted): PoE2 splits off
@@ -1031,7 +1037,9 @@
             campaignTimer.handleScene(s.scene, s.timeMs);
             handleCampaignAutoProgressScene(s.scene);
           }
+          for (const d of dialogue) handleCampaignAutoProgressDialogue(d.speaker, d.text);
         }
+        for (const l of levelUps) handleActiveCharacterLevelUp(l.name, l.cls, l.level);
         if (rewardsComponent) for (const id of ids) rewardsComponent.autoMarkReward(id);
         // Act-Decoder widget window(s) can't share in-memory state with the
         // main window — broadcast zone changes as a Tauri event, and persist

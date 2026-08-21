@@ -86,6 +86,50 @@ function extractScene(line: string): string | null {
   return m ? m[1] : null;
 }
 
+/** Text after the "[INFO Client N] " prefix, or null for any other line. */
+function infoPayload(line: string): string | null {
+  const m = line.match(/\[INFO Client \d+\] (.*)$/);
+  return m ? m[1] : null;
+}
+
+// Player chat carries a channel sigil; NPC dialogue and system messages don't.
+const CHAT_SIGIL_RE = /^[&#$%@^]/;
+
+export interface DialogueEvent {
+  speaker: string;
+  text: string;
+}
+
+const DIALOGUE_RE = /^([^:[]{1,60}): (.+)$/;
+
+function extractDialogueEvents(lines: string[]): DialogueEvent[] {
+  const events: DialogueEvent[] = [];
+  for (const line of lines) {
+    const payload = infoPayload(line);
+    if (!payload || CHAT_SIGIL_RE.test(payload)) continue;
+    const m = payload.match(DIALOGUE_RE);
+    if (m) events.push({ speaker: m[1], text: m[2] });
+  }
+  return events;
+}
+
+export interface LevelUpEvent {
+  name: string;
+  cls: string;
+  level: number;
+}
+
+const LEVEL_UP_RE = /^: (.+?) \(([^)]+)\) is now level (\d+)$/;
+
+function extractLevelUpEvents(lines: string[]): LevelUpEvent[] {
+  const events: LevelUpEvent[] = [];
+  for (const line of lines) {
+    const m = infoPayload(line)?.match(LEVEL_UP_RE);
+    if (m) events.push({ name: m[1], cls: m[2], level: parseInt(m[3], 10) });
+  }
+  return events;
+}
+
 // PoE's internal area id (e.g. "1_1_2", "1_1_2a") — logged once per zone load
 // as "Generating level <n> area "<id>" with seed <seed>". Unlike the
 // human-readable [SCENE] name above, this is the exact key Act-Decoder's
@@ -147,6 +191,9 @@ export function extractNewRewardIds(
     // Track current area for passive-point context
     const scene = extractScene(line);
     if (scene) { areaRef.current = scene; continue; }
+
+    const payload = infoPayload(line);
+    if (payload !== null && CHAT_SIGIL_RE.test(payload)) continue;
 
     // Time gate — skip lines from before the watcher was set up
     const lineTime = parseLogDate(line);
@@ -284,6 +331,8 @@ export async function pollLog(
   scenes: SceneEvent[];
   areaId: string | null;
   areaIdEvents: AreaIdEvent[];
+  dialogue: DialogueEvent[];
+  levelUps: LevelUpEvent[];
   state: LogWatcherState;
 }> {
   const result = await invoke<{ lines: string[]; file_size: number }>(
@@ -299,6 +348,8 @@ export async function pollLog(
   const scenes = extractSceneEvents(result.lines);
   const areaId = extractAreaIdChange(result.lines);
   const areaIdEvents = extractAreaIdEvents(result.lines);
+  const dialogue = extractDialogueEvents(result.lines);
+  const levelUps = extractLevelUpEvents(result.lines);
 
   const newState: LogWatcherState = { ...state, offset: newOffset };
   if (wasTruncated) {
@@ -307,5 +358,5 @@ export async function pollLog(
   }
   await saveWatcherState(newState, game);
 
-  return { ids, scenes, areaId, areaIdEvents, state: newState };
+  return { ids, scenes, areaId, areaIdEvents, dialogue, levelUps, state: newState };
 }

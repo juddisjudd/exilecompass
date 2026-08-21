@@ -5,7 +5,13 @@
   import { m } from '$lib/paraglide/messages.js';
   import { trAct, trZone, trObjective, trObjectiveReward, trNotes, trActTip } from '$lib/dataI18n';
   import { campaignProgress } from '$lib/campaignProgress.svelte';
-  import { campaignAutoProgress, jumpToEdge, setEnabled as setAutoProgressEnabled } from '$lib/campaignAutoProgress.svelte';
+  import {
+    campaignAutoProgress,
+    jumpToEdge,
+    reset as resetAutoProgress,
+    setEnabled as setAutoProgressEnabled,
+  } from '$lib/campaignAutoProgress.svelte';
+  import { activeCharacter } from '$lib/activeCharacter.svelte';
   import ConfirmReset from './ConfirmReset.svelte';
 
   // Completion lives in the shared module (so global hotkeys can mark objectives).
@@ -123,6 +129,7 @@
 
   function resetProgress() {
     campaignProgress.resetAll();
+    resetAutoProgress();
   }
 
   // ── Auto-progress: "you are here" marker + auto-scroll/expand ─────────────
@@ -168,6 +175,12 @@
     <div class="guide-title">
       <h3>{m.campaign_guide_title()}</h3>
       <span class="game-tag game-tag-poe2">{m.game_switch_poe2()}</span>
+      {#if activeCharacter.current}
+        {@const ch = activeCharacter.current}
+        <span class="char-tag" title={m.campaign_character_badge_title()}>
+          {ch.name} · {ch.cls} · {m.campaign_character_level({ level: ch.level })}
+        </span>
+      {/if}
     </div>
     <div class="guide-header-actions">
       <label class="cfg-check" title={m.campaign_show_league_toggle_title()}>
@@ -328,8 +341,27 @@
                 <div class="objectives-container">
                   {#each zoneObjectives as obj (obj.id)}
                     {@const done = campaignProgress.has(obj.id)}
-                    <div class="guide-row" class:done class:optional={obj.optional} class:league={obj.league}>
+                    {@const objEdgeIndex = campaignAutoProgress.edgeIndexForObjective(obj.id)}
+                    {@const isActiveObjective = obj.id === campaignAutoProgress.activeObjectiveId}
+                    <div
+                      class="guide-row"
+                      class:done
+                      class:optional={obj.optional}
+                      class:league={obj.league}
+                      class:active-row={campaignAutoProgress.enabled && isActiveObjective}
+                    >
                       <label class="guide-row-label">
+                        {#if campaignAutoProgress.enabled && objEdgeIndex !== null}
+                          <button
+                            type="button"
+                            class="pos-marker"
+                            onclick={(e) => { e.preventDefault(); jumpToEdge(objEdgeIndex); }}
+                            title={m.campaign_auto_progress_jump_objective()}
+                            aria-label={m.campaign_auto_progress_jump_objective()}
+                          >
+                            {@render iconPosition(isActiveObjective)}
+                          </button>
+                        {/if}
                         <input
                           type="checkbox"
                           checked={done}
@@ -535,6 +567,15 @@
     color: var(--c-success);
     font-size: 11px;
     line-height: 1;
+  }
+
+  .char-tag {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    color: color-mix(in srgb, var(--c-accent) 80%, transparent);
   }
 
   .zone-header-row {

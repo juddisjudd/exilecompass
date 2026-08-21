@@ -898,27 +898,18 @@ fn restore_window_bounds(app: &AppHandle, window: &WebviewWindow) {
 
 // ── Log file detection ────────────────────────────────────────────────────────
 
-/// Try to locate the Client.txt log file automatically for the given game
-/// ("poe1" | "poe2"), cheapest/most-precise first:
-///  1. Windows only: the actual running game process (100% certain, but only
-///     works while the game is open).
-///  2. The user's *real* configured Steam library folders, parsed from
-///     Steam's own `libraryfolders.vdf` — covers a Steam install on any
-///     drive without guessing, since Steam records exactly where it put
-///     things.
-///  3. Windows only: the Windows uninstall registry, for a direct
-///     (non-Steam) GGG launcher install — same idea as #2 but for the path
-///     Windows itself already knows about, again on any drive.
-///  4. A short list of the single most common hardcoded paths, as a last
-///     resort if none of the above found anything.
-/// Deliberately never brute-forces every drive letter × path combination —
-/// steps 2-3 make that unnecessary, since they ask something that already
-/// knows the real answer instead of guessing.
+/// Locate Client.txt for "poe1" | "poe2", cheapest/most-precise first. Never
+/// brute-forces drives — every tier asks something that already knows.
 #[tauri::command]
 fn detect_log_file(game: String) -> Option<String> {
     #[cfg(target_os = "windows")]
-    if let Some(path) = detect_log_from_process_windows(&game) {
-        return Some(path);
+    {
+        if let Some(path) = detect_log_from_game_window(&game) {
+            return Some(path);
+        }
+        if let Some(path) = detect_log_from_ggg_registry_windows(&game) {
+            return Some(path);
+        }
     }
 
     for path in steam_library_log_paths(&game) {
@@ -928,8 +919,13 @@ fn detect_log_file(game: String) -> Option<String> {
     }
 
     #[cfg(target_os = "windows")]
-    if let Some(path) = detect_log_from_uninstall_registry_windows(&game) {
-        return Some(path);
+    {
+        if let Some(path) = detect_log_from_uninstall_registry_windows(&game) {
+            return Some(path);
+        }
+        if let Some(path) = detect_log_from_shortcuts_windows(&game) {
+            return Some(path);
+        }
     }
 
     for path in candidate_log_paths(&game) {
@@ -940,12 +936,14 @@ fn detect_log_file(game: String) -> Option<String> {
     None
 }
 
-/// Runs a PowerShell command and returns its trimmed stdout, or None if it
-/// produced nothing / failed to launch. `-WindowStyle Hidden` plus the
-/// CREATE_NO_WINDOW process flag together suppress the console flash a
-/// spawned PowerShell would otherwise briefly show — this fires on every
-/// auto-detect click (and every game-window poll for #1 below), unlike a
-/// one-time setup action, so the flash is actually noticeable here.
+#[cfg(target_os = "windows")]
+fn client_log_in(dir: &std::path::Path) -> Option<String> {
+    let candidate = dir.join("logs").join("Client.txt");
+    candidate.exists().then(|| candidate.to_string_lossy().into_owned())
+}
+
+/// Runs a PowerShell command hidden (`-WindowStyle Hidden` + CREATE_NO_WINDOW,
+/// so no console flash) and returns its trimmed stdout, or None.
 #[cfg(target_os = "windows")]
 fn run_powershell_hidden(script: &str) -> Option<String> {
     use std::os::windows::process::CommandExt;
@@ -959,40 +957,71 @@ fn run_powershell_hidden(script: &str) -> Option<String> {
     if text.is_empty() { None } else { Some(text) }
 }
 
-/// Ask PowerShell for the executable path of a running PathOfExile process
-/// matching `game`, then derive logs/Client.txt from the parent directory.
-/// wmic is deprecated and removed in Windows 11 — PowerShell Get-Process is reliable.
-/// PoE2's process name starts with "PathOfExile2"; PoE1's doesn't, so filtering
-/// PoE1 down to names that *don't* match that prefix disambiguates the two when
-/// both happen to be running.
+/// The running game's own exe: window title → PID → image path. A process-name
+/// prefix can't tell PoE1 from PoE2 (both ship as PathOfExile*.exe); the title can.
 #[cfg(target_os = "windows")]
-fn detect_log_from_process_windows(game: &str) -> Option<String> {
-    let script = if game == "poe1" {
-        "(Get-Process -Name 'PathOfExile*' -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike 'PathOfExile2*' } | Select-Object -First 1).Path"
-    } else {
-        "(Get-Process -Name 'PathOfExile2*' -ErrorAction SilentlyContinue | Select-Object -First 1).Path"
-    };
-    let exe = run_powershell_hidden(script)?;
-    let candidate = std::path::Path::new(&exe).parent()?.join("logs").join("Client.txt");
-    if candidate.exists() {
-        Some(candidate.to_string_lossy().into_owned())
-    } else {
-        None
-    }
+fn detect_log_from_game_window(game: &str) -> Option<String> {
+    let window = find_window_for_game(game)?;
+    let exe = overlay_core::window_exe_path(window.hwnd)?;
+    client_log_in(std::path::Path::new(&exe).parent()?)
 }
 
-/// Windows uninstall registry lookup for a *direct* (non-Steam) GGG launcher
-/// install — catches e.g. `S:\Grinding Gear Games\Path of Exile 2\`, a path
-/// no hardcoded candidate list or drive-letter guess would ever reach, the
-/// same way Windows' own "Apps & Features" list already knows about it.
-/// Mirrors `Resolve-InstallDir` in `scripts/add-defender-exclusion.ps1`,
-/// which does the same kind of lookup for ExileCompass's own install.
+#[cfg(target_os = "windows")]
+fn read_hkcu_string(subkey: &str, value: &str) -> Option<String> {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_SZ};
+    let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+    let (subkey, value) = (wide(subkey), wide(value));
+    let mut len: u32 = 0;
+    let rc = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            subkey.as_ptr(),
+            value.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut len,
+        )
+    };
+    if rc != 0 || len < 2 {
+        return None;
+    }
+    let mut buf = vec![0u16; (len as usize).div_ceil(2)];
+    let rc = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            subkey.as_ptr(),
+            value.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            buf.as_mut_ptr().cast(),
+            &mut len,
+        )
+    };
+    if rc != 0 {
+        return None;
+    }
+    let end = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+    let text = String::from_utf16_lossy(&buf[..end]).trim().to_string();
+    (!text.is_empty()).then_some(text)
+}
+
+/// GGG's standalone launcher records its directory only here; its uninstall
+/// entries (Burn bundle + MSI) leave InstallLocation empty.
+#[cfg(target_os = "windows")]
+fn detect_log_from_ggg_registry_windows(game: &str) -> Option<String> {
+    let subkey = format!(r"Software\GrindingGearGames\{}", game_display_name(game));
+    let dir = read_hkcu_string(&subkey, "InstallLocation")?;
+    client_log_in(std::path::Path::new(&dir))
+}
+
+/// Uninstall-hive InstallLocation, for installers that fill it in.
 #[cfg(target_os = "windows")]
 fn detect_log_from_uninstall_registry_windows(game: &str) -> Option<String> {
     let filter = if game == "poe1" {
-        "$_.DisplayName -like 'Path of Exile*' -and $_.DisplayName -notlike 'Path of Exile 2*'"
+        "$_.DisplayName -like 'Path of Exile*' -and $_.DisplayName -notlike 'Path of Exile 2*' -and $_.InstallLocation"
     } else {
-        "$_.DisplayName -like 'Path of Exile 2*'"
+        "$_.DisplayName -like 'Path of Exile 2*' -and $_.InstallLocation"
     };
     let script = format!(
         "$keys = @(\
@@ -1003,12 +1032,28 @@ fn detect_log_from_uninstall_registry_windows(game: &str) -> Option<String> {
          (Get-ItemProperty $keys -ErrorAction SilentlyContinue | Where-Object {{ {filter} }} | Select-Object -First 1).InstallLocation"
     );
     let install_dir = run_powershell_hidden(&script)?;
-    let candidate = std::path::Path::new(&install_dir).join("logs").join("Client.txt");
-    if candidate.exists() {
-        Some(candidate.to_string_lossy().into_owned())
-    } else {
-        None
-    }
+    client_log_in(std::path::Path::new(&install_dir))
+}
+
+/// Start Menu / desktop shortcuts are machine-wide, so they also cover an
+/// install made under a different Windows user account.
+#[cfg(target_os = "windows")]
+fn detect_log_from_shortcuts_windows(game: &str) -> Option<String> {
+    let script = "$sh = New-Object -ComObject WScript.Shell; \
+        Get-ChildItem \"$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\", \
+          \"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\", \
+          \"$env:PUBLIC\\Desktop\", \"$env:USERPROFILE\\Desktop\" \
+          -Recurse -Filter 'Path of Exile*.lnk' -ErrorAction SilentlyContinue | \
+        ForEach-Object { $_.BaseName + '|' + $sh.CreateShortcut($_.FullName).TargetPath }";
+    let output = run_powershell_hidden(script)?;
+    output.lines().find_map(|line| {
+        let (name, target) = line.split_once('|')?;
+        let is_poe2 = name.trim().starts_with("Path of Exile 2");
+        if is_poe2 != (game != "poe1") {
+            return None;
+        }
+        client_log_in(std::path::Path::new(target.trim()).parent()?)
+    })
 }
 
 /// Every Client.txt path implied by the user's *actual* configured Steam
@@ -1071,9 +1116,7 @@ fn steam_install_roots() -> Vec<std::path::PathBuf> {
 
 #[cfg(target_os = "windows")]
 fn steam_path_from_registry_windows() -> Option<String> {
-    run_powershell_hidden(
-        "(Get-ItemProperty 'HKCU:\\Software\\Valve\\Steam' -ErrorAction SilentlyContinue).SteamPath",
-    )
+    read_hkcu_string(r"Software\Valve\Steam", "SteamPath")
 }
 
 /// Minimal VDF (Valve Data Format) extractor — just pulls `"path"  "<value>"`

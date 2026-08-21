@@ -2,7 +2,7 @@ mod platform;
 
 pub use platform::{
     apply_overlay_styles, find_window_by_title, focus_window, get_window_rect, is_window_alive,
-    set_hook_foreground_target, set_trigger_chords, start_keyboard_hook,
+    set_hook_foreground_target, set_trigger_chords, start_keyboard_hook, window_exe_path,
 };
 
 /// A keyboard chord (a key plus modifier state) used for auto-hide triggers.
