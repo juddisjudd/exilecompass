@@ -1,0 +1,62 @@
+name: Wiki Sync
+
+# Regenerates the "Voice commands" wiki page from the app's own phrase data
+# (tools/build-voice-docs.mjs) whenever the inputs change on main. The wiki is
+# a separate git repository (<repo>.wiki.git); it must already exist, which it
+# does since its first page was created by hand on 2026-08-20.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src-tauri/resources/kws/keywords_raw.txt'
+      - 'src/lib/voicePhrases.ts'
+      - 'messages/en.json'
+      - 'tools/build-voice-docs.mjs'
+      - '.github/workflows/wiki-sync.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+
+      - name: Checkout wiki
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # The generator only imports TypeScript from src/lib and reads JSON, so
+      # it needs no node_modules.
+      - name: Generate Voice-Commands.md
+        run: bun tools/build-voice-docs.mjs --wiki wiki
+
+      - name: Push if changed
+        working-directory: wiki
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Wiki already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update voice commands from ${GITHUB_SHA::7}"
+          git push
