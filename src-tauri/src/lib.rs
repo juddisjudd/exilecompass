@@ -1244,6 +1244,31 @@ struct BuildFileEntry {
     path: String,
     /// Last-modified time in milliseconds since the Unix epoch (for sorting).
     modified: u64,
+    author: Option<String>,
+    /// Raw GGG ascendancy id, e.g. "Mercenary2" (class name + ascendancy index).
+    ascendancy: Option<String>,
+}
+
+/// A real `.build` file is a few KB of JSON; skip anything far bigger.
+const MAX_BUILD_META_BYTES: u64 = 4 * 1024 * 1024;
+
+/// The `author`/`ascendancy` fields of a `.build` file, for grouping the picker.
+/// Unreadable or malformed files simply group as unknown.
+fn read_build_meta(path: &std::path::Path) -> (Option<String>, Option<String>) {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return (None, None);
+    };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return (None, None);
+    };
+    let field = |key: &str| {
+        json.get(key)
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+    };
+    (field("author"), field("ascendancy"))
 }
 
 /// List the `.build` files in a folder (e.g. the GGG BuildPlanner directory),
@@ -1276,18 +1301,26 @@ fn list_build_files(dir: String) -> Result<Vec<BuildFileEntry>, String> {
             .unwrap_or("")
             .to_string();
 
-        let modified = entry
-            .metadata()
-            .ok()
+        let meta = entry.metadata().ok();
+
+        let modified = meta
+            .as_ref()
             .and_then(|m| m.modified().ok())
             .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0);
 
+        let (author, ascendancy) = match meta.as_ref().map(|m| m.len()) {
+            Some(len) if len <= MAX_BUILD_META_BYTES => read_build_meta(&path),
+            _ => (None, None),
+        };
+
         builds.push(BuildFileEntry {
             name,
             path: path.to_string_lossy().into_owned(),
             modified,
+            author,
+            ascendancy,
         });
     }
 

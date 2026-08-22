@@ -507,7 +507,7 @@ function parseGggBuild(json: GggBuild): PobBuild {
   }
 
   const ascendancy = json.ascendancy ?? '';
-  const className  = ascendancy ? ascendancy.replace(/\d+$/, '') : 'Unknown';
+  const className  = classFromAscendancy(ascendancy) || 'Unknown';
 
   return {
     className,
@@ -687,6 +687,14 @@ export interface BuildFileEntry {
   path: string;
   /** Last-modified time (ms since epoch) — entries arrive newest first. */
   modified: number;
+  author?: string;
+  /** Raw GGG ascendancy id, e.g. "Mercenary2". */
+  ascendancy?: string;
+}
+
+/** "Mercenary2" → "Mercenary". The file records the ascendancy as an index. */
+export function classFromAscendancy(ascendancy?: string): string {
+  return (ascendancy ?? '').replace(/\d+$/, '').trim();
 }
 
 /** List the `.build` files in a folder, newest first. */

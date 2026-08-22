@@ -3,6 +3,7 @@
     stripPobColors, clearBuild,
     SLOT_ORDER, RARITY_COLOR,
     type PobBuild, type PobItem, type BuildFileEntry,
+    classFromAscendancy,
   } from '$lib/pob';
   import { recommendVendorOptionsForItem } from '$lib/regex/buildRecommend';
   import { loadVendorRecommendation } from '$lib/regex/builderState.svelte';
@@ -67,6 +68,50 @@
       activeSkill = build.activeSkillSet;
       activeItem  = build.activeItemSet;
     }
+  });
+
+  // Build library grouping — an author often ships several builds (progression
+  // stages, class variants), so group by author and sort by class inside.
+  interface LibraryGroup { label: string; entries: Array<{ path: string; label: string }> }
+
+  function fileAuthor(f: BuildFileEntry): string {
+    // Files with no author field usually name it: "Pohx's Cold DoT.build".
+    return (f.author?.trim() || f.name.match(/^\s*(.+?)['\u2019]s\s+\S/)?.[1] || '').trim();
+  }
+
+  function stripAuthorPrefix(name: string, author: string): string {
+    const lower = name.toLowerCase();
+    for (const possessive of ["'s ", '\u2019s ']) {
+      const prefix = author.toLowerCase() + possessive;
+      if (lower.startsWith(prefix)) return name.slice(prefix.length).trim() || name;
+    }
+    return name;
+  }
+
+  const library = $derived.by(() => {
+    const byAuthor = buildFiles.some(f => fileAuthor(f));
+    const groups = new Map<string, BuildFileEntry[]>();
+    for (const f of buildFiles) {
+      const key = byAuthor ? fileAuthor(f) : classFromAscendancy(f.ascendancy);
+      const bucket = groups.get(key);
+      if (bucket) bucket.push(f); else groups.set(key, [f]);
+    }
+    // Unattributed builds sort last, everything else alphabetically.
+    const ordered: LibraryGroup[] = [...groups]
+      .sort(([a], [b]) => (a ? 0 : 1) - (b ? 0 : 1) || a.localeCompare(b))
+      .map(([key, files]) => ({
+        label: key || (byAuthor ? m.build_library_no_author() : m.build_library_no_class()),
+        entries: files
+          .sort((a, b) =>
+            classFromAscendancy(a.ascendancy).localeCompare(classFromAscendancy(b.ascendancy)) ||
+            a.name.localeCompare(b.name))
+          .map(f => {
+            const cls = classFromAscendancy(f.ascendancy);
+            const name = byAuthor && key ? stripAuthorPrefix(f.name, key) : f.name;
+            return { path: f.path, label: byAuthor && cls ? `${name} · ${cls}` : name };
+          }),
+      }));
+    return { grouped: ordered.length > 1, groups: ordered };
   });
 
   function selectSkill(idx: number) { activeSkill = idx; onSkillSetChange?.(idx); }
@@ -213,9 +258,19 @@
         {#if !buildFiles.some(f => f.path === activeBuildPath)}
           <option value="" disabled>{m.build_library_placeholder()}</option>
         {/if}
-        {#each buildFiles as f (f.path)}
-          <option value={f.path}>{f.name}</option>
-        {/each}
+        {#if library.grouped}
+          {#each library.groups as g (g.label)}
+            <optgroup label={g.label}>
+              {#each g.entries as e (e.path)}
+                <option value={e.path}>{e.label}</option>
+              {/each}
+            </optgroup>
+          {/each}
+        {:else}
+          {#each buildFiles as f (f.path)}
+            <option value={f.path}>{f.name}</option>
+          {/each}
+        {/if}
       </select>
       <button
         class="library-refresh"
@@ -573,6 +628,13 @@
   .build-library option {
     background: var(--c-bg);
     color: var(--c-red-bright);
+  }
+  .build-library optgroup {
+    background: var(--c-bg);
+    color: var(--c-accent);
+    font-style: normal;
+    font-size: 9px;
+    letter-spacing: 0.06em;
   }
   .library-refresh {
     flex-shrink: 0;

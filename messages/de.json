@@ -63,6 +63,8 @@
   "action_refresh": "Refresh",
   "build_library_label": "Load build",
   "build_library_placeholder": "Select a build…",
+  "build_library_no_author": "Other builds",
+  "build_library_no_class": "Unknown class",
   "error_build_folder_read": "Couldn't read build folder:",
   "error_build_folder_not_found": "Default build folder not found — choose it manually.",
   "settings_import_builds_placeholder": "Werkzeuge zum Importieren von Builds kommen hier hin. Dieser Bereich ist fuer zukuenftige PoE-Build-Importe reserviert.",
