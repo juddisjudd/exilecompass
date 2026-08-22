@@ -20,13 +20,16 @@ function showLeagueMechanics(): boolean {
   return saved === null ? true : saved === 'true'; // defaults to shown, matching CampaignGuide.svelte
 }
 
-// Flat, ordered list of every objective with its optional/league flags —
-// drives the "complete next" / "undo last" hotkeys along the required
-// (critical) path. Every league-mechanic objective in the data is also
-// flagged optional (it's inherently side content), so it's ordinarily
-// skipped like any other optional objective — except while "Show league
-// mechanics" is on, where it's promoted into the walked path since it's
-// visibly part of this league's campaign guide.
+const SHOW_OPTIONAL_KEY = 'EXILECOMPASS_CAMPAIGN_SHOW_OPTIONAL_V1';
+function showOptional(): boolean {
+  const saved = window.localStorage.getItem(SHOW_OPTIONAL_KEY);
+  return saved === null ? true : saved === 'true';
+}
+
+// Flat, ordered list of every objective — drives the "complete next" /
+// "undo last" hotkeys. Whatever the guide currently shows is what gets walked:
+// league objectives follow the League Mechs toggle, other optional ones the
+// Optional toggle.
 interface OrderedObjective { id: string; optional: boolean; league: boolean; }
 const ORDERED: OrderedObjective[] = (() => {
   const out: OrderedObjective[] = [];
@@ -42,7 +45,8 @@ const ORDERED: OrderedObjective[] = (() => {
 })();
 
 function isSkipped(o: OrderedObjective): boolean {
-  return o.optional && (!o.league || !showLeagueMechanics());
+  if (o.league) return !showLeagueMechanics();
+  return o.optional && !showOptional();
 }
 
 class CampaignProgress {
@@ -108,10 +112,8 @@ class CampaignProgress {
     return null;
   }
 
-  /** Mark the next incomplete required objective done. Returns its id, or null
-   *  if the required path is already complete. Non-league optional objectives
-   *  are always skipped (mark those by clicking); league objectives are only
-   *  skipped while "Show league mechanics" is off. */
+  /** Mark the next incomplete visible objective done. Returns its id, or null
+   *  if the walked path is already complete. */
   completeNext(): string | null {
     for (const o of ORDERED) {
       if (isSkipped(o)) continue;
@@ -124,7 +126,7 @@ class CampaignProgress {
     return null;
   }
 
-  /** Un-mark the last completed required objective (inverse of completeNext). */
+  /** Un-mark the last completed visible objective (inverse of completeNext). */
   undoLast(): string | null {
     for (let i = ORDERED.length - 1; i >= 0; i--) {
       const o = ORDERED[i];

@@ -24,6 +24,7 @@
 
   const STATE_KEY = 'CAMPAIGN_GUIDE_STATE_V1';
   const SHOW_LEAGUE_KEY = 'EXILECOMPASS_CAMPAIGN_SHOW_LEAGUE_V1';
+  const SHOW_OPTIONAL_KEY = 'EXILECOMPASS_CAMPAIGN_SHOW_OPTIONAL_V1';
 
   let guideState = $state<GuideState>({
     expandedActs: new SvelteSet<number>(),
@@ -34,6 +35,13 @@
   // Hides steps/tips tied to the current league mechanic once it goes stale.
   // Defaults to shown so nothing disappears silently on upgrade.
   let showLeagueMechanics = $state(true);
+  // Optional (non-league) objectives: shown and walked by Next/Undo while on.
+  let showOptional = $state(true);
+
+  function isVisibleObjective(o: { optional?: boolean; league?: boolean }): boolean {
+    if (o.league) return showLeagueMechanics;
+    return !o.optional || showOptional;
+  }
 
   onMount(() => {
     campaignProgress.load();
@@ -50,6 +58,8 @@
     }
     const savedShowLeague = window.localStorage.getItem(SHOW_LEAGUE_KEY);
     if (savedShowLeague !== null) showLeagueMechanics = savedShowLeague === 'true';
+    const savedShowOptional = window.localStorage.getItem(SHOW_OPTIONAL_KEY);
+    if (savedShowOptional !== null) showOptional = savedShowOptional === 'true';
   });
 
   function saveState() {
@@ -64,6 +74,11 @@
   function toggleShowLeagueMechanics(value: boolean) {
     showLeagueMechanics = value;
     window.localStorage.setItem(SHOW_LEAGUE_KEY, String(value));
+  }
+
+  function toggleShowOptional(value: boolean) {
+    showOptional = value;
+    window.localStorage.setItem(SHOW_OPTIONAL_KEY, String(value));
   }
 
   function toggleAct(actNumber: number) {
@@ -173,12 +188,11 @@
 <div class="campaign-guide">
   <div class="guide-header ec-panel">
     <div class="guide-title">
-      <h3>{m.campaign_guide_title()}</h3>
-      <span class="game-tag game-tag-poe2">{m.game_switch_poe2()}</span>
       {#if activeCharacter.current}
         {@const ch = activeCharacter.current}
         <span class="char-tag" title={m.campaign_character_badge_title()}>
-          {ch.name} · {ch.cls} · {m.campaign_character_level({ level: ch.level })}
+          <span class="char-name">{ch.name}</span>
+          <span class="char-meta">{ch.cls} · {m.campaign_character_level({ level: ch.level })}</span>
         </span>
       {/if}
     </div>
@@ -191,6 +205,15 @@
           onchange={(e) => toggleShowLeagueMechanics((e.currentTarget as HTMLInputElement).checked)}
         />
         <span>{m.campaign_show_league_toggle()}</span>
+      </label>
+      <label class="cfg-check" title={m.campaign_show_optional_toggle_title()}>
+        <input
+          type="checkbox"
+          class="ec-checkbox cfg-checkbox"
+          checked={showOptional}
+          onchange={(e) => toggleShowOptional((e.currentTarget as HTMLInputElement).checked)}
+        />
+        <span>{m.campaign_show_optional_toggle()}</span>
       </label>
       <label class="cfg-check" title={m.campaign_auto_progress_toggle_title()}>
         <input
@@ -211,9 +234,7 @@
   </div>
 
   {#each CAMPAIGN_DATA as act (act.number)}
-    {@const objectives = act.zones
-      .flatMap((z) => z.objectives)
-      .filter((o) => showLeagueMechanics || !o.league)}
+    {@const objectives = act.zones.flatMap((z) => z.objectives).filter(isVisibleObjective)}
     {@const progress = summarize(objectives)}
     {@const visibleTips = (act.tips ?? []).filter((t) => showLeagueMechanics || !t.league)}
     {@const isComplete = progress.status === 'complete'}
@@ -298,7 +319,7 @@
         {/if}
         <div class="zones-container">
           {#each act.zones as zone (zone.id)}
-            {@const zoneObjectives = zone.objectives.filter((o) => showLeagueMechanics || !o.league)}
+            {@const zoneObjectives = zone.objectives.filter(isVisibleObjective)}
             {#if zoneObjectives.length > 0}
             {@const zoneStatus = summarize(zoneObjectives).status}
             {@const zoneEdgeIndex = campaignAutoProgress.edgeIndexForZone(zone.id)}
@@ -570,12 +591,23 @@
   }
 
   .char-tag {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
     min-width: 0;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+  .char-name {
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    font-weight: 600;
+    color: var(--c-primary);
+  }
+  .char-meta {
+    flex-shrink: 0;
     font-size: 10px;
-    color: color-mix(in srgb, var(--c-accent) 80%, transparent);
+    color: color-mix(in srgb, var(--c-accent) 85%, transparent);
   }
 
   .zone-header-row {
