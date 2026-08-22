@@ -19,6 +19,14 @@ use sherpa_onnx::{KeywordSpotter, KeywordSpotterConfig};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 const KWS_SAMPLE_RATE: u32 = 16000;
+const DEFAULT_KEYWORDS_THRESHOLD: f32 = 0.25;
+
+// Boost-only AGC: quiet mics get lifted toward the level the model was trained
+// on; loud ones are left alone. Slow release so gain doesn't pump between words.
+const AGC_TARGET_PEAK: f32 = 0.3;
+const AGC_MAX_GAIN: f32 = 4.0;
+const AGC_RELEASE_SECS: f32 = 3.0;
+const AGC_FLOOR: f32 = 0.01;
 
 struct LinearResampler {
     in_rate: f64,
@@ -149,7 +157,7 @@ fn kws_resource_dir(app: &AppHandle) -> Result<PathBuf, String> {
 
 /// Validates model files exist before handing paths to the FFI loader, which
 /// fails opaquely (and possibly unsafely) on a bad path.
-fn build_keyword_spotter(app: &AppHandle) -> Result<KeywordSpotter, String> {
+fn build_keyword_spotter(app: &AppHandle, keywords_threshold: Option<f32>) -> Result<KeywordSpotter, String> {
     let dir = kws_resource_dir(app)?;
     let resolved = |name: &str| -> Result<String, String> {
         let p = dir.join(name);
@@ -166,8 +174,9 @@ fn build_keyword_spotter(app: &AppHandle) -> Result<KeywordSpotter, String> {
     config.model_config.tokens = Some(resolved("tokens.txt")?);
     config.model_config.provider = Some("cpu".to_string());
     config.keywords_file = Some(resolved("keywords.txt")?);
-    // Raised because some phrases share a prefix (e.g. skill1/skill1supports).
-    config.num_trailing_blanks = 6;
+    // Each extra blank is ~40 ms of confirmation silence after the phrase.
+    config.num_trailing_blanks = 3;
+    config.keywords_threshold = keywords_threshold.unwrap_or(DEFAULT_KEYWORDS_THRESHOLD).clamp(0.05, 0.9);
 
     KeywordSpotter::create(&config).ok_or_else(|| "Failed to create keyword spotter".to_string())
 }
@@ -205,6 +214,7 @@ pub async fn voice_start_listening(
     app: AppHandle,
     state: State<'_, VoiceState>,
     device_name: Option<String>,
+    keywords_threshold: Option<f32>,
 ) -> Result<(), String> {
     if state.stop_tx.lock().unwrap().is_some() {
         return Ok(()); // already running
@@ -214,7 +224,7 @@ pub async fn voice_start_listening(
     let (stop_tx, stop_rx) = mpsc::channel::<()>();
     let app_handle = app.clone();
     std::thread::spawn(move || {
-        run_listening_thread(app_handle, device_name, ready_tx, stop_rx);
+        run_listening_thread(app_handle, device_name, keywords_threshold, ready_tx, stop_rx);
     });
 
     let ready = tauri::async_runtime::spawn_blocking(move || ready_rx.recv())
@@ -242,12 +252,13 @@ struct AudioChunk {
 fn run_listening_thread(
     app: AppHandle,
     device_name: Option<String>,
+    keywords_threshold: Option<f32>,
     ready_tx: mpsc::Sender<Result<(), String>>,
     stop_rx: mpsc::Receiver<()>,
 ) {
     // catch_unwind only guards against Rust panics, not a C++/FFI-level fault in sherpa-onnx.
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        run_listening_thread_inner(&app, device_name, &ready_tx, &stop_rx)
+        run_listening_thread_inner(&app, device_name, keywords_threshold, &ready_tx, &stop_rx)
     }));
     if let Err(_) = result {
         let _ = ready_tx.send(Err("Voice listening crashed (see logs)".to_string()));
@@ -258,10 +269,11 @@ fn run_listening_thread(
 fn run_listening_thread_inner(
     app: &AppHandle,
     device_name: Option<String>,
+    keywords_threshold: Option<f32>,
     ready_tx: &mpsc::Sender<Result<(), String>>,
     stop_rx: &mpsc::Receiver<()>,
 ) {
-    let kws = match build_keyword_spotter(app) {
+    let kws = match build_keyword_spotter(app, keywords_threshold) {
         Ok(k) => k,
         Err(e) => {
             let _ = ready_tx.send(Err(e));
@@ -356,26 +368,34 @@ where
     f32: FromSample<T>,
 {
     let channels = stream_config.channels as usize;
+    let capture_rate = stream_config.sample_rate.0 as f32;
     let mut resampler = LinearResampler::new(stream_config.sample_rate.0, KWS_SAMPLE_RATE);
+    let mut envelope = 0f32;
+    let mut gain = 1f32;
     let data_callback = move |data: &[T], _: &cpal::InputCallbackInfo| {
         let mut samples = Vec::with_capacity(data.len() / channels.max(1) + 1);
-        let mut sum_sq = 0f32;
         if channels <= 1 {
-            for &s in data {
-                let f: f32 = f32::from_sample(s);
-                sum_sq += f * f;
-                samples.push(f);
-            }
+            samples.extend(data.iter().map(|&s| f32::from_sample(s)));
         } else {
             for frame in data.chunks(channels) {
                 let sum: f32 = frame.iter().map(|&s| f32::from_sample(s)).sum();
-                let f = sum / frame.len() as f32;
-                sum_sq += f * f;
-                samples.push(f);
+                samples.push(sum / frame.len() as f32);
             }
         }
         if samples.is_empty() {
             return;
+        }
+        let peak = samples.iter().fold(0f32, |m, s| m.max(s.abs()));
+        let release = (-(samples.len() as f32) / (AGC_RELEASE_SECS * capture_rate)).exp();
+        envelope = peak.max(envelope * release);
+        if envelope > AGC_FLOOR {
+            let target = (AGC_TARGET_PEAK / envelope).clamp(1.0, AGC_MAX_GAIN);
+            gain += (target - gain) * 0.2;
+        }
+        let mut sum_sq = 0f32;
+        for s in &mut samples {
+            *s = (*s * gain).clamp(-1.0, 1.0);
+            sum_sq += *s * *s;
         }
         let rms = (sum_sq / samples.len() as f32).sqrt().min(1.0);
         let resampled = resampler.process(&samples);

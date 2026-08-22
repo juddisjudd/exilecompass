@@ -12,6 +12,18 @@ import type { VoicePhrase } from './voicePhrases';
 
 const ENABLED_KEY = 'EXILECOMPASS_VOICE_ENABLED_V1';
 const INPUT_DEVICE_KEY = 'EXILECOMPASS_VOICE_INPUT_DEVICE_V1';
+const SENSITIVITY_KEY = 'EXILECOMPASS_VOICE_SENSITIVITY_V1';
+export const VOICE_SENSITIVITY_MIN = 1;
+export const VOICE_SENSITIVITY_MAX = 8;
+const VOICE_SENSITIVITY_DEFAULT = 5;
+
+/** dBFS range the Settings meter spans, and the band normal speech should
+ *  land in after the capture-side AGC (voice.rs) has done its lifting. */
+export const VOICE_METER_FLOOR_DB = -60;
+export const VOICE_METER_TARGET_DB: readonly [number, number] = [-30, -12];
+const METER_RELEASE_DB_PER_TICK = 6;
+const PEAK_HOLD_MS = 1500;
+const PEAK_FALL_DB_PER_TICK = 2;
 /** Set just before the startup auto-start, cleared once it returns. Found
  *  still set on the next launch ⇒ starting the listener took the whole app
  *  down (a native crash never reaches our catch), so don't retry blindly. */
@@ -31,8 +43,12 @@ let _phrases = $state<VoicePhrase[]>([]);
 let _enabled = $state(false);
 let _listening = $state(false);
 let _micLevel = $state(0);
+let _meterDb = $state(VOICE_METER_FLOOR_DB);
+let _peakDb = $state(VOICE_METER_FLOOR_DB);
+let _peakHoldUntil = 0;
 let _inputDevices = $state<string[]>([]);
 let _selectedDevice = $state<string | null>(null);
+let _sensitivity = $state(VOICE_SENSITIVITY_DEFAULT);
 let _recentlyDetected = $state(false);
 let _lastDetectedPhrase = $state<VoicePhrase | null>(null);
 let _error = $state('');
@@ -50,9 +66,15 @@ export const voiceState = {
    *  even being picked up" signal, independent of whether anything's
    *  actually being recognized. */
   get micLevel() { return _micLevel; },
+  /** Smoothed level in dBFS (fast attack, slow release) for the Settings meter. */
+  get meterDb() { return _meterDb; },
+  /** Peak-hold marker in dBFS. */
+  get peakDb() { return _peakDb; },
   get inputDevices() { return _inputDevices; },
   /** null = OS default device. */
   get selectedDevice() { return _selectedDevice; },
+  /** 1 (strict) … 8 (eager); maps onto sherpa's keywords_threshold. */
+  get sensitivity() { return _sensitivity; },
   /** True for a couple seconds right after a phrase fires — drives the
    *  footer indicator's red→green pulse. */
   get recentlyDetected() { return _recentlyDetected; },
@@ -97,11 +119,57 @@ export function setVoiceInputDevice(name: string | null) {
   else window.localStorage.removeItem(INPUT_DEVICE_KEY);
 }
 
+// ── Sensitivity ───────────────────────────────────────────────────────────────
+
+function clampSensitivity(value: number): number {
+  if (!Number.isFinite(value)) return VOICE_SENSITIVITY_DEFAULT;
+  return Math.min(VOICE_SENSITIVITY_MAX, Math.max(VOICE_SENSITIVITY_MIN, Math.round(value)));
+}
+
+export function loadVoiceSensitivity(): number {
+  const raw = window.localStorage.getItem(SENSITIVITY_KEY);
+  _sensitivity = raw === null ? VOICE_SENSITIVITY_DEFAULT : clampSensitivity(Number(raw));
+  return _sensitivity;
+}
+
+/** Persists only — call restartVoiceListening() once the user lets go of the
+ *  slider, since the threshold is baked into the spotter at start. */
+export function setVoiceSensitivity(value: number) {
+  _sensitivity = clampSensitivity(value);
+  window.localStorage.setItem(SENSITIVITY_KEY, String(_sensitivity));
+}
+
+// 5 → sherpa's 0.25 default; each step is 0.05 of threshold.
+function keywordsThreshold(): number {
+  return 0.5 - 0.05 * _sensitivity;
+}
+
 /** Called from the `voice-recording-level` Tauri event (name kept from
  *  before this became a listening-time meter rather than a recording-time
  *  one — see voice.rs). */
 export function setVoiceMicLevel(level: number) {
   _micLevel = level;
+  const db = level > 0 ? Math.max(VOICE_METER_FLOOR_DB, 20 * Math.log10(level)) : VOICE_METER_FLOOR_DB;
+  _meterDb = db >= _meterDb ? db : Math.max(db, _meterDb - METER_RELEASE_DB_PER_TICK);
+  const now = performance.now();
+  if (db >= _peakDb) {
+    _peakDb = db;
+    _peakHoldUntil = now + PEAK_HOLD_MS;
+  } else if (now > _peakHoldUntil) {
+    _peakDb = Math.max(db, _peakDb - PEAK_FALL_DB_PER_TICK);
+  }
+}
+
+/** 0–100 position of a dBFS value on the Settings meter. */
+export function voiceMeterPct(db: number): number {
+  const clamped = Math.min(0, Math.max(VOICE_METER_FLOOR_DB, db));
+  return ((clamped - VOICE_METER_FLOOR_DB) / -VOICE_METER_FLOOR_DB) * 100;
+}
+
+function resetMeter() {
+  _micLevel = 0;
+  _meterDb = VOICE_METER_FLOOR_DB;
+  _peakDb = VOICE_METER_FLOOR_DB;
 }
 
 export async function loadVoicePhrases(): Promise<VoicePhrase[]> {
@@ -114,7 +182,7 @@ export async function loadVoicePhrases(): Promise<VoicePhrase[]> {
 export async function startVoiceListening(): Promise<void> {
   _error = '';
   try {
-    await invoke('voice_start_listening', { deviceName: _selectedDevice });
+    await invoke('voice_start_listening', { deviceName: _selectedDevice, keywordsThreshold: keywordsThreshold() });
     _listening = true;
   } catch (e) {
     _error = String(e);
@@ -126,14 +194,14 @@ export async function startVoiceListening(): Promise<void> {
 export async function stopVoiceListening(): Promise<void> {
   await invoke('voice_stop_listening');
   _listening = false;
-  _micLevel = 0;
+  resetMeter();
 }
 
 /** Called from the `voice-listening-stopped` Tauri event so the indicator
  *  stays honest if the backend thread stops itself. */
 export function markVoiceListeningStopped() {
   _listening = false;
-  _micLevel = 0;
+  resetMeter();
 }
 
 /** Called from the `voice-command` Tauri event — records which phrase fired
@@ -153,6 +221,7 @@ export function markVoiceCommandDetected(phrase: VoicePhrase) {
  *  preference is switched off and `disabledAfterCrash` explains why. */
 export async function applyVoiceEnabledOnStartup(): Promise<void> {
   loadVoiceEnabled();
+  loadVoiceSensitivity();
   await loadVoiceInputDevices();
   await loadVoicePhrases();
   if (!_enabled) return;
@@ -192,10 +261,12 @@ export async function toggleVoiceEnabled(): Promise<void> {
   await setVoiceEnabled(!_listening);
 }
 
-/** Re-apply the (possibly just-changed) selected input device to a live
- *  listening session — stop/start, since the stream is built once at start. */
-export async function restartVoiceListeningForDeviceChange(): Promise<void> {
+/** Re-apply a changed device/sensitivity to a live listening session —
+ *  stop/start, since both are baked in at start. No-op when not listening. */
+export async function restartVoiceListening(): Promise<void> {
   if (!_listening) return;
   await stopVoiceListening();
   await startVoiceListening();
 }
+
+export const restartVoiceListeningForDeviceChange = restartVoiceListening;

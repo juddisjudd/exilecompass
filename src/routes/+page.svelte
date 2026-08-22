@@ -70,6 +70,12 @@
     VOICE_PHRASE_EXAMPLES,
     setVoiceInputDevice,
     restartVoiceListeningForDeviceChange,
+    restartVoiceListening,
+    setVoiceSensitivity,
+    VOICE_SENSITIVITY_MIN,
+    VOICE_SENSITIVITY_MAX,
+    VOICE_METER_TARGET_DB,
+    voiceMeterPct,
     type VoicePhrase,
   } from '$lib/voice.svelte';
   import { VOICE_GROUP_ORDER, VOICE_GROUP_LABEL_KEYS, VOICE_PHRASE_LABEL_KEYS } from '$lib/voicePhrases';
@@ -296,6 +302,9 @@
   // ── Voice commands ─────────────────────────────────────────────────────────
 
   let voiceStarting = $state(false);
+  const VU_TARGET_LO = voiceMeterPct(VOICE_METER_TARGET_DB[0]);
+  const VU_TARGET_HI = voiceMeterPct(VOICE_METER_TARGET_DB[1]);
+  const VU_TICKS = [-60, -50, -40, -30, -20, -10, 0];
 
   async function handleVoiceEnabledChange(checked: boolean) {
     voiceStarting = checked;
@@ -1913,9 +1922,6 @@
               {/if}
               {#if voiceState.listening}
                 <p class="voice-listening-indicator">🎙 {m.voice_listening_active()}</p>
-                <div class="voice-level-meter" role="meter" aria-label={m.voice_input_level_label()} aria-valuenow={Math.round(voiceState.micLevel * 100)} aria-valuemin={0} aria-valuemax={100}>
-                  <div class="voice-level-meter-fill" style="width:{Math.min(100, voiceState.micLevel * 220)}%"></div>
-                </div>
               {/if}
               {#if voiceState.error}
                 <p class="inline-error">{voiceState.error}</p>
@@ -1934,6 +1940,49 @@
                 {/each}
               </select>
               <p class="field-help">{m.voice_input_device_help()}</p>
+
+              <div class="settings-section-title" style="margin-top:12px">{m.voice_sensitivity_title()}</div>
+              <div class="ct-slider-row">
+                <input
+                  type="range"
+                  class="ct-slider"
+                  min={VOICE_SENSITIVITY_MIN}
+                  max={VOICE_SENSITIVITY_MAX}
+                  step="1"
+                  value={voiceState.sensitivity}
+                  oninput={(e) => setVoiceSensitivity(parseInt((e.currentTarget as HTMLInputElement).value, 10))}
+                  onchange={() => { void restartVoiceListening(); }}
+                  style="--pct:{Math.round((voiceState.sensitivity - VOICE_SENSITIVITY_MIN) / (VOICE_SENSITIVITY_MAX - VOICE_SENSITIVITY_MIN) * 100)}"
+                  aria-label={m.voice_sensitivity_title()}
+                />
+                <span class="ct-slider-val">{voiceState.sensitivity}/{VOICE_SENSITIVITY_MAX}</span>
+              </div>
+              <p class="field-help">{m.voice_sensitivity_help()}</p>
+
+              <div class="settings-section-title" style="margin-top:12px">{m.voice_meter_title()}</div>
+              <div
+                class="vu"
+                class:idle={!voiceState.listening}
+                role="meter"
+                aria-label={m.voice_input_level_label()}
+                aria-valuenow={Math.round(voiceState.meterDb)}
+                aria-valuemin={-60}
+                aria-valuemax={0}
+              >
+                <div class="vu-track">
+                  <div class="vu-cover" style="left:{voiceMeterPct(voiceState.meterDb)}%"></div>
+                  <div class="vu-peak" style="left:{voiceMeterPct(voiceState.peakDb)}%"></div>
+                  <div class="vu-target" style="left:{VU_TARGET_LO}%; width:{VU_TARGET_HI - VU_TARGET_LO}%">
+                    <span class="vu-target-label">{m.voice_meter_target()}</span>
+                  </div>
+                </div>
+                <div class="vu-scale" aria-hidden="true">
+                  {#each VU_TICKS as db (db)}
+                    <span class="vu-tick" style="left:{voiceMeterPct(db)}%">{db}</span>
+                  {/each}
+                </div>
+              </div>
+              <p class="field-help">{voiceState.listening ? m.voice_meter_help() : m.voice_meter_idle()}</p>
 
               <div class="settings-section-title" style="margin-top:16px">{m.voice_phrases_title()}</div>
               <p class="field-help">{m.voice_phrases_help()}</p>
@@ -2642,6 +2691,7 @@
         aria-pressed={voiceState.listening}
         disabled={voiceStarting}
         title={voiceState.listening ? m.voice_toggle_on_title() : m.voice_toggle_off_title()}
+        style="--lvl:{voiceState.listening ? Math.min(1, voiceState.micLevel * 3) : 0}"
         onclick={handleVoiceToggle}
       >
         <span class="footer-voice-dot" aria-hidden="true"></span>
@@ -2930,6 +2980,13 @@
     opacity: 1;
     animation: voice-pulse-dot 1.2s ease-in-out infinite;
   }
+  /* Live mic level: the icon swells and glows with input so "it hears me" is
+     visible before any phrase is recognized. */
+  .footer-voice-toggle.on .footer-voice-icon {
+    transform: scale(calc(1 + var(--lvl, 0) * 0.45));
+    filter: drop-shadow(0 0 calc(var(--lvl, 0) * 4px) currentColor);
+    transition: transform 0.08s linear, filter 0.08s linear;
+  }
   @keyframes voice-pulse-bg {
     0%, 100% { background: color-mix(in srgb, var(--c-red) 20%, var(--c-bg)); }
     50% { background: color-mix(in srgb, var(--c-red) 42%, var(--c-bg)); }
@@ -3152,17 +3209,87 @@
     margin-top: 4px;
   }
 
-  .voice-level-meter {
-    height: 6px;
-    background: color-mix(in srgb, var(--c-mid) 80%, transparent);
-    border: 1px solid color-mix(in srgb, var(--c-accent) 25%, transparent);
+  /* dBFS meter: the gradient is fixed to the scale (green through the target
+     band, orange from -12 dB, red near 0) and a dark cover slides over the
+     unfilled part, so colors always mean the same level. */
+  .vu {
+    margin-top: 6px;
+  }
+  .vu-track {
+    position: relative;
+    height: 16px;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent);
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--c-success) 45%, var(--c-bg)) 0%,
+      var(--c-success) 50%,
+      var(--c-success) 80%,
+      var(--c-warning-deep) 87%,
+      var(--c-warning-deep) 93%,
+      var(--c-red-bright) 100%
+    );
     overflow: hidden;
   }
-  .voice-level-meter-fill {
-    height: 100%;
-    background: var(--c-success);
-    /* Fast response to actually feel "live" rather than smoothed/laggy. */
-    transition: width 0.05s linear;
+  .vu-cover {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    background: color-mix(in srgb, var(--c-bg) 88%, transparent);
+    transition: left 0.05s linear;
+  }
+  .vu-peak {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--c-primary);
+    transition: left 0.05s linear;
+  }
+  .vu-target {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1px dashed color-mix(in srgb, var(--c-primary) 75%, transparent);
+    border-right: 1px dashed color-mix(in srgb, var(--c-primary) 75%, transparent);
+    pointer-events: none;
+  }
+  .vu-target-label {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: color-mix(in srgb, var(--c-primary) 90%, transparent);
+    text-shadow: 0 0 3px var(--c-bg);
+  }
+  .vu-scale {
+    position: relative;
+    height: 11px;
+    margin-top: 2px;
+  }
+  .vu-tick {
+    position: absolute;
+    transform: translateX(-50%);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    line-height: 1;
+    color: color-mix(in srgb, var(--c-accent) 70%, transparent);
+  }
+  .vu-tick:first-child {
+    transform: none;
+  }
+  .vu-tick:last-child {
+    transform: translateX(-100%);
+  }
+  .vu.idle .vu-track {
+    opacity: 0.45;
   }
 
   /* Theme picker (Settings → Appearance) */
