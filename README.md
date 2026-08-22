@@ -9,7 +9,9 @@ time your runs, and keep your build's gems and gear one glance away. You can
 drive all of it with your voice. It runs in a compact window that floats over
 the game.
 
-<img width="1368" height="576" alt="exile-compass-new" src="https://github.com/user-attachments/assets/819103a2-7d46-4a3c-b230-a9c4d15b37cd" />
+<img height="523" alt="exilecompass_poe2_guide" src="https://github.com/user-attachments/assets/c4e33c92-038b-4eba-8b6d-08da1f1ae218" /> <img height="523" alt="exilecompass_poe1_guide" src="https://github.com/user-attachments/assets/f1d769dd-7069-47f3-8b06-4af7a8ba9d95" />
+
+
 
 [Download the latest release »](https://github.com/juddisjudd/exilecompass/releases/latest)
 
