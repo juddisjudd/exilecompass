@@ -119,6 +119,13 @@ async function main() {
 // The host runs your bundled panel inside a sandboxed iframe and calls the
 // default-exported \`mount(ctx)\` once the panel is shown.
 
+export type AddonGame = 'poe1' | 'poe2';
+
+export interface AddonFetchResponse {
+  status: number;
+  body: string;
+}
+
 export interface AddonHost {
   /**
    * Per-addon key/value storage, persisted by the host and namespaced to this
@@ -127,6 +134,23 @@ export interface AddonHost {
   storage: {
     get(key: string): Promise<string | null>;
     set(key: string, value: string): Promise<void>;
+  };
+  /**
+   * HTTPS GET performed by the host (the sandboxed iframe has an opaque
+   * origin, so APIs without CORS headers are unreachable from it). The URL
+   * hostname must be covered by a \`network.fetch:<host>\` permission.
+   * Absent on ExileCompass versions before 1.4.0.
+   */
+  net?: {
+    fetch(url: string): Promise<AddonFetchResponse>;
+  };
+  /**
+   * Which game the overlay targets (the footer PoE1/PoE2 switch). Requires
+   * \`game.read\`. Absent on ExileCompass versions before 1.4.0.
+   */
+  game?: {
+    get(): Promise<AddonGame>;
+    onChange(cb: (game: AddonGame) => void): () => void;
   };
 }
 

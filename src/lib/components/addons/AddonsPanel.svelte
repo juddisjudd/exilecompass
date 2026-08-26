@@ -2,6 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { persistGet, persistSet } from '$lib/persist';
   import { loadStoredBuild, BUILD_CHANGED_EVENT } from '$lib/pob';
+  import { gameMode } from '$lib/gameMode.svelte';
   import type { InstalledAddon } from '$lib/plugins/host.svelte';
 
   interface Props {
@@ -25,6 +26,24 @@
   // Namespaced, per-addon storage key so add-ons can't read each other's data.
   function storageKey(id: string, key: string): string {
     return `EXILECOMPASS_ADDON_${id}__${key}`;
+  }
+
+  function httpsHost(url: string): string | null {
+    try {
+      const u = new URL(url);
+      return u.protocol === 'https:' ? u.hostname.toLowerCase() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // `network.fetch:poe.ninja` covers poe.ninja and its subdomains.
+  function fetchAllowed(permissions: string[], host: string): boolean {
+    return permissions.some((p) => {
+      if (!p.startsWith('network.fetch:')) return false;
+      const allowed = p.slice('network.fetch:'.length).toLowerCase();
+      return host === allowed || host.endsWith(`.${allowed}`);
+    });
   }
 
   // Sandboxed bootstrap document. `allow-scripts` WITHOUT `allow-same-origin`
@@ -57,6 +76,7 @@
     });
   }
   const buildChangeCbs = new Set();
+  const gameChangeCbs = new Set();
   const host = {
     storage: {
       get: (key) => rpc('storage.get', { key: String(key) }),
@@ -70,6 +90,17 @@
         if (typeof cb !== 'function') return () => {};
         buildChangeCbs.add(cb);
         return () => { buildChangeCbs.delete(cb); };
+      },
+    },
+    net: {
+      fetch: (url) => rpc('net.fetch', { url: String(url) }),
+    },
+    game: {
+      get: () => rpc('game.get'),
+      onChange: (cb) => {
+        if (typeof cb !== 'function') return () => {};
+        gameChangeCbs.add(cb);
+        return () => { gameChangeCbs.delete(cb); };
       },
     },
   };
@@ -86,6 +117,8 @@
     if (d.__ec === 'event') {
       if (d.name === 'builds.changed')
         for (const cb of buildChangeCbs) { try { cb(d.build ?? null); } catch (_) {} }
+      if (d.name === 'game.changed')
+        for (const cb of gameChangeCbs) { try { cb(d.game); } catch (_) {} }
       return;
     }
     if (d.__ec === 'init') {
@@ -151,6 +184,16 @@
             return reply(undefined, 'permission denied: builds.read');
           // Read-only snapshot of the player's active imported build (or null).
           reply(loadStoredBuild());
+        } else if (d.method === 'net.fetch') {
+          const url = String(d.params?.url ?? '');
+          const host = httpsHost(url);
+          if (!host || !fetchAllowed(cur.permissions, host))
+            return reply(undefined, `permission denied: network.fetch:${host ?? 'invalid url'}`);
+          reply(await invoke<{ status: number; body: string }>('addons_fetch_text', { url }));
+        } else if (d.method === 'game.get') {
+          if (!cur.permissions.includes('game.read'))
+            return reply(undefined, 'permission denied: game.read');
+          reply(gameMode.current);
         } else {
           reply(undefined, `unknown host method: ${d.method}`);
         }
@@ -178,6 +221,14 @@
     };
     window.addEventListener(BUILD_CHANGED_EVENT, onBuildChange);
     return () => window.removeEventListener(BUILD_CHANGED_EVENT, onBuildChange);
+  });
+
+  // Tell a panel that follows the footer game switch when it flips.
+  $effect(() => {
+    const game = gameMode.current;
+    const cur = addon;
+    if (!cur?.enabled || !cur.permissions.includes('game.read')) return;
+    iframeEl?.contentWindow?.postMessage({ __ec: 'event', name: 'game.changed', game }, '*');
   });
 
   // (Re)load the panel bundle whenever the active, enabled addon changes.

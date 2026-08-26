@@ -1372,6 +1372,42 @@ async fn fetch_pobb_code(build_id: String) -> Result<String, String> {
     response.text().await.map_err(|e| e.to_string())
 }
 
+#[derive(serde::Serialize)]
+struct AddonFetchResponse {
+    status: u16,
+    body: String,
+}
+
+/// Plain HTTPS GET for an add-on panel. Sandboxed panels have an opaque
+/// origin, so any API without CORS headers (poe.ninja, …) is unreachable from
+/// them; the Svelte bridge checks the add-on's `network.fetch:<host>`
+/// permission before calling this. No redirects, so a permitted host can't
+/// bounce the request somewhere else.
+#[tauri::command]
+async fn addons_fetch_text(url: String) -> Result<AddonFetchResponse, String> {
+    if !url.starts_with("https://") {
+        return Err("Only https:// URLs are allowed".to_string());
+    }
+    let client = reqwest::Client::builder()
+        .user_agent(concat!(
+            "ExileCompass/",
+            env!("CARGO_PKG_VERSION"),
+            " (https://github.com/juddisjudd/exilecompass)"
+        ))
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {e}"))?;
+    let status = response.status().as_u16();
+    let body = response.text().await.map_err(|e| e.to_string())?;
+    Ok(AddonFetchResponse { status, body })
+}
+
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 /// Return the current game window info (for whichever game is active) without attaching.
@@ -1759,6 +1795,7 @@ pub fn run() {
             addons_install_from_registry,
             addons_read_panel,
             addons_load_registry,
+            addons_fetch_text,
             voice_list_phrases,
             voice_list_input_devices,
             voice_is_listening,
