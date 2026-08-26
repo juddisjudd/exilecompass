@@ -96,7 +96,10 @@
   }
 
   function heistLevel(name: string): { start: number; end: number } {
-    return (settings.heist.contractLevels[name] ??= { start: 0, end: 0 });
+    return settings.heist.contractLevels[name] ?? { start: 0, end: 0 };
+  }
+  function setHeistLevel(name: string, patch: Partial<{ start: number; end: number }>) {
+    settings.heist.contractLevels[name] = { ...heistLevel(name), ...patch };
   }
 
   function applyHeistPreset(preset: Record<string, { start: number; end: number }>) {
@@ -574,8 +577,8 @@
             <div class="kv">
               <span>{name}</span>
               <div class="minmax">
-                <label>Min <input type="number" min="0" max="6" value={heistLevel(name).start} oninput={(e) => (heistLevel(name).start = Number(e.currentTarget.value))} /></label>
-                <label>Max <input type="number" min="0" max="6" value={heistLevel(name).end} oninput={(e) => (heistLevel(name).end = Number(e.currentTarget.value))} /></label>
+                <label>Min <input type="number" min="0" max="6" value={heistLevel(name).start} oninput={(e) => setHeistLevel(name, { start: Number(e.currentTarget.value) })} /></label>
+                <label>Max <input type="number" min="0" max="6" value={heistLevel(name).end} oninput={(e) => setHeistLevel(name, { end: Number(e.currentTarget.value) })} /></label>
               </div>
             </div>
           {/each}
