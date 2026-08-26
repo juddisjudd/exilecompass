@@ -648,9 +648,10 @@
   /** Routes a `voice-command` detection to whatever that phrase id does.
    *  Kept as one dispatch point (rather than spread across the event
    *  listener) so it's the single place to look when adding a new phrase to
-   *  voice.rs's PHRASES registry. Navigation commands are PoE2-only — those
-   *  tabs don't exist in PoE1 mode, so they're silently ignored there rather
-   *  than erroring, matching how toggleActDecoder is PoE1-only the other way. */
+   *  voice.rs's PHRASES registry. Navigation commands resolve to the current
+   *  game's tab (campaign/leveling, build/gems); a tab only one game has
+   *  (rewards, crafting, tree) is silently ignored in the other, matching how
+   *  toggleActDecoder is PoE1-only. */
   function handleVoiceCommand(phrase: string) {
     markVoiceCommandDetected(phrase);
     switch (phrase) {
@@ -658,8 +659,14 @@
       case 'back': void GLOBAL_ACTIONS.campaignUndoLast?.(); break;
       case 'nextstep': speakNextStep(); break;
       case 'rewards': if (gameMode.current === 'poe2') mainView = 'rewards'; break;
-      case 'campaign': if (gameMode.current === 'poe2') mainView = 'campaign'; break;
-      case 'build': if (gameMode.current === 'poe2') mainView = 'build'; break;
+      case 'campaign':
+      case 'leveling': mainView = gameMode.current === 'poe1' ? 'leveling' : 'campaign'; break;
+      case 'build': mainView = gameMode.current === 'poe1' ? 'gems' : 'build'; break;
+      case 'gems': if (gameMode.current === 'poe1') mainView = 'gems'; break;
+      case 'tree': if (gameMode.current === 'poe1') mainView = 'tree'; break;
+      case 'stash': mainView = 'stash'; break;
+      case 'crafting': if (gameMode.current === 'poe2') mainView = 'crafting'; break;
+      case 'addons': mainView = 'addons'; break;
       case 'timer': mainView = 'timer'; break;
       case 'skill1': speakNthSkill(1); break;
       case 'skill2': speakNthSkill(2); break;

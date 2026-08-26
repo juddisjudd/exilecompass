@@ -5,6 +5,16 @@
 ▁COMP AS S ▁RE WARD S @rewards
 ▁COMP AS S ▁CA M P A IG N @campaign
 ▁COMP AS S ▁BUILD @build
+▁COMP AS S ▁LE VE L ING @leveling
+▁COMP AS S ▁GU ID E @campaign
+▁COMP AS S ▁G E M S @gems
+▁COMP AS S ▁T RE E @tree
+▁COMP AS S ▁PA S S IVE ▁T RE E @tree
+▁COMP AS S ▁STA SH @stash
+▁COMP AS S ▁RE GE X @stash
+▁COMP AS S ▁C RA F T ING @crafting
+▁COMP AS S ▁A D D ▁ON S @addons
+▁COMP AS S ▁A D D ON S @addons
 ▁COMP AS S ▁FIRST ▁S K I LL @skill1
 ▁COMP AS S ▁SECOND ▁S K I LL @skill2
 ▁COMP AS S ▁TH IR D ▁S K I LL @skill3

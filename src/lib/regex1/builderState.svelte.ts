@@ -293,6 +293,7 @@ export async function deleteFavorite1(id: number): Promise<void> {
 // re-selected as individual checkboxes.
 export function applyFavorite1(fav: Favorite): void {
   _category = fav.category;
+  void ensureLoaded(fav.category);
   const fresh = defaultSettings();
   const catSettings = fresh[fav.category];
   catSettings.resultSettings.customText = fav.regex;
