@@ -1,4 +1,4 @@
-// Ported from poe-vendor-string's src/pages/item/ItemOuput.ts (the live
+// Ported from poe.re's poe/src/pages/item/ItemOuput.ts (the live
 // `/items` tool — the legacy `/items-old` MagicItem.tsx path is not ported,
 // see the PoE1 regex research notes). Mods are looked up by the composite key
 // `${baseType}-${category}-${desc}` (upstream's `affixMap`), scoped to the

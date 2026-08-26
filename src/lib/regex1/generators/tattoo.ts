@@ -1,4 +1,4 @@
-// Simplified port of poe-vendor-string's Tattoo tool: upstream is entirely
+// Simplified port of poe.re's Tattoo tool: upstream is entirely
 // price-driven (min/max chaos value, no manual picker at all — see PoE1 regex
 // research notes). ExileCompass has no live-pricing pipeline, so this is
 // manual multi-select instead — OR the selected tattoos' regex fragments,

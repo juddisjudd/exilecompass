@@ -1,4 +1,4 @@
-// Ported verbatim from poe-vendor-string's src/pages/heist/Heist.tsx generator
+// Ported verbatim from poe.re's poe/src/pages/heist/Heist.tsx generator
 // functions. Heist emits real regex metacharacters unquoted (`.*`, `[3-5]`) —
 // a different quoting philosophy than Vendor/Expedition's literal-substring
 // approach, so don't reuse those categories' quoting helpers here.

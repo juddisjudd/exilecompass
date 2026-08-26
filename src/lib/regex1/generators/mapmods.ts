@@ -1,5 +1,5 @@
-// Ported from poe-vendor-string's src/pages/maps/OptimizedMapOutput.ts +
-// src/utils/regex/OptimizeRegexResult.ts. Only the ENGLISH MapStaticStatRegex
+// Ported from poe.re's poe/src/pages/maps/OptimizedMapOutput.ts +
+// poe/src/utils/regex/OptimizeRegexResult.ts. Only the ENGLISH MapStaticStatRegex
 // fragments are ported (see PoE1 regex research notes — every other language
 // there is either an untranslated copy of English or, for the map-mod tokens
 // themselves, not bundled by this app at all).
@@ -12,12 +12,14 @@ const STATIC = {
   packsize: 'iz.*',
   mapdrop: 're maps.*',
   itemrarity: 'm rar.*',
+  currency: 'cy:.*',
+  scarab: 'sca.*',
   quality_regular: 'ty \\(Quantity\\):.*',
-  quality_currency: 'urr.*',
+  quality_currency: '\\(Curr.*',
   quality_divination: 'div.*',
   quality_rarity: 'ty\\).*',
   quality_packsize: 'ze\\).*',
-  quality_scarab: 'sca.*',
+  quality_scarab: '\\(sca.*',
   rarity_prefix: 'y: ',
   rarity_normal: 'n',
   rarity_magic: 'm',
@@ -118,6 +120,19 @@ function addQuantifier(prefix: string, value: string): string {
   return `"${prefix}${value}%"`;
 }
 
+function yieldQualifier(settings: MapModsSettings): string {
+  const result = [
+    addQuantifier(STATIC.quantity, generateNumberRegex(settings.quantity, settings.optimizeQuant)),
+    addQuantifier(STATIC.packsize, generateNumberRegex(settings.packsize, settings.optimizePacksize)),
+    addQuantifier(STATIC.mapdrop, generateNumberRegex(settings.mapDropChance, settings.optimizeQuant)),
+    addQuantifier(STATIC.itemrarity, generateNumberRegex(settings.itemRarity, settings.optimizeQuant)),
+    addQuantifier(STATIC.currency, generateNumberRegex(settings.currency, settings.optimizeQuant)),
+    addQuantifier(STATIC.scarab, generateNumberRegex(settings.scarab, settings.optimizeQuant)),
+  ].filter((e) => e !== '');
+  if (!settings.anyYield || result.length === 0) return result.join(' ');
+  return `"${result.map((e) => e.slice(1, -1)).join('|')}"`;
+}
+
 function qualityQualifier(settings: MapModsSettings): string {
   const q = settings.quality;
   const result = [
@@ -169,16 +184,13 @@ function optimize(str: string): string {
 export function generateMapModRegex(settings: MapModsSettings, data: MapModsData): string {
   const exclusions = generateBadMods(settings, data);
   const inclusions = generateGoodMods(settings, data);
-  const quantity = addQuantifier(STATIC.quantity, generateNumberRegex(settings.quantity, settings.optimizeQuant));
-  const packsize = addQuantifier(STATIC.packsize, generateNumberRegex(settings.packsize, settings.optimizePacksize));
-  const mapDrop = addQuantifier(STATIC.mapdrop, generateNumberRegex(settings.mapDropChance, settings.optimizeQuant));
-  const itemRarity = addQuantifier(STATIC.itemrarity, generateNumberRegex(settings.itemRarity, settings.optimizeQuant));
+  const yields = yieldQualifier(settings);
   const quality = qualityQualifier(settings);
   const rarity = addRarityRegex(settings);
   const corrupted = corruptedMapCheck(settings);
   const unidentified = unidentifiedMap(settings);
 
-  const result = `${exclusions} ${inclusions} ${quantity} ${packsize} ${itemRarity} ${quality} ${rarity} ${mapDrop} ${corrupted} ${unidentified}`
+  const result = `${exclusions} ${inclusions} ${yields} ${quality} ${rarity} ${corrupted} ${unidentified}`
     .trim()
     .replaceAll(/\s{2,}/g, ' ');
 

@@ -1,5 +1,5 @@
-// Affix parsing + option-to-regex helpers. Ported from poe2.re
-// (src/lib/parseAffixToken.ts + src/lib/SelectedOptionRegex.ts).
+// Affix parsing + option-to-regex helpers. Ported from poe.re
+// (poe2/src/utils/parseAffixToken.ts + poe2/src/utils/SelectedOptionRegex.ts).
 
 import { generateNumberRegex } from './numberRegex';
 import type { ParsedAffix, SelectOption, Token } from './types';

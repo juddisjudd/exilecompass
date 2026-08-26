@@ -1,5 +1,5 @@
-// Shared data shapes for the PoE1 Regex tab. Ported from poe-vendor-string
-// (poe.re) — see tools/poe1-regex-source/ for the vendored originals and
+// Shared data shapes for the PoE1 Regex tab. Ported from poe.re
+// — see tools/poe1-regex-source/ for the vendored originals and
 // tools/build-poe1-regex-data.mjs for how they're converted to the JSON this
 // module's loaders fetch at runtime (static/generated/poe1/*.min.json).
 
@@ -8,6 +8,7 @@ export type Category =
   | 'items'
   | 'jewel'
   | 'mapMods'
+  | 'boat'
   | 'mapNames'
   | 'expedition'
   | 'heist'

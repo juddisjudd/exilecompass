@@ -1,4 +1,4 @@
-// Simplified port of poe-vendor-string's Bestiary tool: upstream auto-picks
+// Simplified port of poe.re's Bestiary tool: upstream auto-picks
 // the priciest beasts that fit a character budget from live poe.ninja prices
 // (see PoE1 regex research notes). ExileCompass has no live-pricing pipeline,
 // so this is manual multi-select instead — pick beasts by name, OR their

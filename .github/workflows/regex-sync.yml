@@ -1,0 +1,91 @@
+name: Regex Sync
+
+# Polls veiset/poe.re for changes to the regex data ExileCompass vendors
+# (tools/sync-regex-upstream.mjs lists the exact files). When anything
+# changed: commit the refreshed data to main, bump a patch version, tag it,
+# and dispatch release.yml on that tag so a new build ships on its own.
+# Polling, because poe.re is a third-party repo — nothing there can call us.
+#
+# Manual runs (workflow_dispatch) accept `release: false` to only commit the
+# refreshed data, with no version bump / tag / build.
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Bump a patch version and build a release when data changed'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: regex-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Full history so release.mjs can see existing tags.
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Checkout poe.re
+        uses: actions/checkout@v6
+        with:
+          repository: veiset/poe.re
+          path: upstream
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Sync regex data
+        id: sync
+        run: |
+          bun tools/sync-regex-upstream.mjs --upstream upstream
+          rm -rf upstream
+
+      # A data-only sync can still break the build if poe.re changes a shape
+      # the app's types depend on (e.g. relicData.ts) — catch it before tagging.
+      - name: Type check
+        if: steps.sync.outputs.changed == 'true'
+        run: |
+          bun install --frozen-lockfile
+          bun run check
+
+      - name: Commit
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          COMMIT: ${{ steps.sync.outputs.commit }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A tools/poe1-regex-source tools/regex-upstream.lock.json static/generated src/lib/regex/relicData.ts
+          git commit -m "Sync regex data from poe.re@${COMMIT::7}"
+
+      # release.mjs bumps + commits + tags + pushes. A tag pushed with the
+      # workflow's own token never fires release.yml's `push` trigger, so
+      # dispatch it on the new tag explicitly.
+      - name: Release
+        if: steps.sync.outputs.changed == 'true' && (github.event_name == 'schedule' || inputs.release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bun run release:tag patch
+          tag=$(git describe --tags --exact-match HEAD)
+          gh workflow run release.yml --ref "$tag"
+          echo "Dispatched release.yml for $tag"
+
+      - name: Push without releasing
+        if: steps.sync.outputs.changed == 'true' && !(github.event_name == 'schedule' || inputs.release)
+        run: git push origin HEAD

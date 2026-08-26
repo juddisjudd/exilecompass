@@ -1,4 +1,4 @@
-// Ported verbatim from poe-vendor-string's src/utils/FlaskOuput.ts.
+// Ported verbatim from poe.re's poe/src/utils/FlaskOuput.ts.
 import type { FlaskModGroup, FlaskModsData } from '../types';
 import { appendResultExtras, type FlaskSettings } from '../settings';
 

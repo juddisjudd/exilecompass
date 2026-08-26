@@ -387,9 +387,9 @@ ExileCompass builds on data and code from other community projects:
   guide is built on.
 - **[Exile-UI](https://github.com/Lailloken/Exile-UI)** (Lailloken): the
   Act-Decoder zone layout images.
-- **[poe-vendor-string](https://github.com/veiset/poe-vendor-string)** and
-  **[poe2.re](https://github.com/veiset/poe2.re)** (veiset): the PoE1 regex
-  data and the PoE2 stash-search regex builder are ported from these.
+- **[poe.re](https://github.com/veiset/poe.re)** (veiset): the PoE1 regex
+  data and the PoE2 stash-search regex builder are ported from it, and its
+  regex data is synced into ExileCompass automatically.
 - **[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)** (k2-fsa / Next-gen
   Kaldi): the offline keyword-spotting engine and model behind voice commands.
 - **[Path of Building (PoE1)](https://github.com/PathOfBuildingCommunity/PathOfBuilding)**:

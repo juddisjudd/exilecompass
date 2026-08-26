@@ -23,6 +23,7 @@
   import type { Category } from '$lib/regex/settings';
   import type { SelectOption } from '$lib/regex/types';
   import { VENDOR_OPTIONS, VENDOR_SECTIONS } from '$lib/regex/vendorOptions';
+  import { itemModKey } from '$lib/regex/generators/item';
 
   onMount(() => {
     initBuilder();
@@ -33,6 +34,8 @@
   let showSaveFav = $state(false);
   let favName = $state('');
   let affixFilter = $state('');
+  let itemBaseFilter = $state('');
+  let itemModFilter = $state('');
   // Top-level view: the four build categories, or the saved-regex library.
   let view = $state<'build' | 'favorites'>('build');
   let copiedFavId = $state<number | null>(null);
@@ -42,6 +45,7 @@
     { id: 'waystone', label: () => m.regex_cat_waystone() },
     { id: 'tablet', label: () => m.regex_cat_tablet() },
     { id: 'relic', label: () => m.regex_cat_relic() },
+    { id: 'item', label: () => m.regex_cat_item() },
   ];
 
   // A distinct accent color per group, cycled so each group (in the bar, its
@@ -109,6 +113,11 @@
     const q = affixFilter.trim().toLowerCase();
     if (!q) return list;
     return list.filter((o) => o.name.toLowerCase().includes(q));
+  }
+
+  function matchesText(text: string, query: string): boolean {
+    const q = query.trim().toLowerCase();
+    return q === '' || text.toLowerCase().includes(q);
   }
 </script>
 
@@ -229,6 +238,7 @@
       {/if}
     </div>
 
+    {#if builder.category !== 'item'}
     <!-- Group bar: same group = OR, separate groups = AND (the "AND" chips show
          this; the ? tooltip spells it out). -->
     <div class="group-bar">
@@ -260,6 +270,7 @@
         {/each}
       </div>
     {/if}
+    {/if}
 
     <!-- Options -->
     <div class="options-panel ec-panel">
@@ -271,8 +282,10 @@
         {@render waystonePanel()}
       {:else if builder.category === 'tablet'}
         {@render tabletPanel()}
-      {:else}
+      {:else if builder.category === 'relic'}
         {@render relicPanel()}
+      {:else}
+        {@render itemPanel()}
       {/if}
     </div>
 
@@ -504,6 +517,87 @@
   </div>
 {/snippet}
 
+<!-- ────────────────────────── Item (rare mods) ────────────────────────── -->
+{#snippet itemPanel()}
+  {@const s = builder.settings.item}
+  {@const data = builder.itemRegex}
+  {@const bases = builder.itemBasetypes}
+  {#if !data || !bases}
+    <span class="empty-hint">{m.regex_loading()}</span>
+  {:else}
+    {@const base = s.base}
+    {@const entry = base ? data.find((e) => e.basetype === base.baseType) : undefined}
+    <div class="opt-grid">
+      <div class="opt-group opt-group-wide">
+        <p class="group-label">Item base</p>
+        <input class="custom-input" bind:value={itemBaseFilter} placeholder="Search item base…" spellcheck="false" />
+        <div class="item-list">
+          {#each bases.flatMap((b) => b.item.map((item) => ({ baseType: b.base, item }))).filter((e) => matchesText(`${e.baseType} ${e.item}`, itemBaseFilter)) as e (e.baseType + '::' + e.item)}
+            <button
+              type="button"
+              class="item-row"
+              class:on={base?.baseType === e.baseType && base?.item === e.item}
+              onclick={() => (s.base = { baseType: e.baseType, item: e.item })}
+            >{e.item} <span class="item-sub">— {e.baseType}</span></button>
+          {/each}
+        </div>
+      </div>
+
+      {#if base && entry}
+        <div class="opt-group opt-group-wide">
+          <p class="group-label">Mods — {base.item} ({base.baseType})</p>
+          <div class="seg-row">
+            <button class="seg-btn" class:active={s.matchAnyMod} onclick={() => (s.matchAnyMod = true)} type="button">Match any</button>
+            <button class="seg-btn" class:active={!s.matchAnyMod} onclick={() => (s.matchAnyMod = false)} type="button">Match all</button>
+          </div>
+          <input class="custom-input" bind:value={itemModFilter} placeholder="Filter mods…" spellcheck="false" />
+          {#each entry.itemRegexForCategory.filter((c) => c.modCategory !== 'corrupted' && c.modCategory !== 'unique') as cat (cat.modCategory)}
+            {@const list = cat.modifiers.filter((mod) => matchesText(mod.description, itemModFilter) || mod.affixes.some((a) => matchesText(a.name, itemModFilter)))}
+            {#if list.length}
+              <p class="group-label">{cat.modCategory === 'prefix' ? 'Prefixes' : cat.modCategory === 'suffix' ? 'Suffixes' : cat.modCategory}</p>
+              <div class="item-list item-list-tall">
+                {#each list as mod (mod.description)}
+                  {@const key = itemModKey(base.baseType, cat.modCategory, mod)}
+                  {@const checked = !!s.selected[key]}
+                  {@const editable = [...mod.regexPosition.before, ...mod.regexPosition.on, ...mod.regexPosition.after]}
+                  <div class="item-mod">
+                    <label class="opt" class:on={checked}>
+                      <input type="checkbox" {checked} onchange={(e) => (s.selected[key] = e.currentTarget.checked)} />
+                      <span>{mod.description}</span>
+                    </label>
+                    {#if checked}
+                      {#if editable.length}
+                        <div class="item-vals">
+                          {#each mod.stats as stat, i (i)}
+                            {#if editable.includes(i)}
+                              <input
+                                class="item-val"
+                                type="text"
+                                placeholder={`${stat.min}-${stat.max}`}
+                                value={s.values[key]?.[i] ?? ''}
+                                oninput={(e) => ((s.values[key] ??= {})[i] = e.currentTarget.value)}
+                              />
+                            {/if}
+                          {/each}
+                        </div>
+                      {/if}
+                      <div class="item-tiers">
+                        {#each [...mod.affixes].reverse() as a, i (a.name)}
+                          <span><b>T{i + 1}</b> {a.name}</span>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
+
 <style>
   .regex-builder {
     /* Green used to flag selected/active options at a glance. */
@@ -519,7 +613,7 @@
   /* Category tabs */
   .cat-tabs {
     display: grid;
-    grid-template-columns: repeat(4, 1fr) auto;
+    grid-template-columns: repeat(5, 1fr) auto;
     gap: 3px;
     flex-shrink: 0;
   }
@@ -872,6 +966,103 @@
   }
   .opt-group-wide {
     grid-column: span 2;
+  }
+  /* Item category: base picker + per-mod value inputs (same list styling as
+     PoE1Regex's pick-list, which the grouped builder has no other use for). */
+  .seg-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-bottom: 6px;
+  }
+  .seg-btn {
+    padding: 3px 8px;
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 32%, transparent);
+    border-radius: var(--radius);
+    color: color-mix(in srgb, var(--c-accent) 88%, #fff 12%);
+    font-size: 10.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .seg-btn.active {
+    background: color-mix(in srgb, var(--c-primary) 16%, transparent);
+    border-color: color-mix(in srgb, var(--c-primary) 50%, transparent);
+    color: var(--c-primary);
+  }
+  .seg-btn:hover:not(.active) {
+    border-color: color-mix(in srgb, var(--c-accent) 50%, transparent);
+  }
+  .item-list {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: 1px;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent);
+    border-radius: var(--radius);
+    padding: 2px;
+  }
+  .item-list-tall {
+    max-height: 320px;
+  }
+  .item-row {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 4px 6px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius);
+    color: color-mix(in srgb, var(--c-accent) 92%, #fff 12%);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .item-row:hover {
+    background: color-mix(in srgb, var(--c-accent) 10%, transparent);
+  }
+  .item-row.on {
+    background: color-mix(in srgb, var(--c-success) 16%, transparent);
+    color: var(--c-on);
+    font-weight: 600;
+  }
+  .item-sub {
+    font-weight: 400;
+    font-size: 10px;
+    color: color-mix(in srgb, var(--c-accent) 70%, transparent);
+  }
+  .item-mod {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 1px 4px;
+  }
+  .item-vals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding-left: 20px;
+  }
+  .item-val {
+    width: 64px;
+    padding: 2px 5px;
+    background: color-mix(in srgb, var(--c-bg) 90%, var(--c-mid));
+    border: 1px solid color-mix(in srgb, var(--c-accent) 34%, transparent);
+    border-radius: var(--radius);
+    color: var(--c-primary);
+    font-size: 10.5px;
+    outline: none;
+  }
+  .item-tiers {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding-left: 20px;
+    font-size: 10px;
+    color: color-mix(in srgb, var(--c-accent) 75%, transparent);
   }
   .group-label {
     margin: 10px 0 3px;

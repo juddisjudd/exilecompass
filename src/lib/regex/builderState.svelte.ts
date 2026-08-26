@@ -4,10 +4,12 @@
 
 import { persistGet, persistSet } from '$lib/persist';
 import { defaultSettings, type Category, type ModGroup, type Settings } from './settings';
-import type { SelectOption } from './types';
+import type { ItemBasetype, ItemRegex, SelectOption } from './types';
 import {
   loadWaystoneAffixes,
   loadTabletAffixes,
+  loadItemRegex,
+  loadItemBasetypes,
   type WaystoneAffix,
   type TabletAffix,
 } from './loaders';
@@ -17,6 +19,7 @@ import { generateVendorRegex } from './generators/vendor';
 import { generateWaystoneRegex } from './generators/waystone';
 import { generateTabletRegex } from './generators/tablet';
 import { generateRelicRegex } from './generators/relic';
+import { generateItemRegex } from './generators/item';
 import { importRegex } from './import';
 
 export interface Favorite {
@@ -43,9 +46,11 @@ const relicOptions: { id: number; name: string; regex: string; ranges: number[][
 let _category = $state<Category>('vendor');
 let _settings = $state<Settings>(defaultSettings());
 // Active group (where new selections land) per category.
-let _activeGroup = $state<Record<Category, number>>({ vendor: 0, waystone: 0, tablet: 0, relic: 0 });
+let _activeGroup = $state<Record<Category, number>>({ vendor: 0, waystone: 0, tablet: 0, relic: 0, item: 0 });
 let _waystoneAffixes = $state<WaystoneAffix[]>([]);
 let _tabletAffixes = $state<TabletAffix[]>([]);
+let _itemRegex = $state<ItemRegex[] | null>(null);
+let _itemBasetypes = $state<ItemBasetype[] | null>(null);
 let _favorites = $state<Favorite[]>([]);
 let _loaded = $state(false);
 let _importNote = $state('');
@@ -60,6 +65,8 @@ const _result = $derived.by(() => {
       return generateTabletRegex(_settings);
     case 'relic':
       return generateRelicRegex(_settings);
+    case 'item':
+      return generateItemRegex(_settings, _itemRegex);
   }
 });
 
@@ -71,6 +78,7 @@ export const builder = {
   set category(c: Category) {
     _category = c;
     _importNote = '';
+    if (c === 'item') void ensureItemData();
   },
   get settings() {
     return _settings;
@@ -81,6 +89,12 @@ export const builder = {
   get tabletAffixes() {
     return _tabletAffixes;
   },
+  get itemRegex() {
+    return _itemRegex;
+  },
+  get itemBasetypes() {
+    return _itemBasetypes;
+  },
   get relicPrefixes() {
     return relicOptions.filter((o) => o.affix === 'PREFIX');
   },
@@ -89,7 +103,7 @@ export const builder = {
   },
   // Groups + active group for the current category.
   get groups(): ModGroup[] {
-    return _settings[_category].groups;
+    return groups();
   },
   get activeGroup() {
     return _activeGroup[_category];
@@ -133,12 +147,21 @@ export async function initBuilder(): Promise<void> {
   _loaded = true;
 }
 
+// Item data is ~1.5MB, so it only loads the first time the Item category opens.
+async function ensureItemData(): Promise<void> {
+  if (_itemRegex && _itemBasetypes) return;
+  const [regex, bases] = await Promise.all([loadItemRegex(), loadItemBasetypes()]);
+  _itemRegex = regex;
+  _itemBasetypes = bases;
+}
+
 // ── Group helpers ────────────────────────────────────────────────────────────
 // All operate on the current category's live groups (a $state proxy).
 type Template = { id?: number; name: string; regex: string; ranges: number[][] };
 
 function groups(): ModGroup[] {
-  return _settings[_category].groups;
+  const s = _settings[_category];
+  return 'groups' in s ? s.groups : [];
 }
 
 // Which group index currently holds the option with this id, or -1.
@@ -221,7 +244,7 @@ export function setArrayValue(arr: SelectOption[], id: number | undefined, value
 // not just the active one.
 export function resetAll(): void {
   _settings = defaultSettings();
-  _activeGroup = { vendor: 0, waystone: 0, tablet: 0, relic: 0 };
+  _activeGroup = { vendor: 0, waystone: 0, tablet: 0, relic: 0, item: 0 };
   _importNote = '';
 }
 
@@ -283,6 +306,7 @@ export async function deleteFavorite(id: number): Promise<void> {
 
 export function applyFavorite(fav: Favorite): void {
   _category = fav.category;
+  if (fav.category === 'item') void ensureItemData();
   const fresh = defaultSettings();
   _settings[fav.category] = fresh[fav.category] as never;
   _activeGroup[fav.category] = 0;

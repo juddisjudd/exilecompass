@@ -1,4 +1,4 @@
-// Ported verbatim from poe-vendor-string's src/pages/jewel/JewelOutput.ts.
+// Ported verbatim from poe.re's poe/src/pages/jewel/JewelOutput.ts.
 // Covers Regular + Abyss jewels only — Cluster Jewels are handled by the
 // Items category (they're itemized as ordinary basetypes there).
 import type { JewelRegex } from '../types';

@@ -86,16 +86,36 @@ function buildGroup(inner: string, affixes: Affix[], id: number): { group: ModGr
 
 const vendorByRegex = (r: string) => VENDOR_OPTIONS.find((o) => o.regex === r);
 
+// Resistance fragments by two-letter key: poe.re's current `re res` form and
+// its pre-Aug-2026 `fi.+res` form, so strings saved before the change still import.
+const RES: Record<string, string> = {
+  fi: 're res', re: 're res',
+  co: 'ld res', ld: 'ld res',
+  li: 'ng res', ng: 'ng res',
+  ch: 'os res', os: 'os res',
+};
+const LEGACY: Record<string, string> = {
+  'fi.+res': 're res',
+  'co.+res': 'ld res',
+  'li.+res': 'ng res',
+  'ch.+res': 'os res',
+  spiri: 'o sp',
+  '\\d.+life': '\\d.+m life',
+};
+
 // Decompose a vendor fragment into the atomic option regexes it represents
-// (handles poe2.re's merged forms like `(fi|co).+res`, `y: (r|m)`, `\d+% i.+mov`).
+// (handles poe.re's merged forms like `(re|ld) res`, `y: (r|m)`, `\d+% i.+mov`).
 // Returns null when the shape isn't recognised as a vendor fragment.
 function decodeVendorFrag(frag: string): string[] | null {
   if (vendorByRegex(frag)) return [frag];
+  if (LEGACY[frag]) return [LEGACY[frag]];
   let m: RegExpMatchArray | null;
-  if (frag === 'resi') return ['fi.+res', 'co.+res', 'li.+res', 'ch.+res'];
+  if (frag === 'resi') return ['re res', 'ld res', 'ng res', 'os res'];
   if ((m = frag.match(/^y: \(([rmn](?:\|[rmn])*)\)$/))) return m[1].split('|').map((c) => `y: ${c}`);
-  if ((m = frag.match(/^\(((?:fi|co|li|ch)(?:\|(?:fi|co|li|ch))*)\)\.\+res$/)))
-    return m[1].split('|').map((c) => `${c}.+res`);
+  if ((m = frag.match(/^\(([a-z]{2}(?:\|[a-z]{2})*)\)(?: res|\.\+res)$/))) {
+    const res = m[1].split('|').map((c) => RES[c]);
+    return res.every((r) => r !== undefined) ? res : null;
+  }
   if (/% i\.\+mov$/.test(frag)) {
     const inner = frag.match(/^\(?(.+?)\)?% i\.\+mov$/)?.[1] ?? '';
     if (inner === '\\d+') return ['30% i.+mov', '25% i.+mov', '20% i.+mov', '15% i.+mov', '10% i.+mov'];
@@ -139,6 +159,15 @@ export function importRegex(
   const leftover: string[] = [];
   let recognised = 0;
   let gid = 0;
+
+  // Item mods carry no recoverable option ids — keep the string verbatim.
+  if (category === 'item') {
+    const i = fresh.item;
+    i.resultSettings.customText = tokens.map((t) => `"${t.negated ? '!' : ''}${t.inner}"`).join(' ');
+    i.resultSettings.excludeKeywords = excludes;
+    settings.item = i;
+    return { recognised: 0, leftover: i.resultSettings.customText };
+  }
 
   if (category === 'vendor') {
     const v = fresh.vendor;

@@ -12,6 +12,7 @@ import {
   loadItemBases,
   loadJewel,
   loadMapMods,
+  loadBoatMods,
   loadMapNames,
   loadExpedition,
   loadHeist,
@@ -40,6 +41,7 @@ import { generateVendorRegex } from './generators/vendor';
 import { generateItemsRegex, buildAffixMap } from './generators/items';
 import { generateJewelRegex } from './generators/jewel';
 import { generateMapModRegex } from './generators/mapmods';
+import { generateBoatRegex } from './generators/boat';
 import { generateMapNameRegex } from './generators/mapnames';
 import { generateExpeditionRegex } from './generators/expedition';
 import { generateHeistRegex } from './generators/heist';
@@ -69,6 +71,7 @@ let _itemMods = $state<ItemModsData | null>(null);
 let _itemBases = $state<BaseType[] | null>(null);
 let _jewelData = $state<JewelData | null>(null);
 let _mapModsData = $state<MapModsData | null>(null);
+let _boatModsData = $state<MapModsData | null>(null);
 let _mapNamesData = $state<MapNamesData | null>(null);
 let _expeditionData = $state<ExpeditionData | null>(null);
 let _heistData = $state<HeistData | null>(null);
@@ -94,6 +97,9 @@ async function ensureLoaded(category: Category): Promise<void> {
       break;
     case 'mapMods':
       if (!_mapModsData) _mapModsData = await loadMapMods();
+      break;
+    case 'boat':
+      if (!_boatModsData) _boatModsData = await loadBoatMods();
       break;
     case 'mapNames':
       if (!_mapNamesData) _mapNamesData = await loadMapNames();
@@ -133,6 +139,8 @@ const _result = $derived.by(() => {
       return _jewelData ? generateJewelRegex(_settings.jewel, _jewelData.jewelRegular, _jewelData.jewelAbyss) : '';
     case 'mapMods':
       return _mapModsData ? generateMapModRegex(_settings.mapMods, _mapModsData) : '';
+    case 'boat':
+      return _boatModsData ? generateBoatRegex(_boatModsData, _settings.boat) : '';
     case 'mapNames':
       return _mapNamesData ? generateMapNameRegex(_mapNamesData, _settings.mapNames) : '';
     case 'expedition':
@@ -193,6 +201,9 @@ export const builder1 = {
   },
   get mapModsData() {
     return _mapModsData;
+  },
+  get boatModsData() {
+    return _boatModsData;
   },
   get mapNamesData() {
     return _mapNamesData;

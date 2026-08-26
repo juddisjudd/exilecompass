@@ -1,4 +1,4 @@
-// Simplified port of poe-vendor-string's Expedition tool: upstream can
+// Simplified port of poe.re's Expedition tool: upstream can
 // auto-add filler base types from live poe.ninja prices (see PoE1 regex
 // research notes) — dropped, no live-pricing pipeline. Core algorithm is
 // otherwise ported verbatim: dedupe selected base types, join their

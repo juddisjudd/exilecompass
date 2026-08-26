@@ -152,7 +152,10 @@ export interface MapModsSettings {
   packsize: string;
   mapDropChance: string;
   itemRarity: string;
-  optimizeQuant: boolean; // shared by quantity, mapDropChance, itemRarity
+  currency: string;
+  scarab: string;
+  anyYield: boolean; // OR the yield terms instead of requiring all of them
+  optimizeQuant: boolean; // shared by every yield except packsize
   optimizePacksize: boolean;
   filterCorrupted: boolean;
   corruptedInclude: boolean; // true = require corrupted, false = exclude
@@ -175,6 +178,9 @@ export const defaultMapModsSettings = (): MapModsSettings => ({
   packsize: '',
   mapDropChance: '',
   itemRarity: '',
+  currency: '',
+  scarab: '',
+  anyYield: false,
   optimizeQuant: true,
   optimizePacksize: true,
   filterCorrupted: false,
@@ -186,6 +192,24 @@ export const defaultMapModsSettings = (): MapModsSettings => ({
   quality: { regular: '', currency: '', divination: '', rarity: '', packSize: '', scarab: '' },
   optimizeQuality: true,
   anyQuality: false,
+  resultSettings: defaultResultSettings(),
+});
+
+// ── Boat ─────────────────────────────────────────────────────────────────────
+export interface BoatSettings {
+  goodIds: number[];
+  allGoodMods: boolean; // true = AND ("all"), false = OR ("any")
+  filterAdjacent: boolean;
+  adjacentInclude: boolean; // true = require the "adjacent" modifier, false = exclude it
+  areas: string[]; // BOAT_AREAS regex strings
+  resultSettings: ResultSettings;
+}
+export const defaultBoatSettings = (): BoatSettings => ({
+  goodIds: [],
+  allGoodMods: false,
+  filterAdjacent: false,
+  adjacentInclude: true,
+  areas: [],
   resultSettings: defaultResultSettings(),
 });
 
@@ -298,6 +322,7 @@ export interface Settings {
   items: ItemsSettings;
   jewel: JewelSettings;
   mapMods: MapModsSettings;
+  boat: BoatSettings;
   mapNames: MapNamesSettings;
   expedition: ExpeditionSettings;
   heist: HeistSettings;
@@ -314,6 +339,7 @@ export function defaultSettings(): Settings {
     items: defaultItemsSettings(),
     jewel: defaultJewelSettings(),
     mapMods: defaultMapModsSettings(),
+    boat: defaultBoatSettings(),
     mapNames: defaultMapNamesSettings(),
     expedition: defaultExpeditionSettings(),
     heist: defaultHeistSettings(),
@@ -326,6 +352,6 @@ export function defaultSettings(): Settings {
 }
 
 export const CATEGORY_ORDER: Category[] = [
-  'vendor', 'items', 'mapMods', 'mapNames', 'expedition', 'heist',
+  'vendor', 'items', 'mapMods', 'boat', 'mapNames', 'expedition', 'heist',
   'flasks', 'beast', 'tattoo', 'runegraft', 'scarab', 'jewel',
 ];

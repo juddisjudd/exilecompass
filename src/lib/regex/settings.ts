@@ -1,4 +1,4 @@
-// Per-category settings shape + defaults. Originally ported from poe2.re, now
+// Per-category settings shape + defaults. Originally ported from poe.re, now
 // reorganised around an N-group model: each category's mod/affix selection is a
 // list of groups, OR'd within a group and AND'd across groups. Structural terms
 // (tier, rarity, type, levels, …) stay as automatic AND terms. `customText` and
@@ -6,7 +6,7 @@
 
 import type { SelectOption } from './types';
 
-export type Category = 'vendor' | 'waystone' | 'tablet' | 'relic';
+export type Category = 'vendor' | 'waystone' | 'tablet' | 'relic' | 'item';
 
 // OR within a group; groups are AND'd together.
 export interface ModGroup {
@@ -65,6 +65,14 @@ export interface Settings {
     resultSettings: ResultSettings;
     groups: ModGroup[];
   };
+  // Rare-item mod picker — no OR/AND groups, just a base and its checked mods.
+  item: {
+    resultSettings: ResultSettings;
+    base: { baseType: string; item: string } | null;
+    matchAnyMod: boolean;
+    selected: Record<string, boolean>; // itemModKey -> checked
+    values: Record<string, Record<number, string>>; // itemModKey -> stat index -> min value
+  };
 }
 
 export const defaultResultSettings = (): ResultSettings => ({ customText: '', excludeKeywords: '' });
@@ -119,6 +127,13 @@ export function defaultSettings(): Settings {
     relic: {
       resultSettings: defaultResultSettings(),
       groups: initialGroups(),
+    },
+    item: {
+      resultSettings: defaultResultSettings(),
+      base: null,
+      matchAnyMod: true,
+      selected: {},
+      values: {},
     },
   };
 }

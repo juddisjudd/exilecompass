@@ -1,4 +1,4 @@
-// Ported from poe-vendor-string's src/utils/MapNameOutput.ts.
+// Ported from poe.re's poe/src/utils/MapNameOutput.ts.
 import type { MapNamesData } from '../types';
 import { appendResultExtras, type MapNamesSettings } from '../settings';
 

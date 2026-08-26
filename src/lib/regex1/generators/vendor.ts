@@ -1,4 +1,4 @@
-// Ported near-verbatim from poe-vendor-string's src/utils/OutputString.ts.
+// Ported near-verbatim from poe.re's poe/src/utils/OutputString.ts.
 // This is a flat-OR model (unlike PoE2's AND-across-groups builder) — every
 // selected toggle across every sub-category folds into one alternation, then
 // gets wrapped in a single pair of quotes if it ends up containing a space or
@@ -26,7 +26,7 @@ function oneAndAnyAny(c: string): string {
 }
 
 function generate6Socket(s: VendorSettings): string {
-  return s.anySixSocket ? '(\\w\\W){5}' : '';
+  return s.anySixSocket ? '(\\w[ -]){5}\\w' : '';
 }
 
 function generate3LinkStr(s: VendorSettings): string {
@@ -231,10 +231,10 @@ function plusGemsStr(s: VendorSettings): string {
 function generateWeaponDamage(s: VendorSettings): string {
   const { phys, firemult, coldmult, chaosmult } = s.damage;
   let result = '';
-  if (phys) result = addExpression(result, 'Glint|Heav');
-  if (firemult) result = addExpression(result, 'Earn');
-  if (coldmult) result = addExpression(result, 'Incl');
-  if (chaosmult) result = addExpression(result, 'Wani');
+  if (phys) result = addExpression(result, 'd.+cal d');
+  if (firemult) result = addExpression(result, 'fi.+d.+er$');
+  if (coldmult) result = addExpression(result, 'co.+d.+er$');
+  if (chaosmult) result = addExpression(result, 'ch.+d.+er$');
   return result;
 }
 

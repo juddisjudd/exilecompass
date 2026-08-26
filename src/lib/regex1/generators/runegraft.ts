@@ -1,4 +1,4 @@
-// Simplified port of poe-vendor-string's Runegraft tool: upstream is entirely
+// Simplified port of poe.re's Runegraft tool: upstream is entirely
 // price-driven, with an "include tattoos" merge sharing one price-sorted
 // budget (see PoE1 regex research notes). Without live pricing this becomes
 // two independent manual multi-selects OR'd together, quoted (matching

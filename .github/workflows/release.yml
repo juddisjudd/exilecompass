@@ -3,6 +3,9 @@ name: Release
 # Build, sign, and publish a GitHub release whenever a version tag is pushed.
 # Tagging flow (use the helper):
 #   bun run release:tag patch        # bumps versions, commits, tags, pushes
+# regex-sync.yml runs that same helper unattended and then dispatches this
+# workflow on the new tag, because a tag pushed with the workflow's own token
+# never fires the `push` trigger below.
 # The workflow then builds the installers on Windows + Linux, signs the updater
 # artifacts, creates the release, and uploads latest.json for the in-app updater.
 #
@@ -25,12 +28,15 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   release:
+    # Only on a version tag — a manual dispatch from a branch has nothing to release.
+    if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:

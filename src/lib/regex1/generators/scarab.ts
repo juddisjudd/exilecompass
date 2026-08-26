@@ -1,4 +1,4 @@
-// Ported from poe-vendor-string's src/pages/scarab/ScarabOutput.ts, minus the
+// Ported from poe.re's poe/src/pages/scarab/ScarabOutput.ts, minus the
 // price-driven "auto select cheap scarabs" bulk action (no live-pricing
 // pipeline — see PoE1 regex research notes). Manual multi-select, quoted
 // OR-join, matching upstream's own manual-selection output exactly.

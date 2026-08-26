@@ -12,6 +12,7 @@
   } from '$lib/regex1/builderState.svelte';
   import type { Category } from '$lib/regex1/types';
   import { GIANNA_PRESET, GIANNA_PLUS_ONE_PRESET } from '$lib/regex1/generators/heist';
+  import { BOAT_AREAS } from '$lib/regex1/generators/boat';
 
   onMount(() => {
     initBuilder1();
@@ -32,6 +33,7 @@
   let jewelSuffixFilter = $state('');
   let mapModGoodFilter = $state('');
   let mapModBadFilter = $state('');
+  let boatFilter = $state('');
   let mapNameFilter = $state('');
   let expeditionFilter = $state('');
   let flaskPrefixFilter = $state('');
@@ -46,6 +48,7 @@
     { id: 'vendor', label: () => m.poe1regex_cat_vendor() },
     { id: 'items', label: () => m.poe1regex_cat_items() },
     { id: 'mapMods', label: () => m.poe1regex_cat_mapmods() },
+    { id: 'boat', label: () => m.poe1regex_cat_boat() },
     { id: 'mapNames', label: () => m.poe1regex_cat_mapnames() },
     { id: 'expedition', label: () => m.poe1regex_cat_expedition() },
     { id: 'heist', label: () => m.poe1regex_cat_heist() },
@@ -60,7 +63,7 @@
   const assembled = $derived(builder1.result);
   const charCount = $derived(assembled.length);
   // PoE's vendor/stash search box has a widely-cited ~50 char practical limit
-  // (poe-vendor-string itself enforces 250 in one place but shows a "50
+  // (poe.re itself enforces 250 in one place but shows a "50
   // characters" message in another — we pick one consistent number instead
   // of carrying that mismatch forward).
   const charOver = $derived(charCount >= 50);
@@ -266,7 +269,7 @@
             {#snippet dm(key: keyof typeof settings.vendor.damage, label: string)}
               <label class="opt" class:on={settings.vendor.damage[key]}><input type="checkbox" checked={settings.vendor.damage[key]} onchange={(e) => (settings.vendor.damage[key] = e.currentTarget.checked)} /><span>{label}</span></label>
             {/snippet}
-            {@render dm('phys', 'Phys (Glint/Heavy)')}{@render dm('firemult', 'Fire DoT Mult')}
+            {@render dm('phys', 'Physical damage')}{@render dm('firemult', 'Fire DoT Mult')}
             {@render dm('coldmult', 'Cold DoT Mult')}{@render dm('chaosmult', 'Chaos DoT Mult')}
           </div>
 
@@ -404,6 +407,42 @@
           {/each}
         {/if}
 
+      {:else if builder1.category === 'boat'}
+        {#if !builder1.boatModsData}
+          <span class="empty-hint">{m.regex_loading()}</span>
+        {:else}
+          <div class="group-label">{m.poe1regex_boat_areas()}</div>
+          {#each BOAT_AREAS as area (area.regex)}
+            <label class="opt" class:on={settings.boat.areas.includes(area.regex)}>
+              <input type="checkbox" checked={settings.boat.areas.includes(area.regex)} onchange={() => toggleInArray(settings.boat.areas, area.regex)} />
+              <span>{area.regex}<span class="pick-row-sub"> · {area.description}</span></span>
+            </label>
+          {/each}
+
+          <label class="opt" class:on={settings.boat.filterAdjacent} style="margin-top:8px">
+            <input type="checkbox" checked={settings.boat.filterAdjacent} onchange={(e) => (settings.boat.filterAdjacent = e.currentTarget.checked)} />
+            <span>{m.poe1regex_boat_adjacent()}</span>
+          </label>
+          {#if settings.boat.filterAdjacent}
+            <div class="seg-row">
+              <button class="seg-btn" class:active={settings.boat.adjacentInclude} onclick={() => (settings.boat.adjacentInclude = true)} type="button">{m.poe1regex_mapmods_include()}</button>
+              <button class="seg-btn" class:active={!settings.boat.adjacentInclude} onclick={() => (settings.boat.adjacentInclude = false)} type="button">{m.poe1regex_mapmods_exclude()}</button>
+            </div>
+          {/if}
+
+          <div class="group-label">{m.poe1regex_mapmods_good()}</div>
+          <div class="seg-row">
+            <button class="seg-btn" class:active={settings.boat.allGoodMods} onclick={() => (settings.boat.allGoodMods = true)} type="button">{m.poe1regex_mapmods_good_all()}</button>
+            <button class="seg-btn" class:active={!settings.boat.allGoodMods} onclick={() => (settings.boat.allGoodMods = false)} type="button">{m.poe1regex_mapmods_good_any()}</button>
+          </div>
+          <input class="custom-input" bind:value={boatFilter} placeholder={m.poe1regex_search_placeholder()} spellcheck="false" />
+          <div class="pick-list pick-list-tall">
+            {#each [...builder1.boatModsData.tokens].sort((a, b) => a.options.scary - b.options.scary).filter((t) => matches(t.rawText, boatFilter)) as t (t.id)}
+              <button type="button" class="pick-row" class:on={settings.boat.goodIds.includes(t.id)} onclick={() => toggleInArray(settings.boat.goodIds, t.id)}>{t.rawText}<span class="pick-row-sub"> · {t.options.prefix ? 'P' : 'S'}</span></button>
+            {/each}
+          </div>
+        {/if}
+
       {:else if builder1.category === 'mapMods'}
         {#if !builder1.mapModsData}
           <span class="empty-hint">{m.regex_loading()}</span>
@@ -438,6 +477,9 @@
           <div class="kv"><span>{m.poe1regex_mapmods_packsize()}</span><input type="text" bind:value={settings.mapMods.packsize} /></div>
           <div class="kv"><span>{m.poe1regex_mapmods_dropchance()}</span><input type="text" bind:value={settings.mapMods.mapDropChance} /></div>
           <div class="kv"><span>{m.poe1regex_mapmods_itemrarity()}</span><input type="text" bind:value={settings.mapMods.itemRarity} /></div>
+          <div class="kv"><span>{m.poe1regex_mapmods_currency()}</span><input type="text" bind:value={settings.mapMods.currency} /></div>
+          <div class="kv"><span>{m.poe1regex_mapmods_scarab()}</span><input type="text" bind:value={settings.mapMods.scarab} /></div>
+          <label class="opt" class:on={settings.mapMods.anyYield}><input type="checkbox" checked={settings.mapMods.anyYield} onchange={(e) => (settings.mapMods.anyYield = e.currentTarget.checked)} /><span>{m.poe1regex_mapmods_yield_any()}</span></label>
           <label class="opt" class:on={settings.mapMods.optimizeQuant}>
             <input type="checkbox" checked={settings.mapMods.optimizeQuant} onchange={(e) => (settings.mapMods.optimizeQuant = e.currentTarget.checked)} />
             <span>{m.poe1regex_mapmods_optimize()}</span>

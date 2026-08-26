@@ -1,9 +1,9 @@
-// Lazy, cached loaders for the generated affix data. Mirrors poe2.re's
-// loadWaystoneAffixes.ts / loadTabletAffixes.ts. The JSON files live in
+// Lazy, cached loaders for the generated affix data. Mirrors poe.re's
+// poe2/src/utils/loadData.ts. The JSON files live in
 // static/generated/ and are served at the site root.
 
 import { parseAffixToken } from './affix';
-import type { ParsedAffix, RegexResult } from './types';
+import type { ItemBasetype, ItemRegex, ParsedAffix, RegexResult } from './types';
 
 export interface WaystoneAffix extends ParsedAffix {
   prefix: boolean;
@@ -42,3 +42,23 @@ export function loadTabletAffixes(): Promise<TabletAffix[]> {
   }
   return tabletCache;
 }
+function cachedJson<T>(path: string): () => Promise<T> {
+  let cache: Promise<T> | null = null;
+  return () => {
+    if (!cache) {
+      cache = fetch(path)
+        .then((r) => {
+          if (!r.ok) throw new Error(`${r.status} ${r.statusText} for ${path}`);
+          return r.json() as Promise<T>;
+        })
+        .catch((e) => {
+          cache = null;
+          throw e;
+        });
+    }
+    return cache;
+  };
+}
+
+export const loadItemRegex = cachedJson<ItemRegex[]>('/generated/Generated.Item.min.json');
+export const loadItemBasetypes = cachedJson<ItemBasetype[]>('/generated/Generated.Basetypes.Item.min.json');
