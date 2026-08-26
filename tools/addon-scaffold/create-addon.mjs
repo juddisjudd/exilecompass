@@ -143,6 +143,12 @@ export interface AddonHost {
    */
   net?: {
     fetch(url: string): Promise<AddonFetchResponse>;
+    /**
+     * Image fetch cached on disk by the host for about a week, returned as a
+     * \`data:\` URL — use it for <img> sources, since the sandboxed panel
+     * can't use the browser's HTTP cache. Absent before ExileCompass 1.4.1.
+     */
+    fetchImage?(url: string): Promise<string>;
   };
   /**
    * Which game the overlay targets (the footer PoE1/PoE2 switch). Requires

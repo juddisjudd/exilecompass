@@ -1408,6 +1408,126 @@ async fn addons_fetch_text(url: String) -> Result<AddonFetchResponse, String> {
     Ok(AddonFetchResponse { status, body })
 }
 
+const ADDON_IMAGE_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(7 * 24 * 60 * 60);
+const ADDON_IMAGE_MAX_BYTES: usize = 2 * 1024 * 1024;
+const ADDON_IMAGE_EXTS: [(&str, &str); 5] = [
+    ("image/png", "png"),
+    ("image/webp", "webp"),
+    ("image/jpeg", "jpg"),
+    ("image/gif", "gif"),
+    ("image/svg+xml", "svg"),
+];
+
+fn base64_encode(bytes: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let n = (chunk[0] as u32) << 16
+            | (*chunk.get(1).unwrap_or(&0) as u32) << 8
+            | *chunk.get(2).unwrap_or(&0) as u32;
+        out.push(TABLE[(n >> 18) as usize & 63] as char);
+        out.push(TABLE[(n >> 12) as usize & 63] as char);
+        out.push(if chunk.len() > 1 { TABLE[(n >> 6) as usize & 63] as char } else { '=' });
+        out.push(if chunk.len() > 2 { TABLE[n as usize & 63] as char } else { '=' });
+    }
+    out
+}
+
+fn addon_image_cache_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = addons_dir(app)?.join("cache");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn is_fresh(path: &std::path::Path) -> bool {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .map(|t| t.elapsed().map(|age| age < ADDON_IMAGE_CACHE_TTL).unwrap_or(true))
+        .unwrap_or(false)
+}
+
+/// Drop expired cache files. Once per process is enough — the cache is small.
+fn sweep_image_cache(dir: &std::path::Path) {
+    static SWEPT: std::sync::Once = std::sync::Once::new();
+    SWEPT.call_once(|| {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && !is_fresh(&path) {
+                    let _ = std::fs::remove_file(&path);
+                }
+            }
+        }
+    });
+}
+
+/// Image fetch for add-on panels, cached on disk. The sandboxed iframe's opaque
+/// origin keeps Chromium from using its HTTP cache for anything the panel loads,
+/// so without this every reopen of a panel re-downloads every icon. Same URL
+/// rules as `addons_fetch_text`; returns a `data:` URL.
+#[tauri::command]
+async fn addons_fetch_image(app: AppHandle, url: String) -> Result<String, String> {
+    if !url.starts_with("https://") {
+        return Err("Only https:// URLs are allowed".to_string());
+    }
+    let dir = addon_image_cache_dir(&app)?;
+    sweep_image_cache(&dir);
+
+    let key = {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        url.hash(&mut hasher);
+        format!("{:016x}", hasher.finish())
+    };
+    for (mime, ext) in ADDON_IMAGE_EXTS {
+        let path = dir.join(format!("{key}.{ext}"));
+        if !path.is_file() {
+            continue;
+        }
+        if is_fresh(&path) {
+            if let Ok(bytes) = std::fs::read(&path) {
+                return Ok(format!("data:{mime};base64,{}", base64_encode(&bytes)));
+            }
+        }
+        let _ = std::fs::remove_file(&path);
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent(concat!(
+            "ExileCompass/",
+            env!("CARGO_PKG_VERSION"),
+            " (https://github.com/juddisjudd/exilecompass)"
+        ))
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {e}"))?;
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status()));
+    }
+    let mime = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(';').next().unwrap_or("").trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let (mime, ext) = ADDON_IMAGE_EXTS
+        .into_iter()
+        .find(|(m, _)| *m == mime)
+        .ok_or_else(|| format!("Not an image ({mime})"))?;
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    if bytes.len() > ADDON_IMAGE_MAX_BYTES {
+        return Err("Image too large".to_string());
+    }
+    let _ = std::fs::write(dir.join(format!("{key}.{ext}")), &bytes);
+    Ok(format!("data:{mime};base64,{}", base64_encode(&bytes)))
+}
+
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 /// Return the current game window info (for whichever game is active) without attaching.
@@ -1796,6 +1916,7 @@ pub fn run() {
             addons_read_panel,
             addons_load_registry,
             addons_fetch_text,
+            addons_fetch_image,
             voice_list_phrases,
             voice_list_input_devices,
             voice_is_listening,

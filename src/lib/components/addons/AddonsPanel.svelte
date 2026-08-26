@@ -94,6 +94,7 @@
     },
     net: {
       fetch: (url) => rpc('net.fetch', { url: String(url) }),
+      fetchImage: (url) => rpc('net.fetchImage', { url: String(url) }),
     },
     game: {
       get: () => rpc('game.get'),
@@ -190,6 +191,12 @@
           if (!host || !fetchAllowed(cur.permissions, host))
             return reply(undefined, `permission denied: network.fetch:${host ?? 'invalid url'}`);
           reply(await invoke<{ status: number; body: string }>('addons_fetch_text', { url }));
+        } else if (d.method === 'net.fetchImage') {
+          const url = String(d.params?.url ?? '');
+          const host = httpsHost(url);
+          if (!host || !fetchAllowed(cur.permissions, host))
+            return reply(undefined, `permission denied: network.fetch:${host ?? 'invalid url'}`);
+          reply(await invoke<string>('addons_fetch_image', { url }));
         } else if (d.method === 'game.get') {
           if (!cur.permissions.includes('game.read'))
             return reply(undefined, 'permission denied: game.read');
