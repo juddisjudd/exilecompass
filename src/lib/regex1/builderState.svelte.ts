@@ -4,7 +4,7 @@
 // (ItemMods.min.json alone is ~3MB, so nothing is loaded eagerly).
 
 import { persistGet, persistSet } from '$lib/persist';
-import { defaultSettings, type Settings } from './settings';
+import { CATEGORY_ORDER, defaultSettings, type Settings } from './settings';
 import type { Category } from './types';
 import {
   loadGems,
@@ -13,7 +13,6 @@ import {
   loadJewel,
   loadMapMods,
   loadBoatMods,
-  loadMapNames,
   loadExpedition,
   loadHeist,
   loadFlaskMods,
@@ -28,7 +27,6 @@ import type {
   BaseType,
   JewelData,
   MapModsData,
-  MapNamesData,
   ExpeditionData,
   HeistData,
   FlaskModsData,
@@ -42,7 +40,6 @@ import { generateItemsRegex, buildAffixMap } from './generators/items';
 import { generateJewelRegex } from './generators/jewel';
 import { generateMapModRegex } from './generators/mapmods';
 import { generateBoatRegex } from './generators/boat';
-import { generateMapNameRegex } from './generators/mapnames';
 import { generateExpeditionRegex } from './generators/expedition';
 import { generateHeistRegex } from './generators/heist';
 import { generateFlaskRegex } from './generators/flasks';
@@ -72,7 +69,6 @@ let _itemBases = $state<BaseType[] | null>(null);
 let _jewelData = $state<JewelData | null>(null);
 let _mapModsData = $state<MapModsData | null>(null);
 let _boatModsData = $state<MapModsData | null>(null);
-let _mapNamesData = $state<MapNamesData | null>(null);
 let _expeditionData = $state<ExpeditionData | null>(null);
 let _heistData = $state<HeistData | null>(null);
 let _flaskModsData = $state<FlaskModsData | null>(null);
@@ -100,9 +96,6 @@ async function ensureLoaded(category: Category): Promise<void> {
       break;
     case 'boat':
       if (!_boatModsData) _boatModsData = await loadBoatMods();
-      break;
-    case 'mapNames':
-      if (!_mapNamesData) _mapNamesData = await loadMapNames();
       break;
     case 'expedition':
       if (!_expeditionData) _expeditionData = await loadExpedition();
@@ -141,8 +134,6 @@ const _result = $derived.by(() => {
       return _mapModsData ? generateMapModRegex(_settings.mapMods, _mapModsData) : '';
     case 'boat':
       return _boatModsData ? generateBoatRegex(_boatModsData, _settings.boat) : '';
-    case 'mapNames':
-      return _mapNamesData ? generateMapNameRegex(_mapNamesData, _settings.mapNames) : '';
     case 'expedition':
       return _expeditionData ? generateExpeditionRegex(_expeditionData, _settings.expedition) : '';
     case 'heist':
@@ -205,9 +196,6 @@ export const builder1 = {
   get boatModsData() {
     return _boatModsData;
   },
-  get mapNamesData() {
-    return _mapNamesData;
-  },
   get expeditionData() {
     return _expeditionData;
   },
@@ -239,7 +227,9 @@ export async function initBuilder1(): Promise<void> {
   const [favRaw] = await Promise.all([persistGet(FAVORITES_KEY), ensureLoaded(_category)]);
   if (favRaw) {
     try {
-      _favorites = JSON.parse(favRaw) as Favorite[];
+      // Favorites saved under a category that no longer exists (poe.re dropped
+      // Map Names in Aug 2026) would crash applyFavorite1 on defaultSettings().
+      _favorites = (JSON.parse(favRaw) as Favorite[]).filter((f) => CATEGORY_ORDER.includes(f.category));
     } catch {
       _favorites = [];
     }
@@ -248,7 +238,7 @@ export async function initBuilder1(): Promise<void> {
 }
 
 // ── Generic array-selection helpers (used for the many "pick N named things"
-// categories: gems, jewel mods, map names, expedition bases, beasts, tattoos,
+// categories: gems, jewel mods, expedition bases, beasts, tattoos,
 // runegrafts, scarabs). ─────────────────────────────────────────────────────
 export function toggleInArray<T>(arr: T[], value: T): T[] {
   const idx = arr.indexOf(value);

@@ -39,7 +39,6 @@ const POE1_MODULES = [
   'GeneratedRunegraft.ts',
   'GeneratedScarabs.ts',
   'GeneratedJewel.ts',
-  'GeneratedMapNames.ts',
   'GeneratedExpedition.ts',
   'GeneratedHeist.ts',
   'GeneratedFlaskMods.ts',

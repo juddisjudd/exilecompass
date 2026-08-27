@@ -34,7 +34,6 @@
   let mapModGoodFilter = $state('');
   let mapModBadFilter = $state('');
   let boatFilter = $state('');
-  let mapNameFilter = $state('');
   let expeditionFilter = $state('');
   let flaskPrefixFilter = $state('');
   let flaskSuffixFilter = $state('');
@@ -49,7 +48,6 @@
     { id: 'items', label: () => m.poe1regex_cat_items() },
     { id: 'mapMods', label: () => m.poe1regex_cat_mapmods() },
     { id: 'boat', label: () => m.poe1regex_cat_boat() },
-    { id: 'mapNames', label: () => m.poe1regex_cat_mapnames() },
     { id: 'expedition', label: () => m.poe1regex_cat_expedition() },
     { id: 'heist', label: () => m.poe1regex_cat_heist() },
     { id: 'flasks', label: () => m.poe1regex_cat_flasks() },
@@ -532,22 +530,6 @@
           <div class="kv"><span>Scarab</span><input type="text" bind:value={settings.mapMods.quality.scarab} /></div>
           <label class="opt" class:on={settings.mapMods.optimizeQuality}><input type="checkbox" checked={settings.mapMods.optimizeQuality} onchange={(e) => (settings.mapMods.optimizeQuality = e.currentTarget.checked)} /><span>{m.poe1regex_mapmods_optimize()}</span></label>
           <label class="opt" class:on={settings.mapMods.anyQuality}><input type="checkbox" checked={settings.mapMods.anyQuality} onchange={(e) => (settings.mapMods.anyQuality = e.currentTarget.checked)} /><span>{m.poe1regex_mapmods_quality_any()}</span></label>
-        {/if}
-
-      {:else if builder1.category === 'mapNames'}
-        {#if !builder1.mapNamesData}
-          <span class="empty-hint">{m.regex_loading()}</span>
-        {:else}
-          <label class="opt" class:on={settings.mapNames.mapTabSearch}>
-            <input type="checkbox" checked={settings.mapNames.mapTabSearch} onchange={(e) => (settings.mapNames.mapTabSearch = e.currentTarget.checked)} />
-            <span>{m.poe1regex_mapnames_tabsearch()}</span>
-          </label>
-          <input class="custom-input" bind:value={mapNameFilter} placeholder={m.poe1regex_search_placeholder()} spellcheck="false" />
-          <div class="pick-list pick-list-tall">
-            {#each Object.entries(builder1.mapNamesData).filter(([, v]) => matches(v.name, mapNameFilter)) as [key, v] (key)}
-              <button type="button" class="pick-row" class:on={settings.mapNames.selected.includes(key)} onclick={() => toggleInArray(settings.mapNames.selected, key)}>{v.name}</button>
-            {/each}
-          </div>
         {/if}
 
       {:else if builder1.category === 'expedition'}

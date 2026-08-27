@@ -13,7 +13,6 @@ import type {
   BaseType,
   JewelData,
   MapModsData,
-  MapNamesData,
   NamedRegexEntry,
   ScarabsData,
 } from './types';
@@ -46,7 +45,6 @@ export const loadItemBases = cachedFetch<BaseType[]>('/generated/poe1/ItemBases.
 export const loadJewel = cachedFetch<JewelData>('/generated/poe1/Jewel.min.json');
 export const loadMapMods = cachedFetch<MapModsData>('/generated/poe1/MapMods.min.json');
 export const loadBoatMods = cachedFetch<MapModsData>('/generated/poe1/BoatMods.min.json');
-export const loadMapNames = cachedFetch<MapNamesData>('/generated/poe1/MapNames.min.json');
 export const loadExpedition = cachedFetch<ExpeditionData>('/generated/poe1/Expedition.min.json');
 export const loadHeist = cachedFetch<HeistData>('/generated/poe1/Heist.min.json');
 export const loadFlaskMods = cachedFetch<FlaskModsData>('/generated/poe1/FlaskMods.min.json');

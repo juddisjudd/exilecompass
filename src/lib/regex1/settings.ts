@@ -213,18 +213,6 @@ export const defaultBoatSettings = (): BoatSettings => ({
   resultSettings: defaultResultSettings(),
 });
 
-// ── Map names ────────────────────────────────────────────────────────────────
-export interface MapNamesSettings {
-  selected: string[]; // map name keys
-  mapTabSearch: boolean;
-  resultSettings: ResultSettings;
-}
-export const defaultMapNamesSettings = (): MapNamesSettings => ({
-  selected: [],
-  mapTabSearch: false,
-  resultSettings: defaultResultSettings(),
-});
-
 // ── Expedition ───────────────────────────────────────────────────────────────
 export interface ExpeditionSettings {
   selectedBaseTypes: string[];
@@ -323,7 +311,6 @@ export interface Settings {
   jewel: JewelSettings;
   mapMods: MapModsSettings;
   boat: BoatSettings;
-  mapNames: MapNamesSettings;
   expedition: ExpeditionSettings;
   heist: HeistSettings;
   flasks: FlaskSettings;
@@ -340,7 +327,6 @@ export function defaultSettings(): Settings {
     jewel: defaultJewelSettings(),
     mapMods: defaultMapModsSettings(),
     boat: defaultBoatSettings(),
-    mapNames: defaultMapNamesSettings(),
     expedition: defaultExpeditionSettings(),
     heist: defaultHeistSettings(),
     flasks: defaultFlaskSettings(),
@@ -352,6 +338,6 @@ export function defaultSettings(): Settings {
 }
 
 export const CATEGORY_ORDER: Category[] = [
-  'vendor', 'items', 'mapMods', 'boat', 'mapNames', 'expedition', 'heist',
+  'vendor', 'items', 'mapMods', 'boat', 'expedition', 'heist',
   'flasks', 'beast', 'tattoo', 'runegraft', 'scarab', 'jewel',
 ];

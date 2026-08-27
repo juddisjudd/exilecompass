@@ -9,7 +9,6 @@ export type Category =
   | 'jewel'
   | 'mapMods'
   | 'boat'
-  | 'mapNames'
   | 'expedition'
   | 'heist'
   | 'flasks'
@@ -106,14 +105,6 @@ export interface MapModsData {
   tokens: MapModToken[];
   optimizationTable: Record<string, TokenOptimization>;
 }
-
-// ── Map names ────────────────────────────────────────────────────────────────
-export interface MapNameEntry {
-  name: string;
-  isUnique: boolean;
-  matchSafe: string;
-}
-export type MapNamesData = Record<string, MapNameEntry>;
 
 // ── Expedition ───────────────────────────────────────────────────────────────
 export interface ExpeditionItem {

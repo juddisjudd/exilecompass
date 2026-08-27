@@ -71,9 +71,6 @@ write('Jewel', { jewelRegular, jewelAbyss }, (d) => {
   list('Jewel.jewelAbyss', d.jewelAbyss, 10, ['mod', 'regex', 'isPrefix']);
 });
 
-const { mapNames } = await load('GeneratedMapNames.ts');
-write('MapNames', mapNames, (d) => record('MapNames', d, 100, ['name', 'matchSafe']));
-
 const { baseTypeRegex } = await load('GeneratedExpedition.ts');
 write('Expedition', baseTypeRegex, (d) => record('Expedition', d, 100, ['baseType', 'regex', 'items']));
 
