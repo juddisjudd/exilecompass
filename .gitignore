@@ -23,6 +23,8 @@ src-tauri/updater-key.txt.pub
 ./src-tauri/updater-key.txt
 ./src-tauri/updater-key.txt.pub
 scripts/*.mjs
+# release.mjs is run by regex-sync.yml in CI, so it has to be tracked.
+!scripts/release.mjs
 resources
 # The bundled keyword-spotting model (voice commands) needs to actually be
 # committed — see src-tauri/resources/kws/README.md for what it is. Narrow
