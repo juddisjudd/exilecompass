@@ -7,9 +7,10 @@
     onTogglePin: (id: string) => void | Promise<void>;
     onUninstall: (id: string) => void | Promise<void>;
     onOpenPanel: (id: string) => void | Promise<void>;
+    onUpdate: (id: string) => void | Promise<void>;
   }
 
-  let { addons, onToggle, onTogglePin, onUninstall, onOpenPanel }: Props = $props();
+  let { addons, onToggle, onTogglePin, onUninstall, onOpenPanel, onUpdate }: Props = $props();
 </script>
 
 {#if addons.length === 0}
@@ -24,6 +25,9 @@
             {#if addon.pinned && addon.hasPanel}
               <span class="badge badge-neutral">pinned</span>
             {/if}
+            {#if addon.hasUpdate}
+              <span class="badge badge-update">update</span>
+            {/if}
             <span class="badge {addon.trust === 'verified' ? 'badge-ok' : 'badge-unverified'}">{addon.trust}</span>
           </div>
         </header>
@@ -34,6 +38,11 @@
           <p class="warn">{addon.lastError}</p>
         {/if}
         <div class="actions">
+          {#if addon.hasUpdate}
+            <button class="btn btn-primary" onclick={() => onUpdate(addon.id)} type="button">
+              Update to v{addon.updateVersion}
+            </button>
+          {/if}
           <button class="btn btn-ghost" onclick={() => onToggle(addon.id)} type="button">
             {addon.enabled ? 'Disable' : 'Enable'}
           </button>
@@ -88,6 +97,12 @@
     margin-top: 6px;
     font-size: 11px;
     color: var(--c-red-bright);
+  }
+  /* Amber, like the unverified pill: a state to notice, not a failure. */
+  .badge-update {
+    color: #f0c77f;
+    border-color: color-mix(in srgb, #f0c77f 45%, transparent);
+    background: color-mix(in srgb, #f0c77f 14%, transparent);
   }
   .badges {
     display: flex;

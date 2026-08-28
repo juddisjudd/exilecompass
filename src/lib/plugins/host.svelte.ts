@@ -34,6 +34,8 @@ let _section = $state<AddonsSection>('installed');
 let _installed = $state<InstalledAddon[]>([]);
 let _discover = $state<DiscoverAddon[]>([]);
 let _loading = $state(false);
+let _refreshing = $state(false);
+let _registryFetchedAt = $state(0);
 let _error = $state('');
 let _activePanelAddonId = $state<string | null>(null);
 
@@ -56,6 +58,13 @@ export const addonsHost = {
   get hasAnyInstalled() {
     return _installed.length > 0;
   },
+  get refreshing() {
+    return _refreshing;
+  },
+  /** Epoch ms of the last successful registry fetch, 0 if none yet. */
+  get registryFetchedAt() {
+    return _registryFetchedAt;
+  },
   get activePanelAddonId() {
     return _activePanelAddonId;
   },
@@ -75,9 +84,46 @@ export function closeAddonPanel(): void {
   _section = 'installed';
 }
 
+function versionParts(version: string): number[] {
+  return version
+    .replace(/^v/i, '')
+    .split('.')
+    .map((part) => Number.parseInt(part, 10) || 0);
+}
+
+/** Plain x.y.z comparison — add-on versions are release tags, not semver ranges. */
+export function isNewerVersion(latest: string, current: string): boolean {
+  const a = versionParts(latest);
+  const b = versionParts(current);
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    const left = a[i] ?? 0;
+    const right = b[i] ?? 0;
+    if (left !== right) return left > right;
+  }
+  return false;
+}
+
+/**
+ * The backend has no idea what the registry says — it writes `hasUpdate: false`
+ * on every record — so the comparison happens here, where both lists are in
+ * hand. Runs after either refresh, since either can change the answer.
+ */
+function applyUpdateFlags(): void {
+  _installed = _installed.map((addon) => {
+    const listed = _discover.find((entry) => entry.id === addon.id);
+    const hasUpdate = !!listed && isNewerVersion(listed.latestVersion, addon.version);
+    return {
+      ...addon,
+      hasUpdate,
+      updateVersion: hasUpdate ? listed.latestVersion : undefined,
+    };
+  });
+}
+
 export async function refreshInstalledAddons(): Promise<void> {
   try {
     _installed = await invoke<InstalledAddon[]>('addons_list');
+    applyUpdateFlags();
   } catch {
     _error = 'Failed to load installed add-ons.';
   }
@@ -89,8 +135,24 @@ export async function refreshRegistryAddons(path?: string): Promise<void> {
     _discover = await invoke<DiscoverAddon[]>('addons_load_registry', {
       path: resolvedPath,
     });
+    _registryFetchedAt = Date.now();
+    applyUpdateFlags();
   } catch {
-    _discover = [];
+    // Keep whatever was listed before: a failed refresh should not look like
+    // an empty registry, which is what wiping the list here used to imply.
+    _error = 'Could not reach the add-on registry. Showing the last known list.';
+  }
+}
+
+/** The Discover tab's explicit refresh, with its own spinner state. */
+export async function refreshDiscover(): Promise<void> {
+  if (_refreshing) return;
+  _refreshing = true;
+  _error = '';
+  try {
+    await refreshRegistryAddons();
+  } finally {
+    _refreshing = false;
   }
 }
 

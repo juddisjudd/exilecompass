@@ -563,17 +563,18 @@ fn install_record_from_manifest(
     let mut addons = read_addons(app);
     // On re-install/update, keep the user's current pin choice; otherwise seed
     // it from the manifest's pinDefault.
-    let pinned = addons
-        .iter()
-        .find(|a| a.id == manifest.id)
-        .map(|existing| existing.pinned)
-        .unwrap_or(pin_default);
+    let existing = addons.iter().find(|a| a.id == manifest.id);
+    // On re-install or update, keep what the user chose: their pin, and
+    // whether they had disabled it. Updating an add-on should not quietly
+    // switch it back on.
+    let pinned = existing.map(|a| a.pinned).unwrap_or(pin_default);
+    let enabled = existing.map(|a| a.enabled).unwrap_or(true);
 
     let record = AddonRecord {
         id: manifest.id,
         name: manifest.name,
         version: manifest.version,
-        enabled: true,
+        enabled,
         trust: trust_override
             .map(|t| t.to_string())
             .unwrap_or_else(|| if source == "registry" { "verified" } else { "unverified" }.to_string()),

@@ -1,13 +1,18 @@
 <script lang="ts">
-  import type { DiscoverAddon } from '$lib/plugins/host.svelte';
+  import type { DiscoverAddon, InstalledAddon } from '$lib/plugins/host.svelte';
+  import { isNewerVersion } from '$lib/plugins/host.svelte';
 
   interface Props {
     addons: DiscoverAddon[];
-    installedIds: string[];
+    installed: InstalledAddon[];
     onInstall: (id: string) => void | Promise<void>;
   }
 
-  let { addons, installedIds, onInstall }: Props = $props();
+  let { addons, installed, onInstall }: Props = $props();
+
+  function installedVersion(id: string): string | null {
+    return installed.find((addon) => addon.id === id)?.version ?? null;
+  }
 </script>
 
 {#if addons.length === 0}
@@ -25,14 +30,20 @@
         <a class="repo-link" href={addon.repoUrl} target="_blank" rel="noreferrer noopener">{addon.repoUrl}</a>
         <p class="desc">[{addon.description}]</p>
         <div class="actions">
-          <button
-            class="btn btn-primary"
-            disabled={installedIds.includes(addon.id) || !addon.compatible}
-            onclick={() => onInstall(addon.id)}
-            type="button"
-          >
-            {#if installedIds.includes(addon.id)}Installed{:else if !addon.compatible}Incompatible{:else}Install{/if}
-          </button>
+          {#if !addon.compatible}
+            <button class="btn btn-primary" disabled type="button">Incompatible</button>
+          {:else if installedVersion(addon.id) === null}
+            <button class="btn btn-primary" onclick={() => onInstall(addon.id)} type="button">
+              Install
+            </button>
+          {:else if isNewerVersion(addon.latestVersion, installedVersion(addon.id) ?? '')}
+            <button class="btn btn-primary" onclick={() => onInstall(addon.id)} type="button">
+              Update to {addon.latestVersion}
+            </button>
+            <span class="meta">installed v{installedVersion(addon.id)}</span>
+          {:else}
+            <button class="btn btn-primary" disabled type="button">Installed</button>
+          {/if}
         </div>
       </article>
     {/each}

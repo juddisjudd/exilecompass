@@ -10,6 +10,7 @@
     initAddonsHost,
     installAddonFromManifest,
     installAddonFromRegistry,
+    refreshDiscover,
     openAddonPanel,
     setAddonsSection,
     toggleAddonEnabled,
@@ -28,6 +29,20 @@
       ? addonsHost.installed.find((addon) => addon.id === addonsHost.activePanelAddonId) ?? null
       : null,
   );
+
+
+  const updateCount = $derived(addonsHost.installed.filter((addon) => addon.hasUpdate).length);
+
+  // Registry freshness is worth stating: without it, a Refresh button that
+  // returns the same list looks like it did nothing.
+  const lastChecked = $derived.by(() => {
+    const at = addonsHost.registryFetchedAt;
+    if (!at) return 'not checked yet';
+    const minutes = Math.round((Date.now() - at) / 60000);
+    if (minutes < 1) return 'checked just now';
+    if (minutes < 60) return `checked ${minutes} min ago`;
+    return `checked ${Math.round(minutes / 60)} h ago`;
+  });
 
   onMount(() => {
     void initAddonsHost();
@@ -62,8 +77,25 @@
         type="button"
       >
         {section.label}
+        {#if section.id === 'installed' && updateCount > 0}
+          <span class="tab-count">{updateCount}</span>
+        {/if}
       </button>
     {/each}
+
+    {#if addonsHost.section === 'discover'}
+      <div class="refresh">
+        <span class="checked">{lastChecked}</span>
+        <button
+          class="btn btn-ghost"
+          type="button"
+          onclick={() => refreshDiscover()}
+          disabled={addonsHost.refreshing}
+        >
+          {addonsHost.refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
+    {/if}
   </nav>
 
   <div class="addons-content">
@@ -72,7 +104,7 @@
     {:else if addonsHost.section === 'discover'}
       <AddonsDiscover
         addons={addonsHost.discover}
-        installedIds={addonsHost.installed.map((addon) => addon.id)}
+        installed={addonsHost.installed}
         onInstall={installAddonFromRegistry}
       />
     {:else}
@@ -82,6 +114,7 @@
         onTogglePin={toggleAddonPinned}
         onUninstall={uninstallAddon}
         onOpenPanel={openAddonPanel}
+        onUpdate={installAddonFromRegistry}
       />
     {/if}
   </div>
@@ -122,6 +155,30 @@
     display: flex;
     gap: 4px;
     flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* Pushed to the far end of the tab row: it acts on the section below it,
+     not on any one tab. */
+  .refresh {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .checked {
+    font-size: 10px;
+    color: var(--c-accent);
+  }
+
+  .tab-count {
+    margin-left: 5px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 10px;
+    color: var(--c-on-accent);
+    background: var(--c-red);
   }
 
   .section-tab {
