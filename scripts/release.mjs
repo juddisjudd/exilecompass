@@ -69,26 +69,27 @@ if (git(['tag', '--list']).split('\n').includes(tag)) {
 console.log(`\x1b[36mReleasing ${current} → ${next}  (${tag})\x1b[0m`);
 
 // ── Bump versions (targeted replacements keep diffs minimal) ─────────────────
-// package.json — only the top-level "version"
-writeFileSync(PKG, pkgRaw.replace(/"version":\s*"[^"]+"/, `"version": "${next}"`));
+// A replace that matches nothing returns the string unchanged and reports it to
+// nobody — which is how v1.5.0 shipped with a stale Cargo.lock. So every bump
+// asserts its pattern matched first. (Matching, not changing: re-tagging the
+// current version legitimately rewrites nothing, per the commit step below.)
+function bumpFile(path, label, pattern, replacement) {
+  const before = readFileSync(path, 'utf8');
+  if (!pattern.test(before)) die(`${label}: found no version to bump — has the file's shape changed?`);
+  writeFileSync(path, before.replace(pattern, replacement));
+}
 
-// tauri.conf.json — only the top-level "version"
-const conf = readFileSync(CONF, 'utf8');
-writeFileSync(CONF, conf.replace(/"version":\s*"[^"]+"/, `"version": "${next}"`));
+// package.json / tauri.conf.json — only the top-level "version"
+bumpFile(PKG, 'package.json', /"version":\s*"[^"]+"/, `"version": "${next}"`);
+bumpFile(CONF, 'tauri.conf.json', /"version":\s*"[^"]+"/, `"version": "${next}"`);
 
 // Cargo.toml — the [package] version (first version after the [package] header)
-const cargo = readFileSync(CARGO, 'utf8');
-writeFileSync(
-  CARGO,
-  cargo.replace(/(\[package\][\s\S]*?\nversion\s*=\s*")[^"]+(")/, `$1${next}$2`),
-);
+bumpFile(CARGO, 'Cargo.toml', /(\[package\][\s\S]*?\nversion\s*=\s*")[^"]+(")/, `$1${next}$2`);
 
-// Cargo.lock — the exilecompass package entry, so the lock stays in sync
-const lock = readFileSync(LOCK, 'utf8');
-writeFileSync(
-  LOCK,
-  lock.replace(/(name = "exilecompass"\nversion = ")[^"]+(")/, `$1${next}$2`),
-);
+// Cargo.lock — the exilecompass package entry, so the lock stays in sync.
+// `\r?\n` because git checks this file out CRLF under core.autocrlf while cargo
+// rewrites it LF, so which one is on disk depends on who touched it last.
+bumpFile(LOCK, 'Cargo.lock', /(name = "exilecompass"\r?\nversion = ")[^"]+(")/, `$1${next}$2`);
 
 // ── Commit, tag, push ────────────────────────────────────────────────────────
 git(['add', 'package.json', 'src-tauri/tauri.conf.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock']);
