@@ -75,7 +75,7 @@ async function main() {
     },
     compatibility: {
       app: '>=0.2.9',
-      pluginApi: '^1.0.0',
+      pluginApi: '^1.1.0',
     },
     permissions: ['storage.read', 'storage.write', 'ui.panel'],
     contributions: {
@@ -126,6 +126,26 @@ export interface AddonFetchResponse {
   body: string;
 }
 
+export interface AddonRequestOptions {
+  url: string;
+  /** \`GET\` (default) or \`POST\` — nothing else is permitted. */
+  method?: 'GET' | 'POST';
+  /** Only \`Accept\` and \`Content-Type\` may be set. The host owns the rest. */
+  headers?: Record<string, string>;
+  /** Up to 64 KB. */
+  body?: string;
+}
+
+export interface AddonRequestResponse {
+  status: number;
+  /**
+   * The subset the host lets through: \`x-rate-limit-*\`, \`retry-after\`, and
+   * \`content-type\`. Names are lowercase.
+   */
+  headers: Record<string, string>;
+  body: string;
+}
+
 export interface AddonHost {
   /**
    * Per-addon key/value storage, persisted by the host and namespaced to this
@@ -149,6 +169,32 @@ export interface AddonHost {
      * can't use the browser's HTTP cache. Absent before ExileCompass 1.4.1.
      */
     fetchImage?(url: string): Promise<string>;
+    /**
+     * GET cached on disk by the host for up to \`maxAgeSeconds\` (one day by
+     * default, 30 days at most). Use it for large, slow-moving payloads —
+     * game data that changes per patch, not per session. Plain \`fetch\`
+     * re-downloads every call, and addon storage is the wrong place to park a
+     * megabyte: it shares one file with the app's own settings.
+     * Absent before ExileCompass 1.5.0.
+     */
+    fetchCached?(url: string, maxAgeSeconds?: number): Promise<AddonFetchResponse>;
+    /**
+     * GET or POST performed by the host, returning the allowlisted response
+     * headers as well as the body. Needs \`network.request:<host>\`, which is
+     * a stronger grant than \`network.fetch:<host>\` and implies it.
+     *
+     * Use this instead of \`fetch\` when an API rejects GET, or when its
+     * rate-limit headers have to be obeyed. Absent before ExileCompass 1.5.0.
+     */
+    request?(opts: AddonRequestOptions): Promise<AddonRequestResponse>;
+  };
+  /**
+   * Open a URL in the player's default browser. The hostname must be covered
+   * by a \`shell.open:<host>\` permission, and only https:// is accepted.
+   * Absent on ExileCompass versions before 1.5.0.
+   */
+  shell?: {
+    openExternal(url: string): Promise<void>;
   };
   /**
    * Which game the overlay targets (the footer PoE1/PoE2 switch). Requires

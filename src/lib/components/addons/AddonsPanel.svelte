@@ -1,9 +1,16 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { persistGet, persistSet } from '$lib/persist';
   import { loadStoredBuild, BUILD_CHANGED_EVENT } from '$lib/pob';
   import { gameMode } from '$lib/gameMode.svelte';
   import type { InstalledAddon } from '$lib/plugins/host.svelte';
+
+  interface AddonRequestResponse {
+    status: number;
+    headers: Record<string, string>;
+    body: string;
+  }
 
   interface Props {
     addon: InstalledAddon | null;
@@ -38,13 +45,23 @@
   }
 
   // `network.fetch:poe.ninja` covers poe.ninja and its subdomains.
-  function fetchAllowed(permissions: string[], host: string): boolean {
+  function hostAllowed(permissions: string[], prefixes: string[], host: string): boolean {
     return permissions.some((p) => {
-      if (!p.startsWith('network.fetch:')) return false;
-      const allowed = p.slice('network.fetch:'.length).toLowerCase();
+      const prefix = prefixes.find((pre) => p.startsWith(pre));
+      if (!prefix) return false;
+      const allowed = p.slice(prefix.length).toLowerCase();
       return host === allowed || host.endsWith(`.${allowed}`);
     });
   }
+
+  // `network.request:<host>` is the stronger grant (POST, response headers),
+  // so it implies plain GET access to the same host.
+  const fetchAllowed = (permissions: string[], host: string) =>
+    hostAllowed(permissions, ['network.fetch:', 'network.request:'], host);
+  const requestAllowed = (permissions: string[], host: string) =>
+    hostAllowed(permissions, ['network.request:'], host);
+  const openAllowed = (permissions: string[], host: string) =>
+    hostAllowed(permissions, ['shell.open:'], host);
 
   // Sandboxed bootstrap document. `allow-scripts` WITHOUT `allow-same-origin`
   // gives the iframe an opaque origin: no access to the parent DOM, app
@@ -95,6 +112,25 @@
     net: {
       fetch: (url) => rpc('net.fetch', { url: String(url) }),
       fetchImage: (url) => rpc('net.fetchImage', { url: String(url) }),
+      fetchCached: (url, maxAgeSeconds) =>
+        rpc('net.fetchCached', {
+          url: String(url),
+          maxAgeSecs: maxAgeSeconds == null ? undefined : Number(maxAgeSeconds),
+        }),
+      request: (opts) => {
+        const o = opts || {};
+        const headers = {};
+        if (o.headers) for (const k of Object.keys(o.headers)) headers[String(k)] = String(o.headers[k]);
+        return rpc('net.request', {
+          url: String(o.url || ''),
+          method: o.method ? String(o.method) : 'GET',
+          headers,
+          body: o.body == null ? '' : String(o.body),
+        });
+      },
+    },
+    shell: {
+      openExternal: (url) => rpc('shell.openExternal', { url: String(url) }),
     },
     game: {
       get: () => rpc('game.get'),
@@ -197,6 +233,41 @@
           if (!host || !fetchAllowed(cur.permissions, host))
             return reply(undefined, `permission denied: network.fetch:${host ?? 'invalid url'}`);
           reply(await invoke<string>('addons_fetch_image', { url }));
+        } else if (d.method === 'net.fetchCached') {
+          const url = String(d.params?.url ?? '');
+          const host = httpsHost(url);
+          if (!host || !fetchAllowed(cur.permissions, host))
+            return reply(undefined, `permission denied: network.fetch:${host ?? 'invalid url'}`);
+          const maxAge = Number(d.params?.maxAgeSecs);
+          reply(
+            await invoke<{ status: number; body: string }>('addons_fetch_cached', {
+              url,
+              maxAgeSecs: Number.isFinite(maxAge) ? Math.floor(maxAge) : null,
+            }),
+          );
+        } else if (d.method === 'net.request') {
+          const url = String(d.params?.url ?? '');
+          const host = httpsHost(url);
+          if (!host || !requestAllowed(cur.permissions, host))
+            return reply(undefined, `permission denied: network.request:${host ?? 'invalid url'}`);
+          const rawHeaders = (d.params?.headers ?? {}) as Record<string, unknown>;
+          const headers: Record<string, string> = {};
+          for (const [k, v] of Object.entries(rawHeaders)) headers[String(k)] = String(v);
+          reply(
+            await invoke<AddonRequestResponse>('addons_request', {
+              url,
+              method: String(d.params?.method ?? 'GET'),
+              headers,
+              body: String(d.params?.body ?? ''),
+            }),
+          );
+        } else if (d.method === 'shell.openExternal') {
+          const url = String(d.params?.url ?? '');
+          const host = httpsHost(url);
+          if (!host || !openAllowed(cur.permissions, host))
+            return reply(undefined, `permission denied: shell.open:${host ?? 'invalid url'}`);
+          await openUrl(url);
+          reply(null);
         } else if (d.method === 'game.get') {
           if (!cur.permissions.includes('game.read'))
             return reply(undefined, 'permission denied: game.read');

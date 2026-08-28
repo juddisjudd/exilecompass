@@ -1408,6 +1408,114 @@ async fn addons_fetch_text(url: String) -> Result<AddonFetchResponse, String> {
     Ok(AddonFetchResponse { status, body })
 }
 
+#[derive(serde::Serialize)]
+struct AddonRequestResponse {
+    status: u16,
+    headers: std::collections::HashMap<String, String>,
+    body: String,
+}
+
+const ADDON_REQUEST_MAX_BODY: usize = 64 * 1024;
+const ADDON_REQUEST_MAX_RESPONSE: usize = 4 * 1024 * 1024;
+
+/// Request headers an add-on may set. Anything that could attach credentials
+/// (`Cookie`, `Authorization`) or disguise who is calling (`User-Agent`,
+/// `X-Powered-By`) is rejected outright rather than dropped, so an add-on
+/// never believes it sent one.
+const ADDON_REQUEST_HEADERS: [&str; 2] = ["accept", "content-type"];
+
+/// Response headers handed back to add-on code. Rate-limit state is the whole
+/// reason this method exists; `Set-Cookie` and friends must never cross.
+fn addon_response_header_allowed(name: &str) -> bool {
+    name.starts_with("x-rate-limit-") || matches!(name, "retry-after" | "content-type")
+}
+
+/// HTTPS request for an add-on panel: `addons_fetch_text` plus a POST body and
+/// the response headers a rate limiter needs. Both exist because of the trade
+/// API — its search endpoint rejects GET, and its `X-Rate-Limit-*` headers are
+/// a correctness requirement (ignoring them gets the user's IP banned from
+/// trade for up to an hour), not telemetry. The Svelte bridge checks the
+/// add-on's `network.request:<host>` permission before calling this. Same
+/// https-only, no-redirect, host-set-User-Agent rules as `addons_fetch_text`.
+#[tauri::command]
+async fn addons_request(
+    url: String,
+    method: Option<String>,
+    headers: Option<std::collections::HashMap<String, String>>,
+    body: Option<String>,
+) -> Result<AddonRequestResponse, String> {
+    if !url.starts_with("https://") {
+        return Err("Only https:// URLs are allowed".to_string());
+    }
+    let method = match method.unwrap_or_default().to_ascii_uppercase().as_str() {
+        "" | "GET" => reqwest::Method::GET,
+        "POST" => reqwest::Method::POST,
+        other => return Err(format!("Method not allowed: {other}")),
+    };
+    let body = body.unwrap_or_default();
+    if body.len() > ADDON_REQUEST_MAX_BODY {
+        return Err("Request body too large".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent(concat!(
+            "ExileCompass/",
+            env!("CARGO_PKG_VERSION"),
+            " (https://github.com/juddisjudd/exilecompass)"
+        ))
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // Host-set so the traffic stays attributable to ExileCompass; the
+    // allowlist below keeps an add-on from overriding it.
+    let mut request = client
+        .request(method, &url)
+        .header("X-Powered-By", "ExileCompass");
+    for (name, value) in headers.unwrap_or_default() {
+        let lower = name.trim().to_ascii_lowercase();
+        if !ADDON_REQUEST_HEADERS.contains(&lower.as_str()) {
+            return Err(format!("Request header not allowed: {name}"));
+        }
+        let value = reqwest::header::HeaderValue::from_str(&value)
+            .map_err(|_| format!("Invalid value for header: {name}"))?;
+        request = request.header(lower, value);
+    }
+    if !body.is_empty() {
+        request = request.body(body);
+    }
+
+    let response = request
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {e}"))?;
+    let status = response.status().as_u16();
+    let headers = response
+        .headers()
+        .iter()
+        .filter(|(name, _)| addon_response_header_allowed(name.as_str()))
+        .filter_map(|(name, value)| {
+            value
+                .to_str()
+                .ok()
+                .map(|v| (name.as_str().to_string(), v.to_string()))
+        })
+        .collect();
+    if response.content_length().is_some_and(|n| n > ADDON_REQUEST_MAX_RESPONSE as u64) {
+        return Err("Response too large".to_string());
+    }
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    if bytes.len() > ADDON_REQUEST_MAX_RESPONSE {
+        return Err("Response too large".to_string());
+    }
+    Ok(AddonRequestResponse {
+        status,
+        headers,
+        body: String::from_utf8_lossy(&bytes).into_owned(),
+    })
+}
+
 const ADDON_IMAGE_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(7 * 24 * 60 * 60);
 const ADDON_IMAGE_MAX_BYTES: usize = 2 * 1024 * 1024;
 const ADDON_IMAGE_EXTS: [(&str, &str); 5] = [
@@ -1473,12 +1581,7 @@ async fn addons_fetch_image(app: AppHandle, url: String) -> Result<String, Strin
     let dir = addon_image_cache_dir(&app)?;
     sweep_image_cache(&dir);
 
-    let key = {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        url.hash(&mut hasher);
-        format!("{:016x}", hasher.finish())
-    };
+    let key = addon_cache_key(&url);
     for (mime, ext) in ADDON_IMAGE_EXTS {
         let path = dir.join(format!("{key}.{ext}"));
         if !path.is_file() {
@@ -1526,6 +1629,85 @@ async fn addons_fetch_image(app: AppHandle, url: String) -> Result<String, Strin
     }
     let _ = std::fs::write(dir.join(format!("{key}.{ext}")), &bytes);
     Ok(format!("data:{mime};base64,{}", base64_encode(&bytes)))
+}
+
+const ADDON_TEXT_CACHE_MAX_AGE: u64 = 30 * 24 * 60 * 60;
+const ADDON_TEXT_MAX_BYTES: usize = 8 * 1024 * 1024;
+
+/// Stable per-URL cache filename. Same hashing as the image cache.
+fn addon_cache_key(url: &str) -> String {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    url.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+/// Disk-cached HTTPS GET for an add-on panel, `max_age_secs` old at most.
+///
+/// `addons_fetch_text` re-downloads on every call, which is fine for a small
+/// API response and wrong for a large static one: an add-on's storage is a
+/// single shared `settings.json` map, so a panel caching a megabyte of game
+/// data there would make every unrelated app setting write re-serialize it.
+/// The trade API's `/data/stats` is 849 KB and changes per patch, not per
+/// session — exactly the case `addons_fetch_image` already solves for icons.
+/// Only 200s are cached; anything else is passed straight back.
+#[tauri::command]
+async fn addons_fetch_cached(
+    app: AppHandle,
+    url: String,
+    max_age_secs: Option<u64>,
+) -> Result<AddonFetchResponse, String> {
+    if !url.starts_with("https://") {
+        return Err("Only https:// URLs are allowed".to_string());
+    }
+    let max_age = std::time::Duration::from_secs(
+        max_age_secs.unwrap_or(24 * 60 * 60).clamp(60, ADDON_TEXT_CACHE_MAX_AGE),
+    );
+    let dir = addon_image_cache_dir(&app)?.join("text");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(format!("{}.txt", addon_cache_key(&url)));
+
+    let age = std::fs::metadata(&path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok());
+    if age.is_some_and(|age| age < max_age) {
+        if let Ok(body) = std::fs::read_to_string(&path) {
+            return Ok(AddonFetchResponse { status: 200, body });
+        }
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent(concat!(
+            "ExileCompass/",
+            env!("CARGO_PKG_VERSION"),
+            " (https://github.com/juddisjudd/exilecompass)"
+        ))
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let response = match client.get(&url).send().await {
+        Ok(response) => response,
+        // A stale copy beats no copy when the network is down — the caller
+        // asked for data that changes per patch, not per minute.
+        Err(e) => {
+            return match std::fs::read_to_string(&path) {
+                Ok(body) => Ok(AddonFetchResponse { status: 200, body }),
+                Err(_) => Err(format!("Network error: {e}")),
+            };
+        }
+    };
+    let status = response.status().as_u16();
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    if bytes.len() > ADDON_TEXT_MAX_BYTES {
+        return Err("Response too large".to_string());
+    }
+    let body = String::from_utf8_lossy(&bytes).into_owned();
+    if status == 200 {
+        let _ = std::fs::write(&path, &body);
+    }
+    Ok(AddonFetchResponse { status, body })
 }
 
 // ── Commands ──────────────────────────────────────────────────────────────────
@@ -1916,6 +2098,8 @@ pub fn run() {
             addons_read_panel,
             addons_load_registry,
             addons_fetch_text,
+            addons_request,
+            addons_fetch_cached,
             addons_fetch_image,
             voice_list_phrases,
             voice_list_input_devices,

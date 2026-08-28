@@ -34,3 +34,4 @@ resources
 !src-tauri/resources/**
 AGENTS.md
 docs
+.remember
