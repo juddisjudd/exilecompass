@@ -68,7 +68,10 @@
   // localStorage, or Tauri APIs. It imports the addon bundle from a blob and
   // talks to the host only over postMessage. (App CSP is null, so blob module
   // imports and this inline script are permitted.)
-  const BOOTSTRAP = `<!doctype html><html><head><meta charset="utf-8" />
+  // As a top-level tab the view's own padding already insets the frame, so the
+  // document keeps only a hairline of its own — at the default window size the
+  // panel is ~490px wide and every 10px counts.
+  const bootstrap = (padding: number) => `<!doctype html><html><head><meta charset="utf-8" />
 <style>
   :root { color-scheme: dark; }
   html, body { margin: 0; height: 100%; }
@@ -76,7 +79,7 @@
     font: 11px/1.45 system-ui, sans-serif;
     color: #ede6d5;
     background: transparent;
-    padding: 10px;
+    padding: ${padding}px;
     box-sizing: border-box;
     --c-primary: #ede6d5; --c-accent: #a79a85; --c-muted: #4a4438;
   }
@@ -372,7 +375,7 @@
             class:loading={status !== 'ready'}
             title={addon.name}
             sandbox="allow-scripts"
-            srcdoc={BOOTSTRAP}
+            srcdoc={bootstrap(showHeader ? 10 : 4)}
           ></iframe>
         {/key}
         {#if status === 'loading'}
