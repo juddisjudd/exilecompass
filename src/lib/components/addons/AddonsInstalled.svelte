@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AddonGamesBadge from '$lib/components/addons/AddonGamesBadge.svelte';
   import type { InstalledAddon } from '$lib/plugins/host.svelte';
 
   interface Props {
@@ -22,6 +23,7 @@
         <header class="head">
           <h3>{addon.name}</h3>
           <div class="badges">
+            <AddonGamesBadge games={addon.games} />
             {#if addon.pinned && addon.hasPanel}
               <span class="badge badge-neutral">pinned</span>
             {/if}

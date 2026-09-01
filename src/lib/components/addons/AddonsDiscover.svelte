@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AddonGamesBadge from '$lib/components/addons/AddonGamesBadge.svelte';
   import type { DiscoverAddon, InstalledAddon } from '$lib/plugins/host.svelte';
   import { isNewerVersion } from '$lib/plugins/host.svelte';
 
@@ -23,7 +24,10 @@
       <article class="ec-panel card">
         <header class="head">
           <h3>{addon.name} &lt;{addon.latestVersion}&gt;</h3>
-          <span class="badge {addon.trust === 'verified' ? 'badge-ok' : 'badge-unverified'}">{addon.trust}</span>
+          <div class="badges">
+            <AddonGamesBadge games={addon.games} />
+            <span class="badge {addon.trust === 'verified' ? 'badge-ok' : 'badge-unverified'}">{addon.trust}</span>
+          </div>
         </header>
         <p class="meta">{addon.id}</p>
         <p class="meta">by {addon.author}</p>
@@ -71,6 +75,12 @@
     justify-content: space-between;
     gap: 8px;
     margin-bottom: 4px;
+  }
+  .badges {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
   }
   h3 {
     font-size: 12px;

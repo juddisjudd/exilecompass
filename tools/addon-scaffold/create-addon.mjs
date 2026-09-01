@@ -77,6 +77,9 @@ async function main() {
       app: '>=0.2.9',
       pluginApi: '^1.2.0',
     },
+    // Which games the addon supports; the hub shows this on its card. Trim to
+    // ['poe1'] or ['poe2'] for a single-game addon.
+    games: ['poe1', 'poe2'],
     permissions: ['storage.read', 'storage.write', 'ui.panel'],
     contributions: {
       'data.providers': [],

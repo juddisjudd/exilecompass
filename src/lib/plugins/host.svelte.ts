@@ -17,6 +17,8 @@ export interface InstalledAddon {
   hasPanel: boolean;
   pinned: boolean;
   panelTitle?: string;
+  /** "poe1"/"poe2"; empty when neither the manifest nor the registry says. */
+  games: string[];
 }
 
 export interface DiscoverAddon {
@@ -28,6 +30,7 @@ export interface DiscoverAddon {
   latestVersion: string;
   trust: PluginTrust;
   compatible: boolean;
+  games: string[];
 }
 
 let _section = $state<AddonsSection>('installed');
@@ -116,6 +119,9 @@ function applyUpdateFlags(): void {
       ...addon,
       hasUpdate,
       updateVersion: hasUpdate ? listed.latestVersion : undefined,
+      // Installs made before the manifest `games` field existed borrow the
+      // registry's answer, so their cards aren't blank in the meantime.
+      games: addon.games?.length ? addon.games : (listed?.games ?? []),
     };
   });
 }

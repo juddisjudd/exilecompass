@@ -215,6 +215,10 @@ struct AddonRecord {
     /// Short label for the panel tab (from `contributions.view.panels[].title`).
     #[serde(default)]
     panel_title: Option<String>,
+    /// Which games the add-on supports ("poe1"/"poe2"); empty means the
+    /// manifest predates the field and the hub falls back to registry data.
+    #[serde(default)]
+    games: Vec<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -234,7 +238,19 @@ struct AddonManifest {
     repo_url: Option<String>,
     entry: Option<AddonManifestEntry>,
     permissions: Option<Vec<String>>,
+    games: Option<Vec<String>>,
     contributions: Option<serde_json::Value>,
+}
+
+/// Keeps only recognized game ids, lowercased, so a typo in a manifest can't
+/// invent a third game in the hub UI.
+fn normalize_games(games: Option<Vec<String>>) -> Vec<String> {
+    games
+        .unwrap_or_default()
+        .into_iter()
+        .map(|g| g.trim().to_lowercase())
+        .filter(|g| g == "poe1" || g == "poe2")
+        .collect()
 }
 
 /// Pull the first declared panel's `title` and `pinDefault` out of a manifest's
@@ -269,6 +285,7 @@ struct RegistryAddon {
     latest_version: String,
     trust: String,
     compatible: bool,
+    games: Vec<String>,
 }
 
 fn read_addons(app: &AppHandle) -> Vec<AddonRecord> {
@@ -365,6 +382,15 @@ fn parse_registry_addons(raw: &str) -> Result<Vec<RegistryAddon>, String> {
                         .get("compatible")
                         .and_then(|v| v.as_bool())
                         .unwrap_or(true),
+                    games: normalize_games(
+                        item.get("games")
+                            .and_then(|v| v.as_array())
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|g| g.as_str().map(|s| s.to_string()))
+                                    .collect()
+                            }),
+                    ),
                 })
             })
             .collect();
@@ -400,6 +426,7 @@ fn parse_registry_addons(raw: &str) -> Result<Vec<RegistryAddon>, String> {
                     latest_version: latest,
                     trust: "verified".to_string(),
                     compatible: true,
+                    games: Vec::new(),
                 })
             })
             .collect();
@@ -592,6 +619,7 @@ fn install_record_from_manifest(
         has_panel,
         pinned,
         panel_title,
+        games: normalize_games(manifest.games),
     };
 
     if let Some(existing) = addons.iter_mut().find(|a| a.id == record.id) {
