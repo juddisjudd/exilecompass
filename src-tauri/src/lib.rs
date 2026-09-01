@@ -15,6 +15,7 @@ const APP_NAME: &str = "ExileCompass";
 mod account;
 use account::{
     account_begin_link, account_poe_token, account_poll_link, account_status, account_unlink,
+    addons_poe_leagues, addons_poe_stash_list, addons_poe_stash_tab,
 };
 
 mod voice;
@@ -2129,6 +2130,9 @@ pub fn run() {
             account_status,
             account_unlink,
             account_poe_token,
+            addons_poe_leagues,
+            addons_poe_stash_list,
+            addons_poe_stash_tab,
         ])
         .run(tauri::generate_context!());
 

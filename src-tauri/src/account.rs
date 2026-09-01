@@ -15,6 +15,8 @@
 // rate limits land on the player's IP/account, not on the site's server.
 
 use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const CLIENT_ID: &str = "exilecompass-app";
 const KEYCHAIN_SERVICE: &str = "exilecompass-account";
@@ -271,4 +273,144 @@ pub async fn account_poe_token() -> Result<PoeTokenInfo, String> {
         uuid: body.get("uuid").and_then(|v| v.as_str()).map(str::to_string),
         name: body.get("name").and_then(|v| v.as_str()).map(str::to_string),
     })
+}
+
+// ── PoE API bridge for add-ons ───────────────────────────────────────────────
+//
+// Add-on panels never see the token: the bridge in AddonsPanel.svelte gates
+// these commands behind the `poe.stashes` manifest permission and the host
+// performs the api.pathofexile.com call with the user's token and the GGG
+// User-Agent the site hands us. Calls go straight from this machine, so GGG's
+// rate limits land on the player's own IP/account.
+
+struct CachedPoeAccess {
+    access_token: String,
+    user_agent: String,
+    fetched_epoch: u64,
+}
+
+// The GGG token lives 28 days and the site refreshes it for us — a 6-hour
+// local cache just avoids a site round-trip per call. A 401 from GGG (early
+// revocation) invalidates it and retries once with a fresh token.
+const POE_ACCESS_CACHE_SECS: u64 = 6 * 60 * 60;
+
+static POE_ACCESS: Mutex<Option<CachedPoeAccess>> = Mutex::new(None);
+
+fn now_epoch() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+async fn poe_access(force_refresh: bool) -> Result<(String, String), String> {
+    if !force_refresh {
+        if let Some(cached) = POE_ACCESS.lock().unwrap().as_ref() {
+            if cached.fetched_epoch + POE_ACCESS_CACHE_SECS > now_epoch() {
+                return Ok((cached.access_token.clone(), cached.user_agent.clone()));
+            }
+        }
+    }
+
+    let Some(session) = load_session_token()? else {
+        return Err("not_linked: sign in to ExileCompass under Settings → Account".to_string());
+    };
+    let client = http_client()?;
+    let body = poe_token_raw(&client, &session).await?;
+    if body.get("expired").and_then(|v| v.as_bool()).unwrap_or(false) {
+        return Err(
+            "poe_expired: reconnect your Path of Exile account at exilecompass.com/settings"
+                .to_string(),
+        );
+    }
+    let Some(access_token) = body.get("accessToken").and_then(|v| v.as_str()) else {
+        return Err(
+            "poe_not_linked: connect your Path of Exile account at exilecompass.com/settings"
+                .to_string(),
+        );
+    };
+    let user_agent = body
+        .get("userAgent")
+        .and_then(|v| v.as_str())
+        .unwrap_or("OAuth exilecompass/1.0.0 (contact: https://exilecompass.com)")
+        .to_string();
+    *POE_ACCESS.lock().unwrap() = Some(CachedPoeAccess {
+        access_token: access_token.to_string(),
+        user_agent: user_agent.clone(),
+        fetched_epoch: now_epoch(),
+    });
+    Ok((access_token.to_string(), user_agent))
+}
+
+#[derive(Serialize)]
+pub struct PoeApiResponse {
+    pub status: u16,
+    pub body: String,
+    /// Set on HTTP 429 — seconds the caller must wait before retrying.
+    /// Ignoring GGG's rate limits can get the account's API access restricted.
+    pub retry_after: Option<u64>,
+}
+
+fn poe_url(segments: &[&str]) -> Result<reqwest::Url, String> {
+    let mut url = reqwest::Url::parse("https://api.pathofexile.com").map_err(|e| e.to_string())?;
+    {
+        let mut path = url
+            .path_segments_mut()
+            .map_err(|_| "invalid base url".to_string())?;
+        for segment in segments {
+            path.push(segment);
+        }
+    }
+    Ok(url)
+}
+
+async fn poe_api_get(url: reqwest::Url) -> Result<PoeApiResponse, String> {
+    let client = http_client()?;
+    for attempt in 0..2u8 {
+        let (token, user_agent) = poe_access(attempt > 0).await?;
+        let response = client
+            .get(url.clone())
+            .bearer_auth(&token)
+            .header("User-Agent", &user_agent)
+            .send()
+            .await
+            .map_err(|e| format!("Network error contacting api.pathofexile.com: {e}"))?;
+
+        let status = response.status().as_u16();
+        if status == 401 && attempt == 0 {
+            continue;
+        }
+        let retry_after = response
+            .headers()
+            .get("retry-after")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse().ok())
+            .filter(|_| status == 429);
+        let body = response.text().await.map_err(|e| e.to_string())?;
+        return Ok(PoeApiResponse { status, body, retry_after });
+    }
+    Err("api.pathofexile.com rejected the access token twice".to_string())
+}
+
+#[tauri::command]
+pub async fn addons_poe_leagues() -> Result<PoeApiResponse, String> {
+    poe_api_get(poe_url(&["account", "leagues"])?).await
+}
+
+#[tauri::command]
+pub async fn addons_poe_stash_list(league: String) -> Result<PoeApiResponse, String> {
+    poe_api_get(poe_url(&["stash", &league])?).await
+}
+
+#[tauri::command]
+pub async fn addons_poe_stash_tab(
+    league: String,
+    stash_id: String,
+    parent_id: Option<String>,
+) -> Result<PoeApiResponse, String> {
+    let url = match parent_id.as_deref() {
+        Some(parent) => poe_url(&["stash", &league, parent, &stash_id])?,
+        None => poe_url(&["stash", &league, &stash_id])?,
+    };
+    poe_api_get(url).await
 }

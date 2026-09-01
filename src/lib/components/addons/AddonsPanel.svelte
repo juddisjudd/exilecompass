@@ -143,6 +143,17 @@
         return () => { gameChangeCbs.delete(cb); };
       },
     },
+    poe: {
+      status: () => rpc('poe.status'),
+      leagues: () => rpc('poe.leagues'),
+      stashList: (league) => rpc('poe.stashList', { league: String(league) }),
+      stashTab: (league, stashId, parentId) =>
+        rpc('poe.stashTab', {
+          league: String(league),
+          stashId: String(stashId),
+          parentId: parentId == null ? null : String(parentId),
+        }),
+    },
   };
   addEventListener('message', async (e) => {
     const d = e.data;
@@ -275,6 +286,42 @@
           if (!cur.permissions.includes('game.read'))
             return reply(undefined, 'permission denied: game.read');
           reply(gameMode.current);
+        } else if (d.method === 'poe.status') {
+          // The whole poe.* family rides one permission: the host performs
+          // api.pathofexile.com reads with the user's account token, so it is
+          // the strongest grant an add-on can ask for and is listed as such.
+          if (!cur.permissions.includes('poe.stashes'))
+            return reply(undefined, 'permission denied: poe.stashes');
+          const s = await invoke<{
+            linked: boolean;
+            poe_linked: boolean;
+            poe_expired: boolean;
+            poe_name: string | null;
+          }>('account_status');
+          reply({
+            appLinked: s.linked,
+            poeLinked: s.poe_linked,
+            poeExpired: s.poe_expired,
+            poeName: s.poe_name,
+          });
+        } else if (d.method === 'poe.leagues') {
+          if (!cur.permissions.includes('poe.stashes'))
+            return reply(undefined, 'permission denied: poe.stashes');
+          reply(await invoke('addons_poe_leagues'));
+        } else if (d.method === 'poe.stashList') {
+          if (!cur.permissions.includes('poe.stashes'))
+            return reply(undefined, 'permission denied: poe.stashes');
+          reply(await invoke('addons_poe_stash_list', { league: String(d.params?.league ?? '') }));
+        } else if (d.method === 'poe.stashTab') {
+          if (!cur.permissions.includes('poe.stashes'))
+            return reply(undefined, 'permission denied: poe.stashes');
+          reply(
+            await invoke('addons_poe_stash_tab', {
+              league: String(d.params?.league ?? ''),
+              stashId: String(d.params?.stashId ?? ''),
+              parentId: d.params?.parentId == null ? null : String(d.params.parentId),
+            }),
+          );
         } else {
           reply(undefined, `unknown host method: ${d.method}`);
         }

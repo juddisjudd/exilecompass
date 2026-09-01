@@ -75,7 +75,7 @@ async function main() {
     },
     compatibility: {
       app: '>=0.2.9',
-      pluginApi: '^1.1.0',
+      pluginApi: '^1.2.0',
     },
     permissions: ['storage.read', 'storage.write', 'ui.panel'],
     contributions: {
@@ -146,6 +146,28 @@ export interface AddonRequestResponse {
   body: string;
 }
 
+export interface PoeApiResponse {
+  status: number;
+  /** Raw JSON from api.pathofexile.com. */
+  body: string;
+  /**
+   * Set on HTTP 429 — wait this many seconds before any further poe.* call.
+   * GGG's rate limits must be respected; ignoring them can get the player's
+   * API access restricted.
+   */
+  retry_after?: number | null;
+}
+
+export interface PoeStatus {
+  /** The app is signed in to an exilecompass.com account. */
+  appLinked: boolean;
+  /** That account has a Path of Exile account connected. */
+  poeLinked: boolean;
+  /** The PoE connection lapsed — reconnect at exilecompass.com/settings. */
+  poeExpired: boolean;
+  poeName: string | null;
+}
+
 export interface AddonHost {
   /**
    * Per-addon key/value storage, persisted by the host and namespaced to this
@@ -203,6 +225,24 @@ export interface AddonHost {
   game?: {
     get(): Promise<AddonGame>;
     onChange(cb: (game: AddonGame) => void): () => void;
+  };
+  /**
+   * Read-only access to the player's Path of Exile account, performed by the
+   * host with the token from the user's linked exilecompass.com account
+   * (Settings → Account). The whole namespace requires the \`poe.stashes\`
+   * permission — the strongest grant an add-on can request; ask for it only
+   * when account data is the point of the add-on. Stash and league endpoints
+   * cover PoE1 only until GGG opens the equivalent PoE2 APIs. Absent on
+   * ExileCompass versions before 1.5.5.
+   */
+  poe?: {
+    status(): Promise<PoeStatus>;
+    /** GET /account/leagues — the account's leagues, raw JSON in \`body\`. */
+    leagues(): Promise<PoeApiResponse>;
+    /** GET /stash/<league> — stash tab metadata; folders carry children. */
+    stashList(league: string): Promise<PoeApiResponse>;
+    /** GET /stash/<league>[/<parent>]/<id> — one tab with its items. */
+    stashTab(league: string, stashId: string, parentId?: string | null): Promise<PoeApiResponse>;
   };
 }
 
