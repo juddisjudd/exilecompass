@@ -2271,15 +2271,45 @@
               {#if account.loading && !account.status}
                 <p class="field-help">…</p>
               {:else if account.status?.linked}
-                <p class="field-help">{m.account_signed_in_as({ name: account.status.name ?? '' })}</p>
+                <div class="account-rows">
+                  <div class="account-row">
+                    <span class="account-row-label">ExileCompass</span>
+                    <span class="account-row-value">{account.status.name ?? ''}</span>
+                    <span class="badge badge-ok">{m.account_connected()}</span>
+                  </div>
+                  <div class="account-row">
+                    <span class="account-row-label">Path of Exile</span>
+                    {#if account.status.poe_expired}
+                      <span class="account-row-value">{account.status.poe_name ?? ''}</span>
+                      <span class="badge badge-bad">{m.account_expired_badge()}</span>
+                    {:else if account.status.poe_linked}
+                      <span class="account-row-value">{account.status.poe_name ?? ''}</span>
+                      <span class="badge badge-ok">{m.account_connected()}</span>
+                    {:else}
+                      <span class="account-row-value"></span>
+                      <span class="badge badge-neutral">{m.account_not_connected()}</span>
+                    {/if}
+                  </div>
+                </div>
                 {#if account.status.poe_expired}
                   <p class="inline-error">{m.account_poe_expired()}</p>
-                {:else if account.status.poe_linked}
-                  <p class="field-help">{m.account_poe_connected()}</p>
-                {:else}
+                {:else if !account.status.poe_linked}
                   <p class="field-help">{m.account_poe_missing()}</p>
                 {/if}
                 <div class="settings-actions">
+                  {#if !account.status.poe_linked || account.status.poe_expired}
+                    <button class="btn btn-primary" type="button" onclick={account.openSiteSettings}>
+                      {m.account_open_settings()}
+                    </button>
+                  {/if}
+                  <button
+                    class="btn btn-ghost"
+                    type="button"
+                    disabled={account.loading}
+                    onclick={() => void account.refresh()}
+                  >
+                    {m.account_refresh()}
+                  </button>
                   <button class="btn btn-ghost" type="button" onclick={() => void account.unlink()}>
                     {m.account_disconnect()}
                   </button>
@@ -3550,6 +3580,45 @@
     display: none;
     width: 0;
     height: 0;
+  }
+
+  .account-rows {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid color-mix(in srgb, var(--c-accent) 24%, transparent);
+    margin-bottom: 10px;
+  }
+
+  .account-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+  }
+
+  .account-row + .account-row {
+    border-top: 1px solid color-mix(in srgb, var(--c-accent) 16%, transparent);
+  }
+
+  .account-row-label {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--c-accent);
+    width: 110px;
+    flex: none;
+  }
+
+  .account-row-value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+    color: var(--c-primary);
   }
 
   .account-code {

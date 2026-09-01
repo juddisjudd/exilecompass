@@ -399,5 +399,10 @@
   "account_disconnect": "退出登录",
   "account_poe_connected": "已连接 Path of Exile 账户。",
   "account_poe_missing": "尚未连接 Path of Exile 账户 — 请在 exilecompass.com/settings 连接。",
-  "account_poe_expired": "Path of Exile 连接已过期 — 请在 exilecompass.com/settings 重新连接。"
+  "account_poe_expired": "Path of Exile 连接已过期 — 请在 exilecompass.com/settings 重新连接。",
+  "account_connected": "已连接",
+  "account_not_connected": "未连接",
+  "account_expired_badge": "已过期",
+  "account_open_settings": "打开 exilecompass.com 设置",
+  "account_refresh": "刷新"
 }

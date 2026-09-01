@@ -399,5 +399,10 @@
   "account_disconnect": "サインアウト",
   "account_poe_connected": "Path of Exile アカウントが連携されています。",
   "account_poe_missing": "Path of Exile アカウントがまだ連携されていません。exilecompass.com/settings で連携してください。",
-  "account_poe_expired": "Path of Exile の連携が期限切れです。exilecompass.com/settings で再連携してください。"
+  "account_poe_expired": "Path of Exile の連携が期限切れです。exilecompass.com/settings で再連携してください。",
+  "account_connected": "連携済み",
+  "account_not_connected": "未連携",
+  "account_expired_badge": "期限切れ",
+  "account_open_settings": "exilecompass.com の設定を開く",
+  "account_refresh": "更新"
 }

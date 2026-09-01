@@ -399,5 +399,10 @@
   "account_disconnect": "Abmelden",
   "account_poe_connected": "Path-of-Exile-Konto verbunden.",
   "account_poe_missing": "Noch kein Path-of-Exile-Konto verbunden — verbinde eines unter exilecompass.com/settings.",
-  "account_poe_expired": "Deine Path-of-Exile-Verbindung ist abgelaufen — verbinde sie unter exilecompass.com/settings neu."
+  "account_poe_expired": "Deine Path-of-Exile-Verbindung ist abgelaufen — verbinde sie unter exilecompass.com/settings neu.",
+  "account_connected": "Verbunden",
+  "account_not_connected": "Nicht verbunden",
+  "account_expired_badge": "Abgelaufen",
+  "account_open_settings": "exilecompass.com-Einstellungen öffnen",
+  "account_refresh": "Aktualisieren"
 }

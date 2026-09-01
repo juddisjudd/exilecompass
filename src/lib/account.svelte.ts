@@ -11,6 +11,7 @@ export interface AccountStatus {
   name: string | null;
   poe_linked: boolean;
   poe_expired: boolean;
+  poe_name: string | null;
 }
 
 interface DeviceCodeResponse {
@@ -117,6 +118,10 @@ function openVerification(): void {
   if (state.verificationUrl) void openUrl(state.verificationUrl).catch(() => {});
 }
 
+function openSiteSettings(): void {
+  void openUrl('https://exilecompass.com/settings').catch(() => {});
+}
+
 export const account = {
   get status() {
     return state.status;
@@ -138,4 +143,5 @@ export const account = {
   cancelLink,
   unlink,
   openVerification,
+  openSiteSettings,
 };

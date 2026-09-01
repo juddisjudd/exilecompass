@@ -399,5 +399,10 @@
   "account_disconnect": "Sair",
   "account_poe_connected": "Conta do Path of Exile conectada.",
   "account_poe_missing": "Nenhuma conta do Path of Exile conectada ainda — conecte uma em exilecompass.com/settings.",
-  "account_poe_expired": "Sua conexão do Path of Exile expirou — reconecte em exilecompass.com/settings."
+  "account_poe_expired": "Sua conexão do Path of Exile expirou — reconecte em exilecompass.com/settings.",
+  "account_connected": "Conectada",
+  "account_not_connected": "Não conectada",
+  "account_expired_badge": "Expirada",
+  "account_open_settings": "Abrir configurações do exilecompass.com",
+  "account_refresh": "Atualizar"
 }

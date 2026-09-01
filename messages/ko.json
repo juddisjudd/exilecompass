@@ -399,5 +399,10 @@
   "account_disconnect": "로그아웃",
   "account_poe_connected": "Path of Exile 계정이 연결되었습니다.",
   "account_poe_missing": "아직 연결된 Path of Exile 계정이 없습니다. exilecompass.com/settings에서 연결하세요.",
-  "account_poe_expired": "Path of Exile 연결이 만료되었습니다. exilecompass.com/settings에서 다시 연결하세요."
+  "account_poe_expired": "Path of Exile 연결이 만료되었습니다. exilecompass.com/settings에서 다시 연결하세요.",
+  "account_connected": "연결됨",
+  "account_not_connected": "연결 안 됨",
+  "account_expired_badge": "만료됨",
+  "account_open_settings": "exilecompass.com 설정 열기",
+  "account_refresh": "새로고침"
 }

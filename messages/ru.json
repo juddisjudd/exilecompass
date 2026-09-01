@@ -399,5 +399,10 @@
   "account_disconnect": "Выйти",
   "account_poe_connected": "Аккаунт Path of Exile подключён.",
   "account_poe_missing": "Аккаунт Path of Exile ещё не подключён — подключите его на exilecompass.com/settings.",
-  "account_poe_expired": "Подключение Path of Exile истекло — подключите заново на exilecompass.com/settings."
+  "account_poe_expired": "Подключение Path of Exile истекло — подключите заново на exilecompass.com/settings.",
+  "account_connected": "Подключено",
+  "account_not_connected": "Не подключено",
+  "account_expired_badge": "Истекло",
+  "account_open_settings": "Открыть настройки exilecompass.com",
+  "account_refresh": "Обновить"
 }

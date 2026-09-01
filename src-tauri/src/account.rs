@@ -154,6 +154,8 @@ pub struct AccountStatus {
     /// The site's stored PoE refresh token hit GGG's 90-day ceiling — the
     /// user has to re-connect PoE at exilecompass.com/settings.
     pub poe_expired: bool,
+    /// The GGG account name of the connected PoE account.
+    pub poe_name: Option<String>,
 }
 
 const NOT_LINKED: AccountStatus = AccountStatus {
@@ -161,6 +163,7 @@ const NOT_LINKED: AccountStatus = AccountStatus {
     name: None,
     poe_linked: false,
     poe_expired: false,
+    poe_name: None,
 };
 
 #[tauri::command]
@@ -195,6 +198,7 @@ pub async fn account_status() -> Result<AccountStatus, String> {
         name,
         poe_linked: poe.get("linked").and_then(|v| v.as_bool()).unwrap_or(false),
         poe_expired: poe.get("expired").and_then(|v| v.as_bool()).unwrap_or(false),
+        poe_name: poe.get("name").and_then(|v| v.as_str()).map(str::to_string),
     })
 }
 
@@ -240,6 +244,7 @@ pub struct PoeTokenInfo {
     pub access_token: Option<String>,
     pub expires_at: Option<String>,
     pub uuid: Option<String>,
+    pub name: Option<String>,
 }
 
 /// The user's PoE access token for direct api.pathofexile.com calls. Features
@@ -264,5 +269,6 @@ pub async fn account_poe_token() -> Result<PoeTokenInfo, String> {
             .and_then(|v| v.as_str())
             .map(str::to_string),
         uuid: body.get("uuid").and_then(|v| v.as_str()).map(str::to_string),
+        name: body.get("name").and_then(|v| v.as_str()).map(str::to_string),
     })
 }
