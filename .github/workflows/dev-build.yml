@@ -60,7 +60,7 @@ jobs:
 
       - name: Cache sherpa-onnx prebuilt libs
         id: sherpa-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.sherpa.outputs.root }}
           key: sherpa-onnx-${{ runner.os }}-${{ steps.sherpa.outputs.name }}
@@ -97,7 +97,7 @@ jobs:
           echo "path=$dest" >> $env:GITHUB_OUTPUT
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: exilecompass-dev-${{ github.sha }}
           path: ${{ steps.installer.outputs.path }}

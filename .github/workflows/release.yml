@@ -113,7 +113,7 @@ jobs:
 
       - name: Cache sherpa-onnx prebuilt libs
         id: sherpa-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.sherpa.outputs.root }}
           key: sherpa-onnx-${{ runner.os }}-${{ steps.sherpa.outputs.name }}
