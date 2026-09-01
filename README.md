@@ -2,7 +2,7 @@
 
 # ExileCompass
 
-**An always-on-top companion overlay for Path of Exile 2 and Path of Exile.**
+**An in-game overlay for Path of Exile 2 and Path of Exile.**
 
 Track your campaign, collect every permanent reward, build stash search strings,
 time your runs, and keep your build's gems and gear one glance away. You can
