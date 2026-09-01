@@ -312,7 +312,6 @@
   "leveling_ascend": "アセンダンス",
   "leveling_crafting": "クラフト",
   "leveling_copy": "コピー",
-
   "poe1regex_cat_vendor": "ベンダー",
   "poe1regex_cat_items": "アイテム",
   "poe1regex_cat_mapmods": "マップMOD",
@@ -387,5 +386,18 @@
   "poe1regex_flasks_only_max_suffix": "このレベルで最高ティアの接尾辞のみ",
   "poe1regex_beast_harvest": "ハーベストビーストを含める",
   "poe1regex_beast_red": "レッドビーストのみ",
-  "poe1regex_runegraft_include_tattoos": "タトゥーを含める"
+  "poe1regex_runegraft_include_tattoos": "タトゥーを含める",
+  "settings_tab_account": "アカウント",
+  "account_signed_out_hint": "exilecompass.com のアカウントでサインインすると、Path of Exile のアカウント機能（キャラクター、スタッシュ、アイテムフィルター）を利用できます。",
+  "account_connect": "ExileCompass でサインイン",
+  "account_waiting": "ブラウザで exilecompass.com が開きました。そこでサインインを承認してください。ページには次のコードが表示されます:",
+  "account_open_browser": "ブラウザを再度開く",
+  "account_cancel": "キャンセル",
+  "account_denied": "リクエストはウェブサイトで拒否されました。",
+  "account_expired": "サインインリクエストの有効期限が切れました。もう一度お試しください。",
+  "account_signed_in_as": "{name} としてサインイン中。",
+  "account_disconnect": "サインアウト",
+  "account_poe_connected": "Path of Exile アカウントが連携されています。",
+  "account_poe_missing": "Path of Exile アカウントがまだ連携されていません。exilecompass.com/settings で連携してください。",
+  "account_poe_expired": "Path of Exile の連携が期限切れです。exilecompass.com/settings で再連携してください。"
 }

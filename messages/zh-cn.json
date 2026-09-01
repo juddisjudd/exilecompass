@@ -312,7 +312,6 @@
   "leveling_ascend": "升华",
   "leveling_crafting": "制作",
   "leveling_copy": "复制",
-
   "poe1regex_cat_vendor": "商贩",
   "poe1regex_cat_items": "装备",
   "poe1regex_cat_mapmods": "地图词缀",
@@ -387,5 +386,18 @@
   "poe1regex_flasks_only_max_suffix": "仅此等级下最高级后缀",
   "poe1regex_beast_harvest": "包含丰裕野兽",
   "poe1regex_beast_red": "仅红色野兽",
-  "poe1regex_runegraft_include_tattoos": "包含纹身"
+  "poe1regex_runegraft_include_tattoos": "包含纹身",
+  "settings_tab_account": "账户",
+  "account_signed_out_hint": "使用你的 exilecompass.com 账户登录，即可使用 Path of Exile 账户功能（角色、仓库、物品过滤器）。",
+  "account_connect": "使用 ExileCompass 登录",
+  "account_waiting": "浏览器已打开 exilecompass.com — 请在那里批准登录。页面应显示以下代码：",
+  "account_open_browser": "重新打开浏览器",
+  "account_cancel": "取消",
+  "account_denied": "请求已在网站上被拒绝。",
+  "account_expired": "登录请求已过期，请重试。",
+  "account_signed_in_as": "已登录为 {name}。",
+  "account_disconnect": "退出登录",
+  "account_poe_connected": "已连接 Path of Exile 账户。",
+  "account_poe_missing": "尚未连接 Path of Exile 账户 — 请在 exilecompass.com/settings 连接。",
+  "account_poe_expired": "Path of Exile 连接已过期 — 请在 exilecompass.com/settings 重新连接。"
 }

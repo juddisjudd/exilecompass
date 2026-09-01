@@ -312,7 +312,6 @@
   "leveling_ascend": "승급",
   "leveling_crafting": "제작",
   "leveling_copy": "복사",
-
   "poe1regex_cat_vendor": "상인",
   "poe1regex_cat_items": "아이템",
   "poe1regex_cat_mapmods": "지도 접두/접미사",
@@ -387,5 +386,18 @@
   "poe1regex_flasks_only_max_suffix": "이 레벨에서 최고 티어 접미사만",
   "poe1regex_beast_harvest": "하베스트 야수 포함",
   "poe1regex_beast_red": "레드 야수만",
-  "poe1regex_runegraft_include_tattoos": "타투 포함"
+  "poe1regex_runegraft_include_tattoos": "타투 포함",
+  "settings_tab_account": "계정",
+  "account_signed_out_hint": "exilecompass.com 계정으로 로그인하면 Path of Exile 계정 기능(캐릭터, 보관함, 아이템 필터)을 사용할 수 있습니다.",
+  "account_connect": "ExileCompass로 로그인",
+  "account_waiting": "브라우저에서 exilecompass.com이 열렸습니다. 그곳에서 로그인을 승인하세요. 페이지에 다음 코드가 표시됩니다:",
+  "account_open_browser": "브라우저 다시 열기",
+  "account_cancel": "취소",
+  "account_denied": "웹사이트에서 요청이 거부되었습니다.",
+  "account_expired": "로그인 요청이 만료되었습니다. 다시 시도하세요.",
+  "account_signed_in_as": "{name}(으)로 로그인됨.",
+  "account_disconnect": "로그아웃",
+  "account_poe_connected": "Path of Exile 계정이 연결되었습니다.",
+  "account_poe_missing": "아직 연결된 Path of Exile 계정이 없습니다. exilecompass.com/settings에서 연결하세요.",
+  "account_poe_expired": "Path of Exile 연결이 만료되었습니다. exilecompass.com/settings에서 다시 연결하세요."
 }

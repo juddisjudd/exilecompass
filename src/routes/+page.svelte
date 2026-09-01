@@ -7,6 +7,7 @@
     unregister as unregisterGlobalShortcut,
   } from '@tauri-apps/plugin-global-shortcut';
   import TitleBar from '$lib/components/TitleBar.svelte';
+  import { account } from '$lib/account.svelte';
   import PoeFrame from '$lib/components/PoeFrame.svelte';
   import CampaignGuide from '$lib/components/CampaignGuide.svelte';
   import PermanentRewards from '$lib/components/PermanentRewards.svelte';
@@ -141,7 +142,7 @@
   import type { Update } from '@tauri-apps/plugin-updater';
 
   type AppLocale = (typeof locales)[number];
-  type SettingsTabId = 'hotkeys' | 'voice' | 'language' | 'appearance' | 'logFile' | 'importBuilds' | 'about';
+  type SettingsTabId = 'hotkeys' | 'voice' | 'language' | 'appearance' | 'logFile' | 'account' | 'importBuilds' | 'about';
 
   const KOFI_URL = 'https://ko-fi.com/ohitsjudd';
   const ADDONS_LABEL = 'Add-ons';
@@ -184,6 +185,7 @@
     { group: 'GENERAL', id: 'language' },
     { group: 'GENERAL', id: 'appearance' },
     { group: 'GENERAL', id: 'logFile' },
+    { group: 'GENERAL', id: 'account' },
     { group: 'IMPORT', id: 'importBuilds' },
     { group: 'ABOUT', id: 'about' },
   ];
@@ -191,6 +193,12 @@
   let error = $state('');
   let showSettings = $state(false);
   let mainView = $state<ViewId>('campaign');
+
+  // Account status is only fetched when the tab is actually opened — it makes
+  // network calls to exilecompass.com.
+  $effect(() => {
+    if (showSettings && activeSettingsTab === 'account') void account.refresh();
+  });
 
   // Enabled, pinned add-ons that contribute a panel — shown as top-level tabs.
   const pinnedAddons = $derived(
@@ -896,6 +904,7 @@
     if (tabId === 'language') return m.label_language();
     if (tabId === 'appearance') return m.settings_tab_appearance();
     if (tabId === 'logFile') return m.settings_tab_log_file();
+    if (tabId === 'account') return m.settings_tab_account();
     if (tabId === 'importBuilds') return m.settings_tab_import_builds();
     return m.settings_tab_about();
   }
@@ -2257,6 +2266,52 @@
                 </div>
               {/if}
 
+            {:else if activeSettingsTab === 'account'}
+              <div class="settings-section-title">{m.settings_tab_account()}</div>
+              {#if account.loading && !account.status}
+                <p class="field-help">…</p>
+              {:else if account.status?.linked}
+                <p class="field-help">{m.account_signed_in_as({ name: account.status.name ?? '' })}</p>
+                {#if account.status.poe_expired}
+                  <p class="inline-error">{m.account_poe_expired()}</p>
+                {:else if account.status.poe_linked}
+                  <p class="field-help">{m.account_poe_connected()}</p>
+                {:else}
+                  <p class="field-help">{m.account_poe_missing()}</p>
+                {/if}
+                <div class="settings-actions">
+                  <button class="btn btn-ghost" type="button" onclick={() => void account.unlink()}>
+                    {m.account_disconnect()}
+                  </button>
+                </div>
+              {:else if account.linkPhase === 'waiting'}
+                <p class="field-help">{m.account_waiting()}</p>
+                <div class="account-code">{account.userCode}</div>
+                <div class="settings-actions">
+                  <button class="btn btn-ghost" type="button" onclick={account.openVerification}>
+                    {m.account_open_browser()}
+                  </button>
+                  <button class="btn btn-ghost" type="button" onclick={account.cancelLink}>
+                    {m.account_cancel()}
+                  </button>
+                </div>
+              {:else}
+                <p class="field-help">{m.account_signed_out_hint()}</p>
+                {#if account.linkPhase === 'denied'}
+                  <p class="inline-error">{m.account_denied()}</p>
+                {:else if account.linkPhase === 'expired'}
+                  <p class="inline-error">{m.account_expired()}</p>
+                {/if}
+                <div class="settings-actions">
+                  <button class="btn btn-primary" type="button" onclick={() => void account.beginLink()}>
+                    {m.account_connect()}
+                  </button>
+                </div>
+              {/if}
+              {#if account.error}
+                <p class="inline-error">{account.error}</p>
+              {/if}
+
             {:else if activeSettingsTab === 'logFile'}
               <div class="settings-section-title">{m.settings_log_file_title()}</div>
               <label class="field-label" for="log-file-path">
@@ -3495,6 +3550,19 @@
     display: none;
     width: 0;
     height: 0;
+  }
+
+  .account-code {
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 22px;
+    letter-spacing: 0.18em;
+    text-align: center;
+    color: var(--c-red-bright);
+    background: color-mix(in srgb, var(--c-muted) 30%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-accent) 34%, transparent);
+    padding: 10px 0;
+    margin: 8px 0 10px;
+    user-select: text;
   }
 
   .settings-section-title {

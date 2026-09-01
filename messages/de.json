@@ -312,7 +312,6 @@
   "leveling_ascend": "Aufsteigen",
   "leveling_crafting": "Craften",
   "leveling_copy": "Kopieren",
-
   "poe1regex_cat_vendor": "Händler",
   "poe1regex_cat_items": "Items",
   "poe1regex_cat_mapmods": "Kartenmods",
@@ -387,5 +386,18 @@
   "poe1regex_flasks_only_max_suffix": "Nur höchststufiges Suffix für dieses Level",
   "poe1regex_beast_harvest": "Ernte-Bestien einschließen",
   "poe1regex_beast_red": "Nur rote Bestien",
-  "poe1regex_runegraft_include_tattoos": "Tattoos einschließen"
+  "poe1regex_runegraft_include_tattoos": "Tattoos einschließen",
+  "settings_tab_account": "Konto",
+  "account_signed_out_hint": "Melde dich mit deinem exilecompass.com-Konto an, um Path-of-Exile-Kontofunktionen zu nutzen (Charaktere, Truhen, Item-Filter).",
+  "account_connect": "Mit ExileCompass anmelden",
+  "account_waiting": "Dein Browser hat exilecompass.com geöffnet — bestätige dort die Anmeldung. Die Seite sollte diesen Code anzeigen:",
+  "account_open_browser": "Browser erneut öffnen",
+  "account_cancel": "Abbrechen",
+  "account_denied": "Die Anfrage wurde auf der Website abgelehnt.",
+  "account_expired": "Die Anmeldeanfrage ist abgelaufen. Versuche es erneut.",
+  "account_signed_in_as": "Angemeldet als {name}.",
+  "account_disconnect": "Abmelden",
+  "account_poe_connected": "Path-of-Exile-Konto verbunden.",
+  "account_poe_missing": "Noch kein Path-of-Exile-Konto verbunden — verbinde eines unter exilecompass.com/settings.",
+  "account_poe_expired": "Deine Path-of-Exile-Verbindung ist abgelaufen — verbinde sie unter exilecompass.com/settings neu."
 }

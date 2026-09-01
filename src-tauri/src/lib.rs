@@ -12,6 +12,11 @@ use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 /// writes logs to a different folder than the README documents.
 const APP_NAME: &str = "ExileCompass";
 
+mod account;
+use account::{
+    account_begin_link, account_poe_token, account_poll_link, account_status, account_unlink,
+};
+
 mod voice;
 use voice::{
     voice_is_listening, voice_list_input_devices, voice_list_phrases, voice_start_listening,
@@ -2119,6 +2124,11 @@ pub fn run() {
             tts_set_elevenlabs_key_keychain,
             tts_get_elevenlabs_key_keychain,
             tts_delete_elevenlabs_key_keychain,
+            account_begin_link,
+            account_poll_link,
+            account_status,
+            account_unlink,
+            account_poe_token,
         ])
         .run(tauri::generate_context!());
 

@@ -312,7 +312,6 @@
   "leveling_ascend": "Восхождение",
   "leveling_crafting": "Крафт",
   "leveling_copy": "Копировать",
-
   "poe1regex_cat_vendor": "Торговец",
   "poe1regex_cat_items": "Предметы",
   "poe1regex_cat_mapmods": "Моды карт",
@@ -387,5 +386,18 @@
   "poe1regex_flasks_only_max_suffix": "Только высший уровень суффикса для этого уровня",
   "poe1regex_beast_harvest": "Включить зверей Урожая",
   "poe1regex_beast_red": "Только красные звери",
-  "poe1regex_runegraft_include_tattoos": "Включить татуировки"
+  "poe1regex_runegraft_include_tattoos": "Включить татуировки",
+  "settings_tab_account": "Аккаунт",
+  "account_signed_out_hint": "Войдите с аккаунтом exilecompass.com, чтобы использовать функции аккаунта Path of Exile (персонажи, тайники, фильтры предметов).",
+  "account_connect": "Войти через ExileCompass",
+  "account_waiting": "В браузере открыт exilecompass.com — подтвердите вход там. На странице должен отображаться этот код:",
+  "account_open_browser": "Открыть браузер снова",
+  "account_cancel": "Отмена",
+  "account_denied": "Запрос был отклонён на сайте.",
+  "account_expired": "Срок запроса на вход истёк. Попробуйте ещё раз.",
+  "account_signed_in_as": "Вы вошли как {name}.",
+  "account_disconnect": "Выйти",
+  "account_poe_connected": "Аккаунт Path of Exile подключён.",
+  "account_poe_missing": "Аккаунт Path of Exile ещё не подключён — подключите его на exilecompass.com/settings.",
+  "account_poe_expired": "Подключение Path of Exile истекло — подключите заново на exilecompass.com/settings."
 }

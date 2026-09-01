@@ -312,7 +312,6 @@
   "leveling_ascend": "Ascender",
   "leveling_crafting": "Crafteo",
   "leveling_copy": "Copiar",
-
   "poe1regex_cat_vendor": "Vendedor",
   "poe1regex_cat_items": "Objetos",
   "poe1regex_cat_mapmods": "Mods de Mapa",
@@ -387,5 +386,18 @@
   "poe1regex_flasks_only_max_suffix": "Solo el sufijo de mayor nivel para este nivel",
   "poe1regex_beast_harvest": "Incluir bestias de Cosecha",
   "poe1regex_beast_red": "Solo bestias rojas",
-  "poe1regex_runegraft_include_tattoos": "Incluir Tatuajes"
+  "poe1regex_runegraft_include_tattoos": "Incluir Tatuajes",
+  "settings_tab_account": "Cuenta",
+  "account_signed_out_hint": "Inicia sesión con tu cuenta de exilecompass.com para usar las funciones de cuenta de Path of Exile (personajes, alijos, filtros de objetos).",
+  "account_connect": "Iniciar sesión con ExileCompass",
+  "account_waiting": "Tu navegador abrió exilecompass.com — aprueba el inicio de sesión allí. La página debería mostrar este código:",
+  "account_open_browser": "Abrir el navegador de nuevo",
+  "account_cancel": "Cancelar",
+  "account_denied": "La solicitud fue rechazada en el sitio web.",
+  "account_expired": "La solicitud de inicio de sesión expiró. Inténtalo de nuevo.",
+  "account_signed_in_as": "Sesión iniciada como {name}.",
+  "account_disconnect": "Cerrar sesión",
+  "account_poe_connected": "Cuenta de Path of Exile conectada.",
+  "account_poe_missing": "Aún no hay una cuenta de Path of Exile conectada — conecta una en exilecompass.com/settings.",
+  "account_poe_expired": "Tu conexión de Path of Exile expiró — vuelve a conectarla en exilecompass.com/settings."
 }
