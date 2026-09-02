@@ -329,6 +329,14 @@ function playAudioBytes(bytes: number[]): Promise<void> {
   });
 }
 
+/** Pre-start the Windows system-voice worker (tts.rs) so the first reply
+ *  after enabling voice commands isn't delayed by process startup. Only for
+ *  the system engine; a no-op elsewhere and on other platforms. */
+export function warmSystemVoice(): void {
+  if (_engine !== 'system') return;
+  void invoke('tts_sapi_warm').catch(() => {});
+}
+
 /** Speak `text` aloud — ElevenLabs if a key is configured, otherwise the free
  *  Windows SAPI fallback. Errors are recorded on `ttsState.error` rather than
  *  thrown, since this is normally fired from a background voice-command

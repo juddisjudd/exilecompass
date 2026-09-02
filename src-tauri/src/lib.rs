@@ -18,7 +18,8 @@ use account::{
     addons_poe_leagues, addons_poe_stash_list, addons_poe_stash_tab,
 };
 
-mod voice;
+pub mod audio;
+pub mod voice;
 use voice::{
     voice_is_listening, voice_list_input_devices, voice_list_phrases, voice_start_listening,
     voice_stop_listening, VoiceState,
@@ -33,7 +34,7 @@ mod tts;
 use tts::{
     tts_delete_elevenlabs_key_keychain, tts_get_elevenlabs_key_keychain,
     tts_list_elevenlabs_voices, tts_list_output_devices, tts_play_audio, tts_speak_elevenlabs,
-    tts_speak_sapi, tts_set_elevenlabs_key_keychain,
+    tts_sapi_warm, tts_speak_sapi, tts_set_elevenlabs_key_keychain,
 };
 
 /// Resolve the game-specific window finder for a `game` id ("poe1" | "poe2").
@@ -71,11 +72,23 @@ impl OverlayState {
 
 // ── App resource usage (footer display) ──────────────────────────────────────
 
-struct SysMonState(Mutex<sysinfo::System>);
+struct SysMon {
+    sys: sysinfo::System,
+    /// This process and its WebView2 children. Rediscovered every
+    /// TREE_REFRESH_EVERY with a full pass; the polls in between refresh only
+    /// these, skipping per-process timing/handle calls for the few hundred
+    /// other processes on the machine.
+    tree: Vec<sysinfo::Pid>,
+    tree_refreshed: Option<std::time::Instant>,
+}
+
+struct SysMonState(Mutex<SysMon>);
+
+const TREE_REFRESH_EVERY: std::time::Duration = std::time::Duration::from_secs(30);
 
 impl SysMonState {
     fn new() -> Self {
-        Self(Mutex::new(sysinfo::System::new()))
+        Self(Mutex::new(SysMon { sys: sysinfo::System::new(), tree: Vec::new(), tree_refreshed: None }))
     }
 }
 
@@ -86,37 +99,52 @@ struct ResourceUsage {
     memory_bytes: u64,
 }
 
+fn process_tree(procs: &HashMap<sysinfo::Pid, sysinfo::Process>, root: sysinfo::Pid) -> Vec<sysinfo::Pid> {
+    procs
+        .keys()
+        .copied()
+        .filter(|&pid| {
+            let mut cur = Some(pid);
+            let mut depth = 0;
+            loop {
+                match cur {
+                    Some(p) if p == root => break true,
+                    Some(p) if depth < 16 => {
+                        depth += 1;
+                        cur = procs.get(&p).and_then(|pr| pr.parent());
+                    }
+                    _ => break false,
+                }
+            }
+        })
+        .collect()
+}
+
 /// CPU/memory for the whole process tree (the Rust process plus WebView2
 /// children, which hold most of the memory). CPU is % of total across all
 /// cores; the first call after startup reports 0 since sysinfo measures
 /// between refreshes.
 #[tauri::command]
 fn get_resource_usage(state: State<'_, SysMonState>) -> Option<ResourceUsage> {
-    let mut sys = state.0.lock().unwrap();
-    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-    let own_pid = sysinfo::get_current_pid().ok()?;
-    let procs = sys.processes();
+    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
 
-    let mut cpu = 0f32;
-    let mut mem = 0u64;
-    for (pid, proc_) in procs {
-        let mut cur = Some(*pid);
-        let mut depth = 0;
-        let in_tree = loop {
-            match cur {
-                Some(p) if p == own_pid => break true,
-                Some(p) if depth < 16 => {
-                    depth += 1;
-                    cur = procs.get(&p).and_then(|pr| pr.parent());
-                }
-                _ => break false,
-            }
-        };
-        if in_tree {
-            cpu += proc_.cpu_usage();
-            mem += proc_.memory();
-        }
+    let own_pid = sysinfo::get_current_pid().ok()?;
+    let mut mon = state.0.lock().unwrap();
+    let SysMon { sys, tree, tree_refreshed } = &mut *mon;
+    let kind = ProcessRefreshKind::nothing().with_cpu().with_memory();
+    let stale = tree_refreshed.map_or(true, |t| t.elapsed() >= TREE_REFRESH_EVERY);
+    if stale {
+        sys.refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
+        *tree = process_tree(sys.processes(), own_pid);
+        *tree_refreshed = Some(std::time::Instant::now());
+    } else {
+        sys.refresh_processes_specifics(ProcessesToUpdate::Some(tree), true, kind);
     }
+
+    let (cpu, mem) = tree
+        .iter()
+        .filter_map(|pid| sys.process(*pid))
+        .fold((0f32, 0u64), |(cpu, mem), p| (cpu + p.cpu_usage(), mem + p.memory()));
 
     let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as f32;
     Some(ResourceUsage {
@@ -1909,7 +1937,9 @@ fn get_overlay_status(state: State<'_, OverlayState>) -> serde_json::Value {
         "clickThrough": click_through,
         // In no-detect mode we force the frontend out of the "waiting for game"
         // gate and skip auto-attach polling, so UI tools can be tested standalone.
-        "gameRunning": no_detect || find_window_for_game(&state.active_game.lock().unwrap()).is_some(),
+        // While attached to a live window there's nothing to search for —
+        // skip the once-a-second EnumWindows walk.
+        "gameRunning": no_detect || game_alive || find_window_for_game(&state.active_game.lock().unwrap()).is_some(),
         // Only Windows can enumerate and attach to the PoE2 window. Elsewhere the
         // overlay runs standalone: the frontend skips the "waiting for game" gate
         // and the auto-attach polling, showing the tools immediately.
@@ -2142,6 +2172,7 @@ pub fn run() {
             voice_start_listening,
             voice_stop_listening,
             tts_speak_sapi,
+            tts_sapi_warm,
             tts_speak_elevenlabs,
             tts_list_elevenlabs_voices,
             tts_list_output_devices,

@@ -356,7 +356,9 @@ export async function pollLog(
     // File was reset — update setup time so stale entries aren't processed
     newState.setupTime = new Date().toISOString();
   }
-  await saveWatcherState(newState, game);
+  // persistSet rewrites the whole settings.json — only touch it when the
+  // offset actually moved, not on every idle 2 s tick.
+  if (wasTruncated || newOffset !== state.offset) await saveWatcherState(newState, game);
 
   return { ids, scenes, areaId, areaIdEvents, dialogue, levelUps, state: newState };
 }

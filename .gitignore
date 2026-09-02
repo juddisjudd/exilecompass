@@ -35,3 +35,5 @@ resources
 AGENTS.md
 docs
 .remember
+# offline voice-recognition eval renders (tools/kws-eval/synth.ps1)
+tools/kws-eval/out/

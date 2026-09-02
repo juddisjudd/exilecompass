@@ -1,74 +1,53 @@
 // Voice commands: sherpa-onnx keyword spotting (Zipformer transducer,
 // GigaSpeech-trained). See resources/kws/README.md for keywords.txt provenance.
 //
-// We resample to 16kHz ourselves (LinearResampler) before ever calling
-// accept_waveform, always passing sample_rate=16000 — matching in==out
-// skips sherpa-onnx's own internal resampler entirely. That resampler was
-// reliably crashing (STATUS_STACK_BUFFER_OVERRUN, ONNX Reshape failure in
-// the encoder's downsample step) when fed a 44100/48000 device rate, and
-// upstream's own microphone example sidesteps it the same way by opening
-// the input device at 16kHz directly rather than resampling in the model.
+// cpal's real-time capture callback only conditions the audio (AGC and an
+// anti-aliased resample to 16 kHz — audio.rs) and queues it; a dedicated
+// decode thread feeds the spotter. We always hand sherpa 16 kHz audio and say
+// so: matching in==out skips its internal resampler, which was reliably
+// crashing (STATUS_STACK_BUFFER_OVERRUN, ONNX Reshape failure in the encoder's
+// downsample step) when fed a 44100/48000 device rate. Upstream's own
+// microphone example sidesteps it the same way, opening the device at 16 kHz
+// rather than resampling in the model.
 
-use std::path::PathBuf;
-use std::sync::mpsc;
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, Sample as CpalSample, SizedSample};
 use sherpa_onnx::{KeywordSpotter, KeywordSpotterConfig};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-const KWS_SAMPLE_RATE: u32 = 16000;
-const DEFAULT_KEYWORDS_THRESHOLD: f32 = 0.25;
+use crate::audio::{Agc, Resampler};
 
-// Boost-only AGC: quiet mics get lifted toward the level the model was trained
-// on; loud ones are left alone. Slow release so gain doesn't pump between words.
-const AGC_TARGET_PEAK: f32 = 0.3;
-const AGC_MAX_GAIN: f32 = 4.0;
-const AGC_RELEASE_SECS: f32 = 3.0;
-const AGC_FLOOR: f32 = 0.01;
+pub const KWS_SAMPLE_RATE: u32 = 16000;
+pub const DEFAULT_KEYWORDS_THRESHOLD: f32 = 0.25;
+/// Beam width of the keyword search. Upstream's default of 4 is sized for a
+/// couple of short wake words; sixty phrases of up to 13 tokens need room for
+/// a long phrase's hypothesis to survive one weakly scored token.
+pub const MAX_ACTIVE_PATHS: i32 = 8;
+/// Each blank is ~40 ms of confirmation silence after the phrase.
+pub const NUM_TRAILING_BLANKS: i32 = 3;
 
-struct LinearResampler {
-    in_rate: f64,
-    out_rate: f64,
-    pos: f64,
-    history: f32,
-}
-
-impl LinearResampler {
-    fn new(in_rate: u32, out_rate: u32) -> Self {
-        Self { in_rate: in_rate as f64, out_rate: out_rate as f64, pos: 0.0, history: 0.0 }
-    }
-
-    fn process(&mut self, input: &[f32]) -> Vec<f32> {
-        if input.is_empty() {
-            return Vec::new();
-        }
-        if (self.in_rate - self.out_rate).abs() < f64::EPSILON {
-            return input.to_vec();
-        }
-        let step = self.in_rate / self.out_rate;
-        let n = input.len() as i64;
-        let sample_at = |k: i64, history: f32| -> f32 {
-            if k < 0 { history } else { input[k as usize] }
-        };
-        let mut output = Vec::new();
-        loop {
-            let idx = self.pos.floor() as i64;
-            if idx + 1 > n - 1 {
-                break;
-            }
-            let s0 = sample_at(idx, self.history);
-            let s1 = sample_at(idx + 1, self.history);
-            let frac = (self.pos - idx as f64) as f32;
-            output.push(s0 + (s1 - s0) * frac);
-            self.pos += step;
-        }
-        self.pos -= n as f64;
-        self.history = *input.last().unwrap();
-        output
-    }
-}
+/// About 2.5 s of audio at cpal's ~10 ms callbacks. The game keeps every core
+/// busy, so the decode thread can be off-CPU for long stretches; anything the
+/// queue can't hold is dropped and the phrase reaches the model with a hole
+/// in it.
+const CHUNK_QUEUE_LEN: usize = 256;
+/// Upper bound on queued chunks folded into one decode pass when catching up.
+const MAX_COALESCE: usize = 64;
+const LEVEL_EVENTS_PER_SEC: u64 = 15;
+/// Below this post-AGC RMS a chunk counts as silence for level reporting.
+const LEVEL_SILENCE_RMS: f32 = 0.002;
+/// Level events keep flowing this long after the last audible chunk (so the
+/// Settings meter finishes its release and peak-hold), then stop until sound
+/// returns — silence is most of a session, and it needs no 15 Hz IPC.
+const LEVEL_SILENCE_HOLD: Duration = Duration::from_secs(4);
+/// A capture stream that stops delivering audio without reporting an error
+/// (device yanked, driver reset) is treated as failed after this long.
+const STALL_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Must match the `@display` names in resources/kws/keywords.txt.
 pub const PHRASES: &[&str] = &[
@@ -134,14 +113,35 @@ pub fn voice_list_phrases() -> Vec<String> {
     PHRASES.iter().map(|s| s.to_string()).collect()
 }
 
+enum Control {
+    Stop,
+    Failed(String),
+}
+
 pub struct VoiceState {
-    stop_tx: Mutex<Option<mpsc::Sender<()>>>,
+    /// Sender for the live session, tagged with its generation.
+    control: Mutex<Option<(u64, mpsc::Sender<Control>)>>,
+    /// Bumped per start, so a session winding down late can neither clear a
+    /// newer session's sender nor report its own stop as the current state.
+    generation: AtomicU64,
 }
 
 impl VoiceState {
     pub fn new() -> Self {
         Self {
-            stop_tx: Mutex::new(None),
+            control: Mutex::new(None),
+            generation: AtomicU64::new(0),
+        }
+    }
+
+    fn is_current(&self, generation: u64) -> bool {
+        self.generation.load(Ordering::SeqCst) == generation
+    }
+
+    fn clear_control(&self, generation: u64) {
+        let mut guard = self.control.lock().unwrap();
+        if guard.as_ref().map(|(g, _)| *g == generation).unwrap_or(false) {
+            *guard = None;
         }
     }
 }
@@ -161,10 +161,11 @@ fn kws_resource_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Err("Keyword-spotting model resources not found (checked both the packaged resource dir and the dev-mode source path)".to_string())
 }
 
-/// Validates model files exist before handing paths to the FFI loader, which
-/// fails opaquely (and possibly unsafely) on a bad path.
-fn build_keyword_spotter(app: &AppHandle, keywords_threshold: Option<f32>) -> Result<KeywordSpotter, String> {
-    let dir = kws_resource_dir(app)?;
+/// The spotter configuration the app runs with, for `dir` holding the model
+/// files. Shared with examples/kws_eval.rs so offline checks use the real
+/// settings. Validates the files exist first — the FFI loader fails opaquely
+/// (and possibly unsafely) on a bad path.
+pub fn spotter_config(dir: &Path, keywords_threshold: f32) -> Result<KeywordSpotterConfig, String> {
     let resolved = |name: &str| -> Result<String, String> {
         let p = dir.join(name);
         if !p.is_file() {
@@ -180,10 +181,15 @@ fn build_keyword_spotter(app: &AppHandle, keywords_threshold: Option<f32>) -> Re
     config.model_config.tokens = Some(resolved("tokens.txt")?);
     config.model_config.provider = Some("cpu".to_string());
     config.keywords_file = Some(resolved("keywords.txt")?);
-    // Each extra blank is ~40 ms of confirmation silence after the phrase.
-    config.num_trailing_blanks = 3;
-    config.keywords_threshold = keywords_threshold.unwrap_or(DEFAULT_KEYWORDS_THRESHOLD).clamp(0.05, 0.9);
+    config.max_active_paths = MAX_ACTIVE_PATHS;
+    config.num_trailing_blanks = NUM_TRAILING_BLANKS;
+    config.keywords_threshold = keywords_threshold.clamp(0.05, 0.9);
+    Ok(config)
+}
 
+fn build_keyword_spotter(app: &AppHandle, keywords_threshold: Option<f32>) -> Result<KeywordSpotter, String> {
+    let dir = kws_resource_dir(app)?;
+    let config = spotter_config(&dir, keywords_threshold.unwrap_or(DEFAULT_KEYWORDS_THRESHOLD))?;
     KeywordSpotter::create(&config).ok_or_else(|| "Failed to create keyword spotter".to_string())
 }
 
@@ -212,7 +218,7 @@ fn resolve_input_device(selected: &Option<String>) -> Result<cpal::Device, Strin
 
 #[tauri::command]
 pub fn voice_is_listening(state: State<'_, VoiceState>) -> bool {
-    state.stop_tx.lock().unwrap().is_some()
+    state.control.lock().unwrap().is_some()
 }
 
 #[tauri::command]
@@ -222,31 +228,29 @@ pub async fn voice_start_listening(
     device_name: Option<String>,
     keywords_threshold: Option<f32>,
 ) -> Result<(), String> {
-    if state.stop_tx.lock().unwrap().is_some() {
+    if state.control.lock().unwrap().is_some() {
         return Ok(()); // already running
     }
+    let generation = state.generation.fetch_add(1, Ordering::SeqCst) + 1;
 
     let (ready_tx, ready_rx) = mpsc::channel::<Result<(), String>>();
-    let (stop_tx, stop_rx) = mpsc::channel::<()>();
+    let (control_tx, control_rx) = mpsc::channel::<Control>();
+    *state.control.lock().unwrap() = Some((generation, control_tx.clone()));
     let app_handle = app.clone();
     std::thread::spawn(move || {
-        run_listening_thread(app_handle, device_name, keywords_threshold, ready_tx, stop_rx);
+        run_listening_thread(app_handle, generation, device_name, keywords_threshold, ready_tx, control_tx, control_rx);
     });
 
-    let ready = tauri::async_runtime::spawn_blocking(move || ready_rx.recv())
+    tauri::async_runtime::spawn_blocking(move || ready_rx.recv())
         .await
         .map_err(|e| e.to_string())?
-        .map_err(|_| "Voice listening thread exited before starting".to_string())?;
-    ready?;
-
-    *state.stop_tx.lock().unwrap() = Some(stop_tx);
-    Ok(())
+        .map_err(|_| "Voice listening thread exited before starting".to_string())?
 }
 
 #[tauri::command]
 pub fn voice_stop_listening(state: State<'_, VoiceState>) {
-    if let Some(tx) = state.stop_tx.lock().unwrap().take() {
-        let _ = tx.send(());
+    if let Some((_, tx)) = state.control.lock().unwrap().take() {
+        let _ = tx.send(Control::Stop);
     }
 }
 
@@ -257,73 +261,145 @@ struct AudioChunk {
 
 fn run_listening_thread(
     app: AppHandle,
+    generation: u64,
     device_name: Option<String>,
     keywords_threshold: Option<f32>,
     ready_tx: mpsc::Sender<Result<(), String>>,
-    stop_rx: mpsc::Receiver<()>,
+    control_tx: mpsc::Sender<Control>,
+    control_rx: mpsc::Receiver<Control>,
 ) {
     // catch_unwind only guards against Rust panics, not a C++/FFI-level fault in sherpa-onnx.
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        run_listening_thread_inner(&app, device_name, keywords_threshold, &ready_tx, &stop_rx)
+        run_listening_thread_inner(&app, device_name, keywords_threshold, &ready_tx, control_tx, &control_rx)
     }));
-    if let Err(_) = result {
-        let _ = ready_tx.send(Err("Voice listening crashed (see logs)".to_string()));
-        let _ = app.emit("voice-listening-stopped", ());
+    let state = app.state::<VoiceState>();
+    state.clear_control(generation);
+    let stop_reason = match result {
+        Ok(Ok(reason)) => reason,
+        // Never got going: the start command reports this error itself.
+        Ok(Err(start_error)) => {
+            let _ = ready_tx.send(Err(start_error));
+            return;
+        }
+        Err(_) => {
+            let msg = "Voice listening crashed (see logs)".to_string();
+            let _ = ready_tx.send(Err(msg.clone()));
+            msg
+        }
+    };
+    // A restart (device/sensitivity change) supersedes this session — its
+    // stop must not flip the indicator off under the new one.
+    if state.is_current(generation) {
+        let _ = app.emit("voice-listening-stopped", stop_reason);
     }
 }
 
+/// Runs the session to completion. `Err` means it never started (reported by
+/// the start command); `Ok(reason)` means it ran and then stopped — an empty
+/// reason for a requested stop, otherwise why the capture failed.
 fn run_listening_thread_inner(
     app: &AppHandle,
     device_name: Option<String>,
     keywords_threshold: Option<f32>,
     ready_tx: &mpsc::Sender<Result<(), String>>,
-    stop_rx: &mpsc::Receiver<()>,
-) {
-    let kws = match build_keyword_spotter(app, keywords_threshold) {
-        Ok(k) => k,
-        Err(e) => {
-            let _ = ready_tx.send(Err(e));
-            return;
-        }
-    };
+    control_tx: mpsc::Sender<Control>,
+    control_rx: &mpsc::Receiver<Control>,
+) -> Result<String, String> {
+    let kws = build_keyword_spotter(app, keywords_threshold)?;
 
-    let (chunk_tx, chunk_rx) = mpsc::sync_channel::<AudioChunk>(32);
+    let (chunk_tx, chunk_rx) = mpsc::sync_channel::<AudioChunk>(CHUNK_QUEUE_LEN);
+    let dropped = Arc::new(AtomicU64::new(0));
+    let started = Instant::now();
+    let last_chunk_ms = Arc::new(AtomicU64::new(0));
 
-    let stream = match build_capture_stream(app, &device_name, chunk_tx) {
-        Ok(s) => s,
-        Err(e) => {
-            let _ = ready_tx.send(Err(e));
-            return;
-        }
-    };
-    if let Err(e) = stream.play() {
-        let _ = ready_tx.send(Err(e.to_string()));
-        return;
-    }
+    let stream = build_capture_stream(
+        &device_name,
+        Capture {
+            chunk_tx,
+            control_tx,
+            dropped: Arc::clone(&dropped),
+            last_chunk_ms: Arc::clone(&last_chunk_ms),
+            started,
+        },
+    )?;
+    stream.play().map_err(|e| e.to_string())?;
 
     // Decode runs off the real-time audio callback thread.
     let app_for_decode = app.clone();
     let decode_thread = std::thread::spawn(move || {
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            decode_loop(kws, chunk_rx, app_for_decode);
+            decode_loop(kws, chunk_rx, app_for_decode, dropped);
         }));
     });
 
     let _ = ready_tx.send(Ok(()));
 
-    let _ = stop_rx.recv();
+    let reason = loop {
+        match control_rx.recv_timeout(Duration::from_secs(1)) {
+            Ok(Control::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => break String::new(),
+            Ok(Control::Failed(error)) => break error,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                let idle_ms = elapsed_ms(started).saturating_sub(last_chunk_ms.load(Ordering::Relaxed));
+                if idle_ms >= STALL_TIMEOUT.as_millis() as u64 {
+                    break "The microphone stopped delivering audio".to_string();
+                }
+            }
+        }
+    };
+
     drop(stream); // stops capture, drops chunk_tx, ending decode_loop
     let _ = decode_thread.join();
-    let _ = app.emit("voice-listening-stopped", ());
+    Ok(reason)
 }
 
-fn decode_loop(kws: KeywordSpotter, chunk_rx: mpsc::Receiver<AudioChunk>, app: AppHandle) {
-    let stream_handle = kws.create_stream();
-    let emit_every_samples = KWS_SAMPLE_RATE as u64 / 15;
-    let mut samples_since_emit: u64 = 0;
+fn elapsed_ms(since: Instant) -> u64 {
+    since.elapsed().as_millis() as u64
+}
 
-    while let Ok(chunk) = chunk_rx.recv() {
-        stream_handle.accept_waveform(KWS_SAMPLE_RATE as i32, &chunk.samples);
+/// The decode thread competes with the game for CPU. It only has to keep up
+/// with real time, so a small priority bump is enough to keep it from being
+/// starved for whole seconds while every core is busy.
+#[cfg(target_os = "windows")]
+fn raise_decode_thread_priority() {
+    use windows_sys::Win32::System::Threading::{GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_ABOVE_NORMAL};
+    unsafe {
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn raise_decode_thread_priority() {}
+
+fn decode_loop(kws: KeywordSpotter, chunk_rx: mpsc::Receiver<AudioChunk>, app: AppHandle, dropped: Arc<AtomicU64>) {
+    raise_decode_thread_priority();
+    let stream_handle = kws.create_stream();
+    let emit_every_samples = KWS_SAMPLE_RATE as u64 / LEVEL_EVENTS_PER_SEC;
+    let mut samples_since_emit: u64 = 0;
+    let mut window_rms = 0f32;
+    let mut last_audible = Instant::now();
+    let mut dropped_reported = 0u64;
+    let mut dropped_reported_at = Instant::now();
+
+    while let Ok(first) = chunk_rx.recv() {
+        // Fold in whatever queued while the last pass ran, so a thread that
+        // fell behind catches up in one decode pass rather than one chunk
+        // per pass.
+        let mut chunk = first;
+        let mut coalesced = 0;
+        loop {
+            stream_handle.accept_waveform(KWS_SAMPLE_RATE as i32, &chunk.samples);
+            samples_since_emit += chunk.samples.len() as u64;
+            window_rms = window_rms.max(chunk.rms);
+            coalesced += 1;
+            if coalesced >= MAX_COALESCE {
+                break;
+            }
+            match chunk_rx.try_recv() {
+                Ok(next) => chunk = next,
+                Err(_) => break,
+            }
+        }
+
         while kws.is_ready(&stream_handle) {
             kws.decode(&stream_handle);
             if let Some(result) = kws.get_result(&stream_handle) {
@@ -334,19 +410,39 @@ fn decode_loop(kws: KeywordSpotter, chunk_rx: mpsc::Receiver<AudioChunk>, app: A
             }
         }
 
-        samples_since_emit += chunk.samples.len() as u64;
         if samples_since_emit >= emit_every_samples {
             samples_since_emit = 0;
-            let _ = app.emit("voice-recording-level", chunk.rms);
+            let now = Instant::now();
+            if window_rms >= LEVEL_SILENCE_RMS {
+                last_audible = now;
+            }
+            if now.duration_since(last_audible) <= LEVEL_SILENCE_HOLD {
+                let _ = app.emit("voice-recording-level", window_rms);
+            }
+            window_rms = 0.0;
+        }
+
+        let dropped_now = dropped.load(Ordering::Relaxed);
+        if dropped_now > dropped_reported && dropped_reported_at.elapsed() >= Duration::from_secs(30) {
+            eprintln!(
+                "voice: {} audio chunks dropped since last report (decode thread starved)",
+                dropped_now - dropped_reported
+            );
+            dropped_reported = dropped_now;
+            dropped_reported_at = Instant::now();
         }
     }
 }
 
-fn build_capture_stream(
-    app: &AppHandle,
-    device_name: &Option<String>,
+struct Capture {
     chunk_tx: mpsc::SyncSender<AudioChunk>,
-) -> Result<cpal::Stream, String> {
+    control_tx: mpsc::Sender<Control>,
+    dropped: Arc<AtomicU64>,
+    last_chunk_ms: Arc<AtomicU64>,
+    started: Instant,
+}
+
+fn build_capture_stream(device_name: &Option<String>, capture: Capture) -> Result<cpal::Stream, String> {
     let device = resolve_input_device(device_name)?;
     let device_config = device.default_input_config().map_err(|e| e.to_string())?;
     let stream_config = cpal::StreamConfig {
@@ -354,12 +450,11 @@ fn build_capture_stream(
         sample_rate: device_config.sample_rate(),
         buffer_size: cpal::BufferSize::Default,
     };
-    let _ = app;
     match device_config.sample_format() {
-        cpal::SampleFormat::I8 => build_capture_stream_typed::<i8>(&device, &stream_config, chunk_tx),
-        cpal::SampleFormat::I16 => build_capture_stream_typed::<i16>(&device, &stream_config, chunk_tx),
-        cpal::SampleFormat::I32 => build_capture_stream_typed::<i32>(&device, &stream_config, chunk_tx),
-        cpal::SampleFormat::F32 => build_capture_stream_typed::<f32>(&device, &stream_config, chunk_tx),
+        cpal::SampleFormat::I8 => build_capture_stream_typed::<i8>(&device, &stream_config, capture),
+        cpal::SampleFormat::I16 => build_capture_stream_typed::<i16>(&device, &stream_config, capture),
+        cpal::SampleFormat::I32 => build_capture_stream_typed::<i32>(&device, &stream_config, capture),
+        cpal::SampleFormat::F32 => build_capture_stream_typed::<f32>(&device, &stream_config, capture),
         other => Err(format!("Unsupported microphone sample format: {other:?}")),
     }
 }
@@ -367,17 +462,17 @@ fn build_capture_stream(
 fn build_capture_stream_typed<T>(
     device: &cpal::Device,
     stream_config: &cpal::StreamConfig,
-    chunk_tx: mpsc::SyncSender<AudioChunk>,
+    capture: Capture,
 ) -> Result<cpal::Stream, String>
 where
     T: CpalSample + SizedSample,
     f32: FromSample<T>,
 {
+    let Capture { chunk_tx, control_tx, dropped, last_chunk_ms, started } = capture;
     let channels = stream_config.channels as usize;
-    let capture_rate = stream_config.sample_rate.0 as f32;
-    let mut resampler = LinearResampler::new(stream_config.sample_rate.0, KWS_SAMPLE_RATE);
-    let mut envelope = 0f32;
-    let mut gain = 1f32;
+    let capture_rate = stream_config.sample_rate.0;
+    let mut resampler = Resampler::new(capture_rate, KWS_SAMPLE_RATE);
+    let mut agc = Agc::new(capture_rate);
     let data_callback = move |data: &[T], _: &cpal::InputCallbackInfo| {
         let mut samples = Vec::with_capacity(data.len() / channels.max(1) + 1);
         if channels <= 1 {
@@ -391,26 +486,20 @@ where
         if samples.is_empty() {
             return;
         }
-        let peak = samples.iter().fold(0f32, |m, s| m.max(s.abs()));
-        let release = (-(samples.len() as f32) / (AGC_RELEASE_SECS * capture_rate)).exp();
-        envelope = peak.max(envelope * release);
-        if envelope > AGC_FLOOR {
-            let target = (AGC_TARGET_PEAK / envelope).clamp(1.0, AGC_MAX_GAIN);
-            gain += (target - gain) * 0.2;
-        }
-        let mut sum_sq = 0f32;
-        for s in &mut samples {
-            *s = (*s * gain).clamp(-1.0, 1.0);
-            sum_sq += *s * *s;
-        }
-        let rms = (sum_sq / samples.len() as f32).sqrt().min(1.0);
+        last_chunk_ms.store(elapsed_ms(started), Ordering::Relaxed);
+        let rms = agc.process(&mut samples);
         let resampled = resampler.process(&samples);
         if resampled.is_empty() {
             return;
         }
-        let _ = chunk_tx.try_send(AudioChunk { samples: resampled, rms });
+        if chunk_tx.try_send(AudioChunk { samples: resampled, rms }).is_err() {
+            dropped.fetch_add(1, Ordering::Relaxed);
+        }
     };
-    let error_callback = |err| eprintln!("voice listening stream error: {err}");
+    let error_callback = move |err: cpal::StreamError| {
+        eprintln!("voice listening stream error: {err}");
+        let _ = control_tx.send(Control::Failed(format!("Microphone stream error: {err}")));
+    };
     device
         .build_input_stream(stream_config, data_callback, error_callback, None)
         .map_err(|e| e.to_string())

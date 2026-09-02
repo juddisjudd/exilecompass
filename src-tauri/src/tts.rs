@@ -1,11 +1,11 @@
 // Text-to-speech output for voice-command replies (e.g. "compass, first
 // skill" answering back with the gem name). Two paths:
 //
-// - Windows SAPI (`tts_speak_sapi`): free, zero-setup default. Shells out to
-//   PowerShell's System.Speech synthesizer, same pattern already used by
-//   `detect_log_from_process_windows` in lib.rs. Windows-only — there's no
-//   equivalent built into this codebase for Linux, so the frontend should
-//   treat TTS as unavailable there unless an ElevenLabs key is configured.
+// - Windows SAPI (`tts_speak_sapi`): free, zero-setup default. Drives
+//   System.Speech through one hidden PowerShell worker kept alive between
+//   replies (see the `sapi` module). Windows-only — there's no equivalent
+//   built into this codebase for Linux, so the frontend should treat TTS as
+//   unavailable there unless an ElevenLabs key is configured.
 // - ElevenLabs (`tts_speak_elevenlabs`): bring-your-own-key. Returns raw MP3
 //   bytes to the frontend, which plays them via a normal <audio>/Blob — no
 //   Rust-side audio output crate needed, this just reuses the webview.
@@ -76,47 +76,153 @@ pub async fn tts_speak_sapi(text: String, device_name: Option<String>) -> Result
 }
 
 #[cfg(target_os = "windows")]
-fn run_sapi_script(script: &str) -> Result<(), String> {
+mod sapi {
+    //! One hidden PowerShell process hosting a System.Speech synthesizer, kept
+    //! alive between replies. Spawning PowerShell and loading System.Speech
+    //! cost 0.5–1 s per utterance, which was most of the gap between a voice
+    //! command and its spoken answer. Reaped after IDLE_LIMIT so an idle
+    //! overlay doesn't keep PowerShell (~60 MB) resident.
+
+    use std::io::{BufRead, BufReader, Write};
     use std::os::windows::process::CommandExt;
-    // Prevents the console window PowerShell would otherwise briefly flash
-    // open — this fires on every TTS reply.
+    use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+    use std::sync::{Mutex, MutexGuard, Once};
+    use std::time::{Duration, Instant};
+
+    const IDLE_LIMIT: Duration = Duration::from_secs(600);
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    let output = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .map_err(|e| e.to_string())?;
-    if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).into_owned());
+
+    // Line protocol on stdin: `<say|wav>\t<wav path>\t<text>`, answered with
+    // one `OK` or `ERR <message>` line per request. UTF-8 without BOM both
+    // ways — the console's default code page would mangle non-ASCII text.
+    const SCRIPT: &str = "\
+        Add-Type -AssemblyName System.Speech; \
+        $enc = New-Object System.Text.UTF8Encoding($false); \
+        $in = New-Object System.IO.StreamReader([Console]::OpenStandardInput(), $enc); \
+        $out = New-Object System.IO.StreamWriter([Console]::OpenStandardOutput(), $enc); \
+        $out.AutoFlush = $true; \
+        $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
+        while ($true) { \
+            $line = $in.ReadLine(); if ($null -eq $line) { break }; \
+            $p = $line.Split([char]9, 3); \
+            try { \
+                if ($p[0] -eq 'wav') { $s.SetOutputToWaveFile($p[1]); $s.Speak($p[2]); $s.SetOutputToNull() } \
+                else { $s.SetOutputToDefaultAudioDevice(); $s.Speak($p[2]) }; \
+                $out.WriteLine('OK') \
+            } catch { $s.SetOutputToNull(); $out.WriteLine('ERR ' + $_.Exception.Message) } \
+        }";
+
+    struct Worker {
+        child: Child,
+        stdin: ChildStdin,
+        stdout: BufReader<ChildStdout>,
+        last_used: Instant,
     }
-    Ok(())
+
+    static WORKER: Mutex<Option<Worker>> = Mutex::new(None);
+    static REAPER: Once = Once::new();
+
+    fn lock() -> MutexGuard<'static, Option<Worker>> {
+        WORKER.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn alive(slot: &mut Option<Worker>) -> bool {
+        slot.as_mut().map(|w| matches!(w.child.try_wait(), Ok(None))).unwrap_or(false)
+    }
+
+    fn discard(slot: &mut Option<Worker>) {
+        if let Some(mut w) = slot.take() {
+            let _ = w.child.kill();
+            let _ = w.child.wait();
+        }
+    }
+
+    fn spawn_worker() -> Result<Worker, String> {
+        let mut child = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", SCRIPT])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| format!("Could not start the system voice: {e}"))?;
+        let stdin = child.stdin.take().ok_or("System voice process has no stdin")?;
+        let stdout = BufReader::new(child.stdout.take().ok_or("System voice process has no stdout")?);
+        REAPER.call_once(|| {
+            std::thread::spawn(|| loop {
+                std::thread::sleep(Duration::from_secs(30));
+                let mut slot = lock();
+                if slot.as_ref().map(|w| w.last_used.elapsed() >= IDLE_LIMIT).unwrap_or(false) {
+                    discard(&mut slot);
+                }
+            });
+        });
+        Ok(Worker { child, stdin, stdout, last_used: Instant::now() })
+    }
+
+    /// Start the worker ahead of the first reply so that one doesn't pay the
+    /// spawn cost.
+    pub fn warm() -> Result<(), String> {
+        let mut slot = lock();
+        if !alive(&mut slot) {
+            *slot = Some(spawn_worker()?);
+        }
+        Ok(())
+    }
+
+    /// `mode` is "say" (default output device) or "wav" (render to `wav_path`).
+    pub fn request(mode: &str, wav_path: &str, text: &str) -> Result<(), String> {
+        let mut slot = lock();
+        if !alive(&mut slot) {
+            *slot = Some(spawn_worker()?);
+        }
+        let worker = slot.as_mut().expect("worker present");
+        let text: String = text.chars().map(|c| if matches!(c, '\t' | '\r' | '\n') { ' ' } else { c }).collect();
+        let result = exchange(worker, &format!("{mode}\t{wav_path}\t{text}\n"));
+        worker.last_used = Instant::now();
+        if result.is_err() {
+            discard(&mut slot);
+        }
+        result
+    }
+
+    fn exchange(worker: &mut Worker, line: &str) -> Result<(), String> {
+        worker.stdin.write_all(line.as_bytes()).map_err(|e| e.to_string())?;
+        worker.stdin.flush().map_err(|e| e.to_string())?;
+        let mut reply = String::new();
+        let n = worker.stdout.read_line(&mut reply).map_err(|e| e.to_string())?;
+        if n == 0 {
+            return Err("The system voice process exited".to_string());
+        }
+        let reply = reply.trim();
+        if reply == "OK" {
+            Ok(())
+        } else {
+            Err(reply.strip_prefix("ERR ").unwrap_or(reply).to_string())
+        }
+    }
+}
+
+/// Pre-start the Windows system-voice worker (no-op elsewhere) so the first
+/// reply after enabling voice commands isn't delayed by process startup.
+#[tauri::command]
+pub async fn tts_sapi_warm() {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = tauri::async_runtime::spawn_blocking(sapi::warm).await;
+    }
 }
 
 #[cfg(target_os = "windows")]
 fn speak_sapi_blocking(text: &str, device_name: &Option<String>) -> Result<(), String> {
-    // Single-quoted PowerShell string literal — the only escape needed is
-    // doubling embedded single quotes.
-    let escaped = text.replace('\'', "''");
-
-    let Some(_) = device_name else {
-        return run_sapi_script(&format!(
-            "Add-Type -AssemblyName System.Speech; \
-             $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
-             $s.Speak('{escaped}')"
-        ));
-    };
+    if device_name.is_none() {
+        return sapi::request("say", "", text);
+    }
 
     let wav = std::env::temp_dir().join(format!("exilecompass-tts-{}.wav", std::process::id()));
-    let wav_str = wav.to_string_lossy().replace('\'', "''");
-    let result = run_sapi_script(&format!(
-        "Add-Type -AssemblyName System.Speech; \
-         $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
-         $s.SetOutputToWaveFile('{wav_str}'); \
-         $s.Speak('{escaped}'); \
-         $s.Dispose()"
-    ))
-    .and_then(|_| std::fs::read(&wav).map_err(|e| e.to_string()))
-    .and_then(|bytes| play_bytes_blocking(bytes, device_name));
+    let result = sapi::request("wav", &wav.to_string_lossy(), text)
+        .and_then(|_| std::fs::read(&wav).map_err(|e| e.to_string()))
+        .and_then(|bytes| play_bytes_blocking(bytes, device_name));
     let _ = std::fs::remove_file(&wav);
     result
 }

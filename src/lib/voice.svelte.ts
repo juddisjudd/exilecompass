@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { warmSystemVoice } from '$lib/tts.svelte';
 
 // Phrase metadata (groups, spoken examples, label keys) lives in the rune-free
 // voicePhrases.ts so the docs generator can import it; re-exported here for
@@ -18,7 +19,7 @@ export const VOICE_SENSITIVITY_MAX = 8;
 const VOICE_SENSITIVITY_DEFAULT = 5;
 
 /** dBFS range the Settings meter spans, and the band normal speech should
- *  land in after the capture-side AGC (voice.rs) has done its lifting. */
+ *  land in after the capture-side AGC (audio.rs) has done its lifting. */
 export const VOICE_METER_FLOOR_DB = -60;
 export const VOICE_METER_TARGET_DB: readonly [number, number] = [-30, -12];
 const METER_RELEASE_DB_PER_TICK = 6;
@@ -36,6 +37,17 @@ const STARTING_MARKER_KEY = 'EXILECOMPASS_VOICE_STARTING_V1';
  *  reactively off the `voice-command` event itself rather than tracking
  *  "getting close." */
 const DETECTED_PULSE_MS = 1800;
+/** The same phrase reported again this soon after itself is the model
+ *  re-confirming one utterance (an alternate spelling of it, a stutter), not
+ *  a second command — "compass next" must never complete two objectives. */
+const DUPLICATE_WINDOW_MS = 700;
+/** Retry spacing after the listener stops on its own (stream error, stalled
+ *  device); a re-plugged headset or a driver reset is usually back within
+ *  seconds. Exhausting the list leaves the error showing in Settings. */
+const RESTART_DELAYS_MS = [1500, 4000, 10000];
+/** A session that stays up this long counts as healthy and resets the retry
+ *  budget, so a flapping device can't loop forever on the shortest delay. */
+const RESTART_HEALTHY_MS = 30_000;
 
 // ── Reactive state (Svelte 5 runes) ───────────────────────────────────────────
 
@@ -51,9 +63,14 @@ let _selectedDevice = $state<string | null>(null);
 let _sensitivity = $state(VOICE_SENSITIVITY_DEFAULT);
 let _recentlyDetected = $state(false);
 let _lastDetectedPhrase = $state<VoicePhrase | null>(null);
+let _lastDetectedAt = 0;
 let _error = $state('');
 let _disabledAfterCrash = $state(false);
 let _detectedPulseTimer: ReturnType<typeof setTimeout> | undefined;
+let _stopRequested = false;
+let _restartAttempt = 0;
+let _restartTimer: ReturnType<typeof setTimeout> | undefined;
+let _healthyTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const voiceState = {
   /** Every phrase id the bundled model can recognize (voice.rs's PHRASES). */
@@ -146,10 +163,12 @@ function keywordsThreshold(): number {
 
 /** Called from the `voice-recording-level` Tauri event (name kept from
  *  before this became a listening-time meter rather than a recording-time
- *  one — see voice.rs). */
+ *  one — see voice.rs). Values are quantized so mic noise that rounds to the
+ *  same reading doesn't re-render the footer indicator 15 times a second. */
 export function setVoiceMicLevel(level: number) {
-  _micLevel = level;
-  const db = level > 0 ? Math.max(VOICE_METER_FLOOR_DB, 20 * Math.log10(level)) : VOICE_METER_FLOOR_DB;
+  _micLevel = Math.round(level * 100) / 100;
+  const raw = level > 0 ? Math.max(VOICE_METER_FLOOR_DB, 20 * Math.log10(level)) : VOICE_METER_FLOOR_DB;
+  const db = Math.round(raw * 2) / 2;
   _meterDb = db >= _meterDb ? db : Math.max(db, _meterDb - METER_RELEASE_DB_PER_TICK);
   const now = performance.now();
   if (db >= _peakDb) {
@@ -179,8 +198,15 @@ export async function loadVoicePhrases(): Promise<VoicePhrase[]> {
 
 // ── Live listening ────────────────────────────────────────────────────────
 
+function cancelRestart() {
+  if (_restartTimer) clearTimeout(_restartTimer);
+  _restartTimer = undefined;
+}
+
 export async function startVoiceListening(): Promise<void> {
   _error = '';
+  _stopRequested = false;
+  cancelRestart();
   try {
     await invoke('voice_start_listening', { deviceName: _selectedDevice, keywordsThreshold: keywordsThreshold() });
     _listening = true;
@@ -189,30 +215,62 @@ export async function startVoiceListening(): Promise<void> {
     _listening = false;
     throw e;
   }
+  if (_healthyTimer) clearTimeout(_healthyTimer);
+  _healthyTimer = setTimeout(() => { _restartAttempt = 0; }, RESTART_HEALTHY_MS);
+  warmSystemVoice();
 }
 
 export async function stopVoiceListening(): Promise<void> {
+  _stopRequested = true;
+  cancelRestart();
   await invoke('voice_stop_listening');
   _listening = false;
   resetMeter();
 }
 
 /** Called from the `voice-listening-stopped` Tauri event so the indicator
- *  stays honest if the backend thread stops itself. */
-export function markVoiceListeningStopped() {
+ *  stays honest if the backend thread stops itself. A non-empty `reason`
+ *  means the capture failed rather than being asked to stop; while the
+ *  preference is still on, that gets a few spaced retries. */
+export function markVoiceListeningStopped(reason = '') {
   _listening = false;
   resetMeter();
+  if (!reason || _stopRequested) return;
+  _error = reason;
+  if (_enabled) scheduleRestart();
 }
 
-/** Called from the `voice-command` Tauri event — records which phrase fired
- *  and pulses `recentlyDetected` for DETECTED_PULSE_MS. */
-export function markVoiceCommandDetected(phrase: VoicePhrase) {
+function scheduleRestart() {
+  if (_restartTimer) return;
+  const delay = RESTART_DELAYS_MS[_restartAttempt];
+  if (delay === undefined) return;
+  _restartAttempt += 1;
+  _restartTimer = setTimeout(async () => {
+    _restartTimer = undefined;
+    if (_listening || !_enabled || _stopRequested) return;
+    try {
+      await startVoiceListening();
+    } catch {
+      scheduleRestart();
+    }
+  }, delay);
+}
+
+/** Called from the `voice-command` Tauri event with the phrase the model
+ *  reported. Returns false when the event is a duplicate of one just handled
+ *  (see DUPLICATE_WINDOW_MS); otherwise records it and pulses
+ *  `recentlyDetected` for DETECTED_PULSE_MS. */
+export function acceptVoiceCommand(phrase: VoicePhrase): boolean {
+  const now = performance.now();
+  if (phrase === _lastDetectedPhrase && now - _lastDetectedAt < DUPLICATE_WINDOW_MS) return false;
+  _lastDetectedAt = now;
   _lastDetectedPhrase = phrase;
   _recentlyDetected = true;
   if (_detectedPulseTimer) clearTimeout(_detectedPulseTimer);
   _detectedPulseTimer = setTimeout(() => {
     _recentlyDetected = false;
   }, DETECTED_PULSE_MS);
+  return true;
 }
 
 /** Startup: load the saved preference and device/phrase lists, then resume

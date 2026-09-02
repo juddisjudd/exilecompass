@@ -48,8 +48,19 @@ export const overlayState = {
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 export async function refreshStatus(): Promise<OverlayStatus> {
-  _status = await invoke<OverlayStatus>('get_overlay_status');
+  const next = await invoke<OverlayStatus>('get_overlay_status');
+  // Polled every second: keep the current object when nothing changed, so
+  // every reader of overlayState isn't re-run on each tick.
+  if (!sameStatus(_status, next)) _status = next;
   return _status;
+}
+
+function sameStatus(a: OverlayStatus, b: OverlayStatus): boolean {
+  return a.attached === b.attached
+    && a.clickThrough === b.clickThrough
+    && a.gameRunning === b.gameRunning
+    && a.standalone === b.standalone
+    && a.transparent === b.transparent;
 }
 
 export async function findGameWindow(): Promise<WindowInfo | null> {

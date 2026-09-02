@@ -12,6 +12,7 @@
 ▁COMP AS S ▁PA S S IVE ▁T RE E @tree
 ▁COMP AS S ▁STA SH @stash
 ▁COMP AS S ▁RE GE X @stash
+▁COMP AS S ▁FIND @stash
 ▁COMP AS S ▁C RA F T ING @crafting
 ▁COMP AS S ▁A D D ▁ON S @addons
 ▁COMP AS S ▁A D D ON S @addons

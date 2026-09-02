@@ -65,7 +65,7 @@
     setVoiceEnabled,
     applyVoiceEnabledOnStartup,
     markVoiceListeningStopped,
-    markVoiceCommandDetected,
+    acceptVoiceCommand,
     setVoiceMicLevel,
     voicePhraseGroup,
     VOICE_PHRASE_EXAMPLES,
@@ -661,7 +661,7 @@
    *  (rewards, crafting, tree) is silently ignored in the other, matching how
    *  toggleActDecoder is PoE1-only. */
   function handleVoiceCommand(phrase: string) {
-    markVoiceCommandDetected(phrase);
+    if (!acceptVoiceCommand(phrase)) return;
     switch (phrase) {
       case 'next': void GLOBAL_ACTIONS.campaignCompleteNext?.(); break;
       case 'back': void GLOBAL_ACTIONS.campaignUndoLast?.(); break;
@@ -1137,8 +1137,8 @@
       unlistenVoiceCommand = await listen<string>('voice-command', (event) => {
         handleVoiceCommand(event.payload);
       });
-      unlistenVoiceStopped = await listen('voice-listening-stopped', () => {
-        markVoiceListeningStopped();
+      unlistenVoiceStopped = await listen<string>('voice-listening-stopped', (event) => {
+        markVoiceListeningStopped(event.payload ?? '');
       });
       unlistenVoiceLevel = await listen<number>('voice-recording-level', (event) => {
         setVoiceMicLevel(event.payload);
@@ -3024,6 +3024,8 @@
      listening, green the moment a phrase is heard. The visual state follows
      voiceState.listening (what's actually running), never the saved pref. */
   .footer-voice-toggle {
+    position: relative;
+    isolation: isolate;
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -3066,7 +3068,22 @@
   .footer-voice-toggle.on {
     border-color: color-mix(in srgb, var(--c-red) 55%, transparent);
     color: var(--c-red-bright);
-    animation: voice-pulse-bg 1.6s ease-in-out infinite;
+    background: color-mix(in srgb, var(--c-red) 20%, var(--c-bg));
+  }
+  /* The pulse fades a second tint layer in and out — opacity only, so the
+     compositor animates it without repainting the footer every frame for
+     the whole session the mic is on. */
+  .footer-voice-toggle::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    opacity: 0;
+    background: color-mix(in srgb, var(--c-red) 42%, var(--c-bg));
+  }
+  .footer-voice-toggle.on::before {
+    animation: voice-pulse-layer 1.6s ease-in-out infinite;
   }
   .footer-voice-toggle.on .footer-voice-dot {
     opacity: 1;
@@ -3079,14 +3096,18 @@
     filter: drop-shadow(0 0 calc(var(--lvl, 0) * 4px) currentColor);
     transition: transform 0.08s linear, filter 0.08s linear;
   }
-  @keyframes voice-pulse-bg {
-    0%, 100% { background: color-mix(in srgb, var(--c-red) 20%, var(--c-bg)); }
-    50% { background: color-mix(in srgb, var(--c-red) 42%, var(--c-bg)); }
+  @keyframes voice-pulse-layer {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
   }
   .footer-voice-toggle.active {
     border-color: color-mix(in srgb, var(--c-success) 60%, transparent);
     color: var(--c-success);
-    animation: voice-pulse-bg-active 0.5s ease-in-out infinite;
+    background: color-mix(in srgb, var(--c-success) 22%, var(--c-bg));
+  }
+  .footer-voice-toggle.active::before {
+    background: color-mix(in srgb, var(--c-success) 45%, var(--c-bg));
+    animation: voice-pulse-layer 0.5s ease-in-out infinite;
   }
   .footer-voice-toggle.active .footer-voice-dot {
     animation: voice-pulse-dot 0.4s ease-in-out infinite;
@@ -3241,10 +3262,6 @@
     height: 100%;
     background: linear-gradient(90deg, var(--c-accent), var(--c-primary));
     transition: width 0.2s ease;
-  }
-  @keyframes voice-pulse-bg-active {
-    0%, 100% { background: color-mix(in srgb, var(--c-success) 22%, var(--c-bg)); }
-    50% { background: color-mix(in srgb, var(--c-success) 45%, var(--c-bg)); }
   }
   @keyframes voice-pulse-dot {
     0%, 100% { opacity: 1; transform: scale(1); }

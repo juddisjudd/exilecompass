@@ -4,7 +4,7 @@ Every command starts with **"compass"**. Say the whole phrase as one piece, with
 
 Turn voice commands on with the mic toggle in the footer, or in Settings → Voice Commands, where you can also pick the microphone. Commands that answer out loud use the voice engine chosen in Settings → Voice Replies: your system voice, a downloadable offline neural voice (Piper or Kokoro), or your own ElevenLabs key.
 
-55 commands, 63 spoken forms.
+55 commands, 64 spoken forms.
 
 ## Objectives
 
@@ -36,7 +36,7 @@ Turn voice commands on with the mic toggle in the footer, or in Settings → Voi
 | **compass leveling** | Switch to Leveling tab (PoE1) / Campaign tab (PoE2) |
 | **compass gems** | Switch to Gems tab (PoE1) |
 | **compass tree** or **compass passive tree** | Switch to Tree tab (PoE1) |
-| **compass stash** or **compass regex** | Switch to Regex tab |
+| **compass stash** or **compass regex** or **compass find** | Switch to Regex tab |
 | **compass crafting** | Switch to Craft tab (PoE2) |
 | **compass add ons** or **compass addons** | Switch to Add-ons tab |
 | **compass timer** | Switch to Timer tab |
