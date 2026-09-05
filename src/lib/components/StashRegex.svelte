@@ -100,13 +100,16 @@
     setTimeout(() => (copiedFavId = null), 1500);
   }
 
-  // `##%`-style affixes expose a numeric minimum threshold input.
+  // Affixes whose leading slot is a range expose a numeric minimum threshold
+  // input. Waystone/tablet names are parsed at runtime and mark ranges `##`;
+  // relic names come pre-baked from poe.re and use a single `#` for both.
+  const LEADING_RANGE = /^#{1,2}%/;
   function hasRange(o: { name: string; ranges: number[][] }): boolean {
-    return o.name.startsWith('##%') && o.ranges.length > 0 && o.ranges[0][0] > 0;
+    return LEADING_RANGE.test(o.name) && o.ranges.length > 0 && o.ranges[0][0] > 0;
   }
   function affixLabel(name: string): string {
     const d = name.replace(/\|/g, ' • ');
-    return name.startsWith('##%') ? d.replace(/##/, '') : d.replace(/##/g, '#');
+    return LEADING_RANGE.test(name) ? d.replace(/^#{1,2}/, '') : d.replace(/##/g, '#');
   }
 
   function filtered<T extends { name: string }>(list: T[]): T[] {
@@ -532,7 +535,7 @@
         <p class="group-label">Item base</p>
         <input class="custom-input" bind:value={itemBaseFilter} placeholder="Search item base…" spellcheck="false" />
         <div class="item-list">
-          {#each bases.flatMap((b) => b.item.map((item) => ({ baseType: b.base, item }))).filter((e) => matchesText(`${e.baseType} ${e.item}`, itemBaseFilter)) as e (e.baseType + '::' + e.item)}
+          {#each bases.flatMap((b) => b.items.map((item) => ({ baseType: b.name, item }))).filter((e) => matchesText(`${e.baseType} ${e.item}`, itemBaseFilter)) as e (e.baseType + '::' + e.item)}
             <button
               type="button"
               class="item-row"
@@ -551,19 +554,19 @@
             <button class="seg-btn" class:active={!s.matchAnyMod} onclick={() => (s.matchAnyMod = false)} type="button">Match all</button>
           </div>
           <input class="custom-input" bind:value={itemModFilter} placeholder="Filter mods…" spellcheck="false" />
-          {#each entry.itemRegexForCategory.filter((c) => c.modCategory !== 'corrupted' && c.modCategory !== 'unique') as cat (cat.modCategory)}
-            {@const list = cat.modifiers.filter((mod) => matchesText(mod.description, itemModFilter) || mod.affixes.some((a) => matchesText(a.name, itemModFilter)))}
+          {#each entry.categoryRegex.filter((c) => c.category !== 'corrupted' && c.category !== 'unique') as cat (cat.category)}
+            {@const list = cat.modifiers.filter((mod) => matchesText(mod.desc, itemModFilter) || mod.affixes.some((a) => matchesText(a.name, itemModFilter)))}
             {#if list.length}
-              <p class="group-label">{cat.modCategory === 'prefix' ? 'Prefixes' : cat.modCategory === 'suffix' ? 'Suffixes' : cat.modCategory}</p>
+              <p class="group-label">{cat.category === 'prefix' ? 'Prefixes' : cat.category === 'suffix' ? 'Suffixes' : cat.category}</p>
               <div class="item-list item-list-tall">
-                {#each list as mod (mod.description)}
-                  {@const key = itemModKey(base.baseType, cat.modCategory, mod)}
+                {#each list as mod (mod.desc)}
+                  {@const key = itemModKey(base.baseType, cat.category, mod)}
                   {@const checked = !!s.selected[key]}
-                  {@const editable = [...mod.regexPosition.before, ...mod.regexPosition.on, ...mod.regexPosition.after]}
+                  {@const editable = [...mod.before, ...mod.on, ...mod.after]}
                   <div class="item-mod">
                     <label class="opt" class:on={checked}>
                       <input type="checkbox" {checked} onchange={(e) => (s.selected[key] = e.currentTarget.checked)} />
-                      <span>{mod.description}</span>
+                      <span>{mod.desc}</span>
                     </label>
                     {#if checked}
                       {#if editable.length}

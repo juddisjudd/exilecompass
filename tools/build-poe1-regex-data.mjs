@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
-// Converts the vendored poe.re data modules under tools/poe1-regex-source/
-// (mirroring poe.re's poe/src/generated/ layout) into lean JSON the PoE1 Regex
-// tab loads lazily at runtime (src/lib/regex1/loaders.ts, served from
-// static/generated/poe1/*.min.json).
+// Converts the vendored poe.re data under tools/poe1-regex-source/ (mirroring
+// poe.re's poe/ layout: JSON in generated/, the modules it still authors as TS
+// in src/generated/) into lean JSON the PoE1 Regex tab loads lazily at runtime
+// (src/lib/regex1/loaders.ts, served from static/generated/poe1/*.min.json).
 //
 // Normally run through `bun run sync-regex` (tools/sync-regex-upstream.mjs);
 // `bun run build:poe1-regex-data` regenerates from the vendored copies alone.
 // Every output is shape-checked so a silent upstream format change fails here
 // instead of shipping a Regex tab that loads empty lists.
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -42,19 +42,19 @@ function write(name, data, check) {
   console.log(`wrote ${out} (${kb} KB)`);
 }
 
-const load = (file) => import(join(SRC_DIR, file));
+const data = (file) => JSON.parse(readFileSync(join(SRC_DIR, 'generated', file), 'utf8'));
+const load = (file) => import(join(SRC_DIR, 'src/generated', file));
+const byKey = (arr, key) => Object.fromEntries(arr.map((e) => [e[key], e]));
 
-const { itemRegex } = await load('GeneratedItemModsPOE1.ts');
-write('ItemMods', itemRegex, (d) => {
+write('ItemMods', byKey(data('item/Generated.Item.json'), 'basetype'), (d) => {
   record('ItemMods', d, 30, ['basetype', 'categoryRegex']);
   if (!Object.values(d).every((item) => Array.isArray(item.categoryRegex))) fail('ItemMods', 'categoryRegex is not an array');
 });
 
-const { basetypes } = await load('GeneratedItemBasesPOE1.ts');
-write('ItemBases', basetypes, (d) => list('ItemBases', d, 30, ['name', 'items']));
+write('ItemBases', data('item/Generated.Basetypes.Item.json'), (d) => list('ItemBases', d, 30, ['name', 'items']));
 
-const { beastRegex } = await load('GeneratedBeastRegex.ts');
-write('BeastRegex', beastRegex, (d) => list('BeastRegex', d, 20, ['beast', 'regex', 'harvest', 'red']));
+// `harvest` is only emitted on the beasts that have it, so it isn't a required key.
+write('BeastRegex', data('beast/Generated.BeastRegex.json'), (d) => list('BeastRegex', d, 20, ['beast', 'regex', 'red']));
 
 const { tattooRegex } = await load('GeneratedTattoo.ts');
 write('Tattoo', tattooRegex, (d) => list('Tattoo', d, 20, ['tattoo', 'regex', 'description']));
@@ -62,17 +62,17 @@ write('Tattoo', tattooRegex, (d) => list('Tattoo', d, 20, ['tattoo', 'regex', 'd
 const { runegraftRegex } = await load('GeneratedRunegraft.ts');
 write('Runegraft', runegraftRegex, (d) => list('Runegraft', d, 10, ['regex', 'description']));
 
-const { scarabs } = await load('GeneratedScarabs.ts');
-write('Scarabs', scarabs, (d) => record('Scarabs', d, 50, ['name', 'regex']));
+write('Scarabs', data('scarabs/Generated.Scarabs.json'), (d) => record('Scarabs', d, 50, ['name', 'regex']));
 
-const { jewelRegular, jewelAbyss } = await load('GeneratedJewel.ts');
-write('Jewel', { jewelRegular, jewelAbyss }, (d) => {
+const { regular, abyss } = data('jewel/Generated.Jewel.json');
+write('Jewel', { jewelRegular: regular, jewelAbyss: abyss }, (d) => {
   list('Jewel.jewelRegular', d.jewelRegular, 10, ['mod', 'regex', 'isPrefix']);
   list('Jewel.jewelAbyss', d.jewelAbyss, 10, ['mod', 'regex', 'isPrefix']);
 });
 
-const { baseTypeRegex } = await load('GeneratedExpedition.ts');
-write('Expedition', baseTypeRegex, (d) => record('Expedition', d, 100, ['baseType', 'regex', 'items']));
+write('Expedition', data('expedition/Generated.Expedition.json').baseTypeRegex, (d) =>
+  record('Expedition', d, 100, ['baseType', 'regex', 'items']),
+);
 
 const { heistContractTypes, heistTargetValues } = await load('GeneratedHeist.ts');
 write('Heist', { heistContractTypes, heistTargetValues }, (d) => {
@@ -89,14 +89,12 @@ write('FlaskMods', { flaskPrefix, flaskSuffix }, (d) => {
 const { regexGems } = await load('gems/Generated.Gems.English.ts');
 write('Gems', regexGems.tokens, (d) => list('Gems', d, 300, ['id', 'regex', 'rawText', 'options']));
 
-const { regexMapModsENGLISH } = await load('mapmods/Generated.MapModsV3.ENGLISH.ts');
-write('MapMods', regexMapModsENGLISH, (d) => {
+write('MapMods', data('mapmods/Generated.Map.ENGLISH.json'), (d) => {
   list('MapMods.tokens', d.tokens, 50, ['id', 'regex', 'rawText', 'options']);
   record('MapMods.optimizationTable', d.optimizationTable, 10, ['ids', 'regex']);
 });
 
-const { regexBoatModsENGLISH } = await load('GeneratedBoatMods.ts');
-write('BoatMods', regexBoatModsENGLISH, (d) => {
+write('BoatMods', data('boatmods/Generated.BoatMods.ENGLISH.json'), (d) => {
   list('BoatMods.tokens', d.tokens, 50, ['id', 'regex', 'rawText', 'options']);
   record('BoatMods.optimizationTable', d.optimizationTable, 10, ['ids', 'regex']);
 });

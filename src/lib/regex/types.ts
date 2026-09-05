@@ -31,8 +31,8 @@ export interface SelectOption {
   ranges: number[][];
   regex: string;
 }
-// Rare-item mod data (poe.re poe2/src/types/generated/ItemTypedef.ts), served
-// from static/generated/Generated.Item.min.json + Generated.Basetypes.Item.min.json.
+// Rare-item mod data (poe.re shared/generated/item), served from
+// static/generated/Generated.Item.min.json + Generated.Basetypes.Item.min.json.
 export interface ItemStat {
   id: string;
   min: number;
@@ -41,39 +41,34 @@ export interface ItemStat {
   hasRange: boolean;
 }
 
-// Which `#` slots of `description` sit before / inside / after the regex
-// fragment (index into `stats`); `disabled` slots can't take a value.
-export interface ItemRegexPosition {
+// `before`/`on`/`after` say which `#` slots of `desc` sit before / inside /
+// after the regex fragment (index into `stats`); `disabled` slots take no value.
+export interface ItemModifier {
+  desc: string;
+  regex: string;
+  stats: ItemStat[];
   start: number;
   end: number;
   disabled: number[];
   before: number[];
   on: number[];
   after: number[];
-}
-
-export interface ItemModifier {
-  description: string;
-  regex: string;
-  stats: ItemStat[];
-  regexPosition: ItemRegexPosition;
-  affixes: { description: string; name: string }[];
-  affixType: 'PREFIX' | 'SUFFIX';
+  affixes: { name: string; desc: string }[];
+  affixtype: 'PREFIX' | 'SUFFIX';
 }
 
 export interface ItemRegexCategory {
-  modCategory: string;
-  baseitems: string[];
+  category: string;
   modifiers: ItemModifier[];
   warnings?: string[];
 }
 
 export interface ItemRegex {
   basetype: string;
-  itemRegexForCategory: ItemRegexCategory[];
+  categoryRegex: ItemRegexCategory[];
 }
 
 export interface ItemBasetype {
-  base: string;
-  item: string[];
+  name: string;
+  items: string[];
 }

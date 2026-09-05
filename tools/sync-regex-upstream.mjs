@@ -27,31 +27,70 @@ const upstream = resolve(root, upstreamIdx >= 0 ? args[upstreamIdx + 1] : '../po
 
 const minify = (text) => JSON.stringify(JSON.parse(text));
 
+// Relic is the one dataset the app imports as a module instead of fetching, so
+// poe.re's JSON is emitted back out as the TS module it used to ship.
+function relicModule(text) {
+  const entries = JSON.parse(text).map(
+    (e) => `{
+  name: ${JSON.stringify(e.name)},
+  regex: ${JSON.stringify(e.regex)},
+  values: ${JSON.stringify(e.values)},
+  ranges: ${JSON.stringify(e.ranges)},
+  affix: ${JSON.stringify(e.affix)},
+}`,
+  );
+  return `export interface RelicRegex {
+  name: string,
+  regex: string,
+  values: number[],
+  ranges: number[][],
+  affix: string,
+}
+export const relicRegex: RelicRegex[] = [
+${entries.join(', \n')}]`;
+}
+
 // Upstream path (relative to the poe.re checkout) → local path. Only what the
 // app actually consumes; poe.re's other languages, trade ids and UI stay there.
 // An optional `transform` rewrites the text before it lands locally.
+//
+// Always the unminified `*/generated/` trees, never the `*/public/generated/`
+// ones poe.re's own site fetches: since veiset/poe.re#510 the minified copies
+// re-escape backslashes (`\\d+` where the source has `\d+`), which would ship
+// a broken stash search for every token carrying one.
+const POE1_DATA = [
+  'item/Generated.Item.json',
+  'item/Generated.Basetypes.Item.json',
+  'beast/Generated.BeastRegex.json',
+  'boatmods/Generated.BoatMods.ENGLISH.json',
+  'expedition/Generated.Expedition.json',
+  'jewel/Generated.Jewel.json',
+  'mapmods/Generated.Map.ENGLISH.json',
+  'scarabs/Generated.Scarabs.json',
+];
+// The rest of PoE1's data is still authored as TS modules upstream.
 const POE1_MODULES = [
-  'GeneratedItemModsPOE1.ts',
-  'GeneratedItemBasesPOE1.ts',
-  'GeneratedBeastRegex.ts',
-  'GeneratedBoatMods.ts',
   'GeneratedTattoo.ts',
   'GeneratedRunegraft.ts',
-  'GeneratedScarabs.ts',
-  'GeneratedJewel.ts',
-  'GeneratedExpedition.ts',
   'GeneratedHeist.ts',
   'GeneratedFlaskMods.ts',
   'gems/Generated.Gems.English.ts',
-  'mapmods/Generated.MapModsV3.ENGLISH.ts',
 ];
 const FILES = {
-  ...Object.fromEntries(POE1_MODULES.map((f) => [`poe/src/generated/${f}`, { to: `${POE1_SRC}/${f}` }])),
-  'poe2/public/generated/Generated.Waystone.min.json': { to: 'static/generated/Generated.Waystone.min.json' },
-  'poe2/public/generated/Generated.Tablet.min.json': { to: 'static/generated/Generated.Tablet.min.json' },
-  'poe2/public/generated/Generated.Item.json': { to: 'static/generated/Generated.Item.min.json', transform: minify },
-  'poe2/public/generated/Generated.Basetypes.Item.json': { to: 'static/generated/Generated.Basetypes.Item.min.json', transform: minify },
-  'poe2/src/generated/Relic.Gen.ts': { to: 'src/lib/regex/relicData.ts' },
+  ...Object.fromEntries(
+    POE1_DATA.map((f) => [
+      `poe/generated/${f}`,
+      // Only the item mods are big enough (11 MB pretty-printed) to be worth
+      // minifying; the rest land exactly as upstream ships them.
+      { to: `${POE1_SRC}/generated/${f}`, transform: f === 'item/Generated.Item.json' ? minify : undefined },
+    ]),
+  ),
+  ...Object.fromEntries(POE1_MODULES.map((f) => [`poe/src/generated/${f}`, { to: `${POE1_SRC}/src/generated/${f}` }])),
+  'poe2/generated/waystone/Generated.Waystone.json': { to: 'static/generated/Generated.Waystone.min.json', transform: minify },
+  'poe2/generated/tablet/Generated.Tablet.json': { to: 'static/generated/Generated.Tablet.min.json', transform: minify },
+  'poe2/generated/item/Generated.Item.json': { to: 'static/generated/Generated.Item.min.json', transform: minify },
+  'poe2/generated/item/Generated.Basetypes.Item.json': { to: 'static/generated/Generated.Basetypes.Item.min.json', transform: minify },
+  'poe2/generated/relic/Generated.Relic.json': { to: 'src/lib/regex/relicData.ts', transform: relicModule },
 };
 
 function die(msg) {
@@ -83,11 +122,11 @@ function validatePoe2(local, text) {
   } else if (name === 'Generated.Item.min.json') {
     const ok = every(JSON.parse(text), 30, (e) =>
       typeof e.basetype === 'string' &&
-      every(e.itemRegexForCategory, 0, (c) => typeof c.modCategory === 'string' && every(c.modifiers, 0, (m) => typeof m.regex === 'string' && Array.isArray(m.stats) && m.regexPosition)),
+      every(e.categoryRegex, 0, (c) => typeof c.category === 'string' && every(c.modifiers, 0, (m) => typeof m.regex === 'string' && Array.isArray(m.stats) && Array.isArray(m.on))),
     );
-    if (!ok) die(`${local}: unexpected shape (basetype + itemRegexForCategory[].modifiers[])`);
+    if (!ok) die(`${local}: unexpected shape (basetype + categoryRegex[].modifiers[])`);
   } else if (name === 'Generated.Basetypes.Item.min.json') {
-    if (!every(JSON.parse(text), 30, (e) => typeof e.base === 'string' && Array.isArray(e.item))) die(`${local}: unexpected shape (base + item[])`);
+    if (!every(JSON.parse(text), 30, (e) => typeof e.name === 'string' && Array.isArray(e.items))) die(`${local}: unexpected shape (name + items[])`);
   } else if (name === 'relicData.ts') {
     const entries = (text.match(/^\s*regex: "/gm) ?? []).length;
     if (!text.includes('export const relicRegex') || entries < 20) die(`${local}: unexpected shape (relicRegex with ${entries} entries)`);
