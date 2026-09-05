@@ -6,6 +6,10 @@ name: Regex Sync
 # and dispatch release.yml on that tag so a new build ships on its own.
 # Polling, because poe.re is a third-party repo — nothing there can call us.
 #
+# Any failure opens (or comments on) an issue labelled `regex-sync`; the next
+# green run closes it. poe.re reshuffles its generated files every few weeks,
+# and in Sep 2026 four straight failures went unnoticed for a day.
+#
 # Manual runs (workflow_dispatch) accept `release: false` to only commit the
 # refreshed data, with no version bump / tag / build.
 
@@ -22,10 +26,14 @@ on:
 permissions:
   contents: write
   actions: write
+  issues: write
 
 concurrency:
   group: regex-sync
   cancel-in-progress: false
+
+env:
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
 jobs:
   sync:
@@ -49,10 +57,12 @@ jobs:
         with:
           bun-version: latest
 
+      # The log is kept for the failure issue below.
       - name: Sync regex data
         id: sync
         run: |
-          bun tools/sync-regex-upstream.mjs --upstream upstream
+          set -o pipefail
+          bun tools/sync-regex-upstream.mjs --upstream upstream 2>&1 | tee sync.log
           rm -rf upstream
 
       # A data-only sync can still break the build if poe.re changes a shape
@@ -89,3 +99,35 @@ jobs:
       - name: Push without releasing
         if: steps.sync.outputs.changed == 'true' && !(github.event_name == 'schedule' || inputs.release)
         run: git push origin HEAD
+
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create regex-sync --force --color d73a4a --description "The scheduled poe.re regex sync is failing"
+          {
+            echo "Run [#${GITHUB_RUN_NUMBER}](${RUN_URL}) failed."
+            if [ -f sync.log ]; then
+              echo
+              echo '```'
+              tail -n 30 sync.log
+              echo '```'
+            fi
+            echo
+            echo 'Nothing syncs until tools/sync-regex-upstream.mjs (and, for PoE1 data, tools/build-poe1-regex-data.mjs) follows poe.re again. Failing runs keep commenting here every 6 hours; the first green run closes this issue.'
+          } > body.md
+          existing=$(gh issue list --label regex-sync --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file body.md
+          else
+            gh issue create --title "Regex sync is failing" --label regex-sync --body-file body.md
+          fi
+
+      - name: Close failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for n in $(gh issue list --label regex-sync --state open --json number --jq '.[].number' 2>/dev/null); do
+            gh issue close "$n" --comment "Green again in run [#${GITHUB_RUN_NUMBER}](${RUN_URL})."
+          done

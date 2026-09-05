@@ -67,14 +67,15 @@ const POE1_DATA = [
   'jewel/Generated.Jewel.json',
   'mapmods/Generated.Map.ENGLISH.json',
   'scarabs/Generated.Scarabs.json',
+  'gems/Generated.Gems.ENGLISH.json',
 ];
-// The rest of PoE1's data is still authored as TS modules upstream.
+// What poe.re still authors as TS modules. It converts these to JSON one PR
+// at a time (#505/#508, then gems in #507), so expect each to move in turn.
 const POE1_MODULES = [
   'GeneratedTattoo.ts',
   'GeneratedRunegraft.ts',
   'GeneratedHeist.ts',
   'GeneratedFlaskMods.ts',
-  'gems/Generated.Gems.English.ts',
 ];
 const FILES = {
   ...Object.fromEntries(
@@ -133,9 +134,44 @@ function validatePoe2(local, text) {
   }
 }
 
+const GENERATED_DIRS = ['poe/generated', 'poe/src/generated', 'poe2/generated', 'shared/generated'];
+
+// What poe.re added, renamed or deleted under its generated trees since the
+// commit last synced — the answer to "where did that file go". CI's shallow
+// checkout won't have that commit, so fetch just that one before diffing.
+function upstreamLayoutChanges(since) {
+  if (!since) return null;
+  const diff = () => git('diff', '--name-status', '-M', `${since}..HEAD`, '--', ...GENERATED_DIRS);
+  let out;
+  try {
+    out = diff();
+  } catch {
+    try {
+      if (git('rev-parse', '--is-shallow-repository') !== 'true') return null;
+      git('fetch', '--depth=1', 'origin', since);
+      out = diff();
+    } catch {
+      return null;
+    }
+  }
+  return out.split('\n').filter((l) => l && !l.startsWith('M'));
+}
+
 if (!existsSync(upstream)) die(`upstream checkout not found at ${upstream} (pass --upstream <dir>)`);
-for (const rel of Object.keys(FILES)) {
-  if (!existsSync(join(upstream, rel))) die(`missing in upstream: ${rel} — poe.re moved or renamed it; update FILES in this script`);
+const lock = existsSync(LOCK) ? JSON.parse(readFileSync(LOCK, 'utf8')) : null;
+
+const missing = Object.keys(FILES).filter((rel) => !existsSync(join(upstream, rel)));
+if (missing.length > 0) {
+  const pinned = lock?.commit?.slice(0, 7);
+  const lines = ['missing in upstream — poe.re moved, renamed or removed:', ...missing.map((f) => `  ${f}`)];
+  const moves = upstreamLayoutChanges(lock?.commit);
+  if (moves?.length) {
+    lines.push(`added/renamed/deleted under its generated trees since the pinned ${pinned}:`, ...moves.map((l) => `  ${l.replace(/\t/g, '  ')}`));
+  } else if (moves) {
+    lines.push(`nothing else moved under its generated trees since the pinned ${pinned}.`);
+  }
+  lines.push('update FILES in tools/sync-regex-upstream.mjs (and its reader in tools/build-poe1-regex-data.mjs), or drop the category if poe.re dropped the dataset.');
+  die(lines.join('\n'));
 }
 
 const commit = git('rev-parse', 'HEAD');
@@ -159,7 +195,6 @@ for (const [name, content] of snapshotOutputs()) {
   if (before.get(name) !== content) changed.push(`static/generated/poe1/${name}`);
 }
 
-const lock = existsSync(LOCK) ? JSON.parse(readFileSync(LOCK, 'utf8')) : null;
 if (changed.length > 0 || lock?.commit !== commit) {
   writeFileSync(LOCK, JSON.stringify({ repository: 'https://github.com/veiset/poe.re', commit, date }, null, 2) + '\n');
 }

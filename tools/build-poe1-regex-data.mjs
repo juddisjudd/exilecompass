@@ -86,8 +86,7 @@ write('FlaskMods', { flaskPrefix, flaskSuffix }, (d) => {
   list('FlaskMods.flaskSuffix', d.flaskSuffix, 5, ['regex', 'mods']);
 });
 
-const { regexGems } = await load('gems/Generated.Gems.English.ts');
-write('Gems', regexGems.tokens, (d) => list('Gems', d, 300, ['id', 'regex', 'rawText', 'options']));
+write('Gems', data('gems/Generated.Gems.ENGLISH.json').tokens, (d) => list('Gems', d, 300, ['id', 'regex', 'rawText', 'options']));
 
 write('MapMods', data('mapmods/Generated.Map.ENGLISH.json'), (d) => {
   list('MapMods.tokens', d.tokens, 50, ['id', 'regex', 'rawText', 'options']);
