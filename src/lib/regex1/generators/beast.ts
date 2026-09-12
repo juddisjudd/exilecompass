@@ -3,7 +3,7 @@
 // (see PoE1 regex research notes). ExileCompass has no live-pricing pipeline,
 // so this is manual multi-select instead — pick beasts by name, OR their
 // regex fragments. Quoted like Tattoo/Runegraft/Scarab: upstream's own Beast
-// tool emits this unquoted, but 203/207 bundled beast fragments contain a
+// tool emits this unquoted, but 123/220 bundled beast fragments contain a
 // literal space or comma (e.g. "n, f", "c cr"), so pasted as-is those spaces
 // get parsed as separate AND-tokens instead of one literal phrase — quoting
 // here is a deliberate fix, not a deviation from a working reference.

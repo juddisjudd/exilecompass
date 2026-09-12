@@ -61,12 +61,12 @@ ${entries.join(', \n')}]`;
 const POE1_DATA = [
   'item/Generated.Item.json',
   'item/Generated.Basetypes.Item.json',
-  'beast/Generated.BeastRegex.json',
+  'beast/Generated.BeastRegex.ENGLISH.json',
   'boatmods/Generated.BoatMods.ENGLISH.json',
   'expedition/Generated.Expedition.json',
   'jewel/Generated.Jewel.json',
   'mapmods/Generated.Map.ENGLISH.json',
-  'scarabs/Generated.Scarabs.json',
+  'scarabs/Generated.Scarabs.ENGLISH.json',
   'gems/Generated.Gems.ENGLISH.json',
 ];
 // What poe.re still authors as TS modules. It converts these to JSON one PR

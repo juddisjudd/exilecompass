@@ -53,8 +53,7 @@ write('ItemMods', byKey(data('item/Generated.Item.json'), 'basetype'), (d) => {
 
 write('ItemBases', data('item/Generated.Basetypes.Item.json'), (d) => list('ItemBases', d, 30, ['name', 'items']));
 
-// `harvest` is only emitted on the beasts that have it, so it isn't a required key.
-write('BeastRegex', data('beast/Generated.BeastRegex.json'), (d) => list('BeastRegex', d, 20, ['beast', 'regex', 'red']));
+write('BeastRegex', data('beast/Generated.BeastRegex.ENGLISH.json'), (d) => list('BeastRegex', d, 20, ['beast', 'regex', 'red', 'harvest']));
 
 const { tattooRegex } = await load('GeneratedTattoo.ts');
 write('Tattoo', tattooRegex, (d) => list('Tattoo', d, 20, ['tattoo', 'regex', 'description']));
@@ -62,7 +61,7 @@ write('Tattoo', tattooRegex, (d) => list('Tattoo', d, 20, ['tattoo', 'regex', 'd
 const { runegraftRegex } = await load('GeneratedRunegraft.ts');
 write('Runegraft', runegraftRegex, (d) => list('Runegraft', d, 10, ['regex', 'description']));
 
-write('Scarabs', data('scarabs/Generated.Scarabs.json'), (d) => record('Scarabs', d, 50, ['name', 'regex']));
+write('Scarabs', data('scarabs/Generated.Scarabs.ENGLISH.json'), (d) => record('Scarabs', d, 50, ['name', 'regex']));
 
 const { regular, abyss } = data('jewel/Generated.Jewel.json');
 write('Jewel', { jewelRegular: regular, jewelAbyss: abyss }, (d) => {
