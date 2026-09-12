@@ -1158,7 +1158,7 @@ dependencies = [
 
 [[package]]
 name = "exilecompass"
-version = "1.5.9"
+version = "1.5.10"
 dependencies = [
  "bzip2",
  "cpal",
