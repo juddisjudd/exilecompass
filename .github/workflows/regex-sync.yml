@@ -57,23 +57,28 @@ jobs:
         with:
           bun-version: latest
 
-      # The log is kept for the failure issue below.
+      # The log is kept for the failure issue below. It lives outside the
+      # checkout: release.mjs refuses a dirty tree, and an untracked file in
+      # the repo root counts — that alone failed every release for a day in
+      # Sep 2026.
       - name: Sync regex data
         id: sync
         run: |
           set -o pipefail
-          bun tools/sync-regex-upstream.mjs --upstream upstream 2>&1 | tee sync.log
+          bun tools/sync-regex-upstream.mjs --upstream upstream 2>&1 | tee "$RUNNER_TEMP/sync.log"
           rm -rf upstream
 
       # A data-only sync can still break the build if poe.re changes a shape
       # the app's types depend on (e.g. relicData.ts) — catch it before tagging.
       - name: Type check
+        id: check
         if: steps.sync.outputs.changed == 'true'
         run: |
           bun install --frozen-lockfile
           bun run check
 
       - name: Commit
+        id: commit
         if: steps.sync.outputs.changed == 'true'
         env:
           COMMIT: ${{ steps.sync.outputs.commit }}
@@ -87,6 +92,7 @@ jobs:
       # workflow's own token never fires release.yml's `push` trigger, so
       # dispatch it on the new tag explicitly.
       - name: Release
+        id: release
         if: steps.sync.outputs.changed == 'true' && (github.event_name == 'schedule' || inputs.release)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -97,31 +103,48 @@ jobs:
           echo "Dispatched release.yml for $tag"
 
       - name: Push without releasing
+        id: push
         if: steps.sync.outputs.changed == 'true' && !(github.event_name == 'schedule' || inputs.release)
         run: git push origin HEAD
 
+      # Names the failed step: a release-path failure used to be reported with
+      # the sync-script wording and got misread as poe.re breaking the sync.
       - name: Report failure
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
+          SYNC: ${{ steps.sync.outcome }}
+          CHECK: ${{ steps.check.outcome }}
+          COMMIT: ${{ steps.commit.outcome }}
+          RELEASE: ${{ steps.release.outcome }}
+          PUSH: ${{ steps.push.outcome }}
         run: |
           gh label create regex-sync --force --color d73a4a --description "The scheduled poe.re regex sync is failing"
+          failed=unknown
+          for s in "sync:$SYNC" "check:$CHECK" "commit:$COMMIT" "release:$RELEASE" "push:$PUSH"; do
+            if [ "${s#*:}" = failure ]; then failed=${s%%:*}; break; fi
+          done
           {
-            echo "Run [#${GITHUB_RUN_NUMBER}](${RUN_URL}) failed."
-            if [ -f sync.log ]; then
+            echo "Run [#${GITHUB_RUN_NUMBER}](${RUN_URL}) failed at the **${failed}** step."
+            if [ -f "$RUNNER_TEMP/sync.log" ]; then
               echo
               echo '```'
-              tail -n 30 sync.log
+              tail -n 30 "$RUNNER_TEMP/sync.log"
               echo '```'
             fi
             echo
-            echo 'Nothing syncs until tools/sync-regex-upstream.mjs (and, for PoE1 data, tools/build-poe1-regex-data.mjs) follows poe.re again. Failing runs keep commenting here every 6 hours; the first green run closes this issue.'
-          } > body.md
+            if [ "$failed" = sync ]; then
+              echo 'Nothing syncs until tools/sync-regex-upstream.mjs (and, for PoE1 data, tools/build-poe1-regex-data.mjs) follows poe.re again.'
+            else
+              echo 'The data synced fine; the failure is after it, so read the run log rather than poe.re.'
+            fi
+            echo 'Failing runs keep commenting here every 6 hours; the first green run closes this issue.'
+          } > "$RUNNER_TEMP/body.md"
           existing=$(gh issue list --label regex-sync --state open --json number --jq '.[0].number')
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body-file body.md
+            gh issue comment "$existing" --body-file "$RUNNER_TEMP/body.md"
           else
-            gh issue create --title "Regex sync is failing" --label regex-sync --body-file body.md
+            gh issue create --title "Regex sync is failing" --label regex-sync --body-file "$RUNNER_TEMP/body.md"
           fi
 
       - name: Close failure issue

@@ -59,8 +59,10 @@ else die(`Invalid version "${bump}". Use patch|minor|major or x.y.z`);
 const tag = `v${next}`;
 
 // ── Safety checks ────────────────────────────────────────────────────────────
-if (git(['status', '--porcelain'])) {
-  die('Working tree is not clean — commit or stash your changes first.');
+const dirty = git(['status', '--porcelain']);
+if (dirty) {
+  const list = dirty.split('\n').map((l) => `  ${l.trim()}`).join('\n');
+  die(`Working tree is not clean — commit or stash your changes first.\n${list}`);
 }
 if (git(['tag', '--list']).split('\n').includes(tag)) {
   die(`Tag ${tag} already exists.`);
