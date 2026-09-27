@@ -335,13 +335,13 @@ export async function pollLog(
   levelUps: LevelUpEvent[];
   state: LogWatcherState;
 }> {
-  const result = await invoke<{ lines: string[]; file_size: number }>(
+  const result = await invoke<{ lines: string[]; file_size: number; next_offset: number }>(
     'read_log_tail', { path: logPath, fromByte: state.offset }
   );
 
   // Detect truncation (file was reset / replaced)
   const wasTruncated = result.file_size < state.offset;
-  const newOffset = result.file_size;
+  const newOffset = result.next_offset;
 
   const setupTime = new Date(state.setupTime);
   const ids = extractNewRewardIds(result.lines, setupTime, collected, areaRef);

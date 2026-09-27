@@ -70,94 +70,18 @@ impl OverlayState {
     }
 }
 
-// ── App resource usage (footer display) ──────────────────────────────────────
-
-struct SysMon {
-    sys: sysinfo::System,
-    /// This process and its WebView2 children. Rediscovered every
-    /// TREE_REFRESH_EVERY with a full pass; the polls in between refresh only
-    /// these, skipping per-process timing/handle calls for the few hundred
-    /// other processes on the machine.
-    tree: Vec<sysinfo::Pid>,
-    tree_refreshed: Option<std::time::Instant>,
-}
-
-struct SysMonState(Mutex<SysMon>);
-
-const TREE_REFRESH_EVERY: std::time::Duration = std::time::Duration::from_secs(30);
-
-impl SysMonState {
-    fn new() -> Self {
-        Self(Mutex::new(SysMon { sys: sysinfo::System::new(), tree: Vec::new(), tree_refreshed: None }))
-    }
-}
-
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ResourceUsage {
-    cpu_percent: f32,
-    memory_bytes: u64,
-}
-
-fn process_tree(procs: &HashMap<sysinfo::Pid, sysinfo::Process>, root: sysinfo::Pid) -> Vec<sysinfo::Pid> {
-    procs
-        .keys()
-        .copied()
-        .filter(|&pid| {
-            let mut cur = Some(pid);
-            let mut depth = 0;
-            loop {
-                match cur {
-                    Some(p) if p == root => break true,
-                    Some(p) if depth < 16 => {
-                        depth += 1;
-                        cur = procs.get(&p).and_then(|pr| pr.parent());
-                    }
-                    _ => break false,
-                }
-            }
-        })
-        .collect()
-}
-
-/// CPU/memory for the whole process tree (the Rust process plus WebView2
-/// children, which hold most of the memory). CPU is % of total across all
-/// cores; the first call after startup reports 0 since sysinfo measures
-/// between refreshes.
-#[tauri::command]
-fn get_resource_usage(state: State<'_, SysMonState>) -> Option<ResourceUsage> {
-    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
-
-    let own_pid = sysinfo::get_current_pid().ok()?;
-    let mut mon = state.0.lock().unwrap();
-    let SysMon { sys, tree, tree_refreshed } = &mut *mon;
-    let kind = ProcessRefreshKind::nothing().with_cpu().with_memory();
-    let stale = tree_refreshed.map_or(true, |t| t.elapsed() >= TREE_REFRESH_EVERY);
-    if stale {
-        sys.refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
-        *tree = process_tree(sys.processes(), own_pid);
-        *tree_refreshed = Some(std::time::Instant::now());
-    } else {
-        sys.refresh_processes_specifics(ProcessesToUpdate::Some(tree), true, kind);
-    }
-
-    let (cpu, mem) = tree
-        .iter()
-        .filter_map(|pid| sys.process(*pid))
-        .fold((0f32, 0u64), |(cpu, mem), p| (cpu + p.cpu_usage(), mem + p.memory()));
-
-    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as f32;
-    Some(ResourceUsage {
-        cpu_percent: cpu / cores,
-        memory_bytes: mem,
-    })
-}
-
 // ── Persistent settings store (disk-backed) ──────────────────────────────────
 //
 // WebView2's localStorage is not reliably persisted across dev restarts, so
 // config values that must survive restarts (e.g. the chosen log file path) are
 // stored in a real JSON file under the OS app-config directory instead.
+//
+// The file is read once and kept in memory; every change rewrites it through a
+// temp file + rename, so a crash mid-write leaves the previous copy intact
+// instead of a truncated file that would load as empty and wipe every setting.
+
+#[derive(Default)]
+struct SettingsStore(Mutex<Option<HashMap<String, String>>>);
 
 fn settings_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
@@ -165,7 +89,7 @@ fn settings_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(dir.join("settings.json"))
 }
 
-fn read_settings(app: &AppHandle) -> HashMap<String, String> {
+fn load_settings_file(app: &AppHandle) -> HashMap<String, String> {
     settings_path(app)
         .ok()
         .and_then(|p| std::fs::read_to_string(p).ok())
@@ -173,10 +97,25 @@ fn read_settings(app: &AppHandle) -> HashMap<String, String> {
         .unwrap_or_default()
 }
 
-fn write_settings(app: &AppHandle, map: &HashMap<String, String>) -> Result<(), String> {
+fn save_settings_file(app: &AppHandle, map: &HashMap<String, String>) -> Result<(), String> {
     let path = settings_path(app)?;
+    let tmp = path.with_extension("json.tmp");
     let json = serde_json::to_string_pretty(map).map_err(|e| e.to_string())?;
-    std::fs::write(path, json).map_err(|e| e.to_string())
+    std::fs::write(&tmp, json).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, &path).map_err(|e| e.to_string())
+}
+
+/// Run `f` on the in-memory settings map, loading it from disk on first use.
+/// The lock is held across any save `f` does, so the file on disk always
+/// matches the order changes were made in.
+fn with_settings<R>(app: &AppHandle, f: impl FnOnce(&mut HashMap<String, String>) -> R) -> R {
+    let store = app.state::<SettingsStore>();
+    let mut guard = store.0.lock().unwrap_or_else(|e| e.into_inner());
+    f(guard.get_or_insert_with(|| load_settings_file(app)))
+}
+
+fn read_setting(app: &AppHandle, key: &str) -> Option<String> {
+    with_settings(app, |map| map.get(key).cloned())
 }
 
 /// Whether the in-app updater can self-update this install. Tauri's Linux
@@ -196,23 +135,32 @@ fn update_supported() -> bool {
     }
 }
 
+// The store commands stay sync on purpose: they then run in call order on the
+// main thread, so two un-awaited sets of the same key can't land reversed.
 #[tauri::command]
 fn store_get(app: AppHandle, key: String) -> Option<String> {
-    read_settings(&app).get(&key).cloned()
+    read_setting(&app, &key)
 }
 
 #[tauri::command]
 fn store_set(app: AppHandle, key: String, value: String) -> Result<(), String> {
-    let mut map = read_settings(&app);
-    map.insert(key, value);
-    write_settings(&app, &map)
+    with_settings(&app, |map| {
+        if map.get(&key) == Some(&value) {
+            return Ok(());
+        }
+        map.insert(key, value);
+        save_settings_file(&app, map)
+    })
 }
 
 #[tauri::command]
 fn store_remove(app: AppHandle, key: String) -> Result<(), String> {
-    let mut map = read_settings(&app);
-    map.remove(&key);
-    write_settings(&app, &map)
+    with_settings(&app, |map| {
+        if map.remove(&key).is_none() {
+            return Ok(());
+        }
+        save_settings_file(&app, map)
+    })
 }
 
 const ADDONS_STATE_KEY: &str = "EXILECOMPASS_ADDONS_STATE_V1";
@@ -317,19 +265,17 @@ struct RegistryAddon {
 }
 
 fn read_addons(app: &AppHandle) -> Vec<AddonRecord> {
-    read_settings(app)
-        .get(ADDONS_STATE_KEY)
-        .and_then(|s| serde_json::from_str::<Vec<AddonRecord>>(s).ok())
+    read_setting(app, ADDONS_STATE_KEY)
+        .and_then(|s| serde_json::from_str::<Vec<AddonRecord>>(&s).ok())
         .unwrap_or_default()
 }
 
 fn write_addons(app: &AppHandle, addons: &[AddonRecord]) -> Result<(), String> {
-    let mut map = read_settings(app);
-    map.insert(
-        ADDONS_STATE_KEY.to_string(),
-        serde_json::to_string(addons).map_err(|e| e.to_string())?,
-    );
-    write_settings(app, &map)
+    let json = serde_json::to_string(addons).map_err(|e| e.to_string())?;
+    with_settings(app, |map| {
+        map.insert(ADDONS_STATE_KEY.to_string(), json);
+        save_settings_file(app, map)
+    })
 }
 
 fn registry_url_candidates() -> Vec<String> {
@@ -350,16 +296,17 @@ fn is_url(value: &str) -> bool {
     value.starts_with("https://") || value.starts_with("http://")
 }
 
-fn fetch_registry_from_url(url: &str) -> Result<String, String> {
-    let target = url.to_string();
-    tauri::async_runtime::block_on(async move {
-        let response = reqwest::get(&target).await.map_err(|e| e.to_string())?;
-        let status = response.status();
-        if !status.is_success() {
-            return Err(format!("Registry request failed ({status}) for {target}"));
-        }
-        response.text().await.map_err(|e| e.to_string())
-    })
+async fn fetch_registry_from_url(url: &str) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let response = client.get(url).send().await.map_err(|e| e.to_string())?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("Registry request failed ({status}) for {url}"));
+    }
+    response.text().await.map_err(|e| e.to_string())
 }
 
 fn parse_registry_addons(raw: &str) -> Result<Vec<RegistryAddon>, String> {
@@ -705,21 +652,19 @@ fn parse_github_owner_repo(url: &str) -> Option<(String, String)> {
 /// Download `url` as bytes. GitHub serves archive zips via a redirect to
 /// codeload, which reqwest follows by default; a User-Agent avoids the
 /// occasional 403 from GitHub's edge.
-fn http_get_bytes(url: &str) -> Result<Vec<u8>, String> {
-    let target = url.to_string();
-    tauri::async_runtime::block_on(async move {
-        let client = reqwest::Client::builder()
-            .user_agent("ExileCompass")
-            .build()
-            .map_err(|e| e.to_string())?;
-        let response = client.get(&target).send().await.map_err(|e| e.to_string())?;
-        let status = response.status();
-        if !status.is_success() {
-            return Err(format!("HTTP {status} for {target}"));
-        }
-        let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-        Ok(bytes.to_vec())
-    })
+async fn http_get_bytes(url: &str) -> Result<Vec<u8>, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("ExileCompass")
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let response = client.get(url).send().await.map_err(|e| e.to_string())?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("HTTP {status} for {url}"));
+    }
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    Ok(bytes.to_vec())
 }
 
 /// Extract an addon package zip into `dest`. The release pipeline builds a flat
@@ -751,8 +696,9 @@ fn extract_zip(zip_bytes: &[u8], dest: &std::path::Path) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn addons_install_from_registry(app: AppHandle, id: String) -> Result<AddonRecord, String> {
-    let entry = resolve_registry_addons(None)?
+async fn addons_install_from_registry(app: AppHandle, id: String) -> Result<AddonRecord, String> {
+    let entry = resolve_registry_addons(None)
+        .await?
         .into_iter()
         .find(|a| a.id == id)
         .ok_or_else(|| format!("Addon {id} not found in registry"))?;
@@ -776,7 +722,7 @@ fn addons_install_from_registry(app: AppHandle, id: String) -> Result<AddonRecor
         let url = format!(
             "https://github.com/{owner}/{repo}/releases/download/{tag}/{ADDON_PACKAGE_ASSET}"
         );
-        match http_get_bytes(&url) {
+        match http_get_bytes(&url).await {
             Ok(bytes) => {
                 zip_bytes = Some(bytes);
                 break;
@@ -862,14 +808,14 @@ fn addons_read_panel(app: AppHandle, id: String) -> Result<AddonPanelPayload, St
 }
 
 #[tauri::command]
-fn addons_load_registry(path: Option<String>) -> Result<Vec<RegistryAddon>, String> {
-    resolve_registry_addons(path)
+async fn addons_load_registry(path: Option<String>) -> Result<Vec<RegistryAddon>, String> {
+    resolve_registry_addons(path).await
 }
 
-fn resolve_registry_addons(path: Option<String>) -> Result<Vec<RegistryAddon>, String> {
+async fn resolve_registry_addons(path: Option<String>) -> Result<Vec<RegistryAddon>, String> {
     if let Some(p) = path {
         if is_url(&p) {
-            let raw = fetch_registry_from_url(&p)?;
+            let raw = fetch_registry_from_url(&p).await?;
             return parse_registry_addons(&raw);
         }
 
@@ -884,7 +830,7 @@ fn resolve_registry_addons(path: Option<String>) -> Result<Vec<RegistryAddon>, S
 
     let mut last_remote_error = None;
     for url in registry_url_candidates() {
-        match fetch_registry_from_url(&url) {
+        match fetch_registry_from_url(&url).await {
             Ok(raw) => match parse_registry_addons(&raw) {
                 Ok(parsed) => return Ok(parsed),
                 Err(e) => {
@@ -925,7 +871,7 @@ struct WindowBounds {
 /// valid to restore — e.g. first run, or a saved spot that's now fully off-screen
 /// because a monitor was unplugged.
 fn restore_window_bounds(app: &AppHandle, window: &WebviewWindow) {
-    let Some(raw) = read_settings(app).remove(WINDOW_BOUNDS_KEY) else {
+    let Some(raw) = read_setting(app, WINDOW_BOUNDS_KEY) else {
         return;
     };
     let Ok(b) = serde_json::from_str::<WindowBounds>(&raw) else {
@@ -1267,30 +1213,50 @@ fn candidate_log_paths(game: &str) -> Vec<String> {
 struct LogTailResult {
     lines: Vec<String>,
     file_size: u64,
+    /// Where the next read should start: just past the last complete line.
+    next_offset: u64,
 }
 
-/// Read new lines from a log file starting at `from_byte`.
-/// Returns the lines added since that offset plus the current file size.
+/// Most of a backlog to replay after the overlay was closed while the game
+/// wrote to the log; anything older is skipped. Client.txt never rotates, so
+/// an uncapped gap can reach hundreds of MB.
+const MAX_LOG_CATCHUP_BYTES: u64 = 2 * 1024 * 1024;
+
+/// Read the complete lines added to a log file since `from_byte`.
 /// If the file is smaller than `from_byte` (truncated/rotated), `file_size`
 /// will be less than `from_byte` and the caller should reset its offset.
 #[tauri::command]
-fn read_log_tail(path: String, from_byte: u64) -> Result<LogTailResult, String> {
+async fn read_log_tail(path: String, from_byte: u64) -> Result<LogTailResult, String> {
     use std::fs::File;
-    use std::io::{BufRead, BufReader, Seek, SeekFrom};
+    use std::io::{Read, Seek, SeekFrom};
 
     let mut file = File::open(&path).map_err(|e| e.to_string())?;
     let file_size = file.metadata().map_err(|e| e.to_string())?.len();
 
-    let start = from_byte.min(file_size);
-    if start >= file_size {
-        return Ok(LogTailResult { lines: vec![], file_size });
+    if from_byte >= file_size {
+        return Ok(LogTailResult { lines: vec![], file_size, next_offset: file_size });
     }
 
+    let capped = file_size - from_byte > MAX_LOG_CATCHUP_BYTES;
+    let start = if capped { file_size - MAX_LOG_CATCHUP_BYTES } else { from_byte };
     file.seek(SeekFrom::Start(start)).map_err(|e| e.to_string())?;
-    let reader = BufReader::new(file);
-    let lines = reader.lines().filter_map(|l| l.ok()).collect();
+    let mut buf = Vec::with_capacity((file_size - start) as usize);
+    // Stop at the size read above, so bytes the game appends meanwhile are
+    // left for the next poll rather than read now and again then.
+    file.take(file_size - start).read_to_end(&mut buf).map_err(|e| e.to_string())?;
 
-    Ok(LogTailResult { lines, file_size })
+    // A capped read starts mid-line; drop that partial line.
+    let skip = if capped { buf.iter().position(|&b| b == b'\n').map_or(buf.len(), |i| i + 1) } else { 0 };
+    // Leave a line the game is still writing for the next poll.
+    let end = buf.iter().rposition(|&b| b == b'\n').map_or(skip, |i| (i + 1).max(skip));
+
+    let lines = buf[skip..end]
+        .split(|&b| b == b'\n')
+        .filter(|l| !l.is_empty())
+        .map(|l| String::from_utf8_lossy(l.strip_suffix(b"\r").unwrap_or(l)).into_owned())
+        .collect();
+
+    Ok(LogTailResult { lines, file_size, next_offset: start + end as u64 })
 }
 
 /// Read an entire UTF-8 text file (used for importing GGG `.build` files).
@@ -2085,7 +2051,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(OverlayState::new())
         .manage(VoiceState::new())
-        .manage(SysMonState::new())
+        .manage(SettingsStore::default())
         .manage(TtsOfflineState::new())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -2142,7 +2108,6 @@ pub fn run() {
             create_widget_window,
             focus_game,
             get_overlay_status,
-            get_resource_usage,
             detect_log_file,
             read_log_tail,
             read_text_file,
@@ -2198,5 +2163,62 @@ pub fn run() {
     if let Err(e) = result {
         write_crash_log(&format!("error while running tauri application: {e}"));
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    fn tail(path: &std::path::Path, from: u64) -> LogTailResult {
+        tauri::async_runtime::block_on(read_log_tail(path.to_string_lossy().into_owned(), from)).unwrap()
+    }
+
+    fn temp_log(name: &str, content: &[u8]) -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(format!("exilecompass-test-{}-{name}.txt", std::process::id()));
+        std::fs::write(&path, content).unwrap();
+        path
+    }
+
+    #[test]
+    fn log_tail_leaves_a_partial_line_for_the_next_poll() {
+        let path = temp_log("partial", b"one\r\ntwo\r\nthr");
+        let r = tail(&path, 0);
+        assert_eq!(r.lines, ["one", "two"]);
+        assert_eq!(r.next_offset, 10);
+
+        std::fs::OpenOptions::new().append(true).open(&path).unwrap().write_all(b"ee\r\n").unwrap();
+        let r = tail(&path, r.next_offset);
+        assert_eq!(r.lines, ["three"]);
+        assert_eq!(r.next_offset, r.file_size);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn log_tail_at_or_past_the_end_reads_nothing() {
+        let path = temp_log("end", b"one\r\n");
+        let r = tail(&path, 5);
+        assert!(r.lines.is_empty());
+        assert_eq!(r.next_offset, 5);
+        let r = tail(&path, u64::MAX);
+        assert!(r.lines.is_empty());
+        assert_eq!(r.file_size, 5);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn log_tail_caps_a_long_backlog_at_a_line_boundary() {
+        let line = b"2026/09/27 12:00:00 filler line\r\n";
+        let count = (MAX_LOG_CATCHUP_BYTES as usize / line.len()) * 2;
+        let mut content = line.repeat(count);
+        content.extend_from_slice(b"last\r\n");
+        let path = temp_log("cap", &content);
+        let r = tail(&path, 0);
+        assert_eq!(r.next_offset, content.len() as u64);
+        assert_eq!(r.lines.last().map(String::as_str), Some("last"));
+        assert!(r.lines[..r.lines.len() - 1].iter().all(|l| l == "2026/09/27 12:00:00 filler line"));
+        assert!(r.lines.len() < count / 2 + 2);
+        std::fs::remove_file(path).unwrap();
     }
 }

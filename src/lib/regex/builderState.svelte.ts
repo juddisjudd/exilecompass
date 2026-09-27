@@ -47,10 +47,10 @@ let _category = $state<Category>('vendor');
 let _settings = $state<Settings>(defaultSettings());
 // Active group (where new selections land) per category.
 let _activeGroup = $state<Record<Category, number>>({ vendor: 0, waystone: 0, tablet: 0, relic: 0, item: 0 });
-let _waystoneAffixes = $state<WaystoneAffix[]>([]);
-let _tabletAffixes = $state<TabletAffix[]>([]);
-let _itemRegex = $state<ItemRegex[] | null>(null);
-let _itemBasetypes = $state<ItemBasetype[] | null>(null);
+let _waystoneAffixes = $state.raw<WaystoneAffix[]>([]);
+let _tabletAffixes = $state.raw<TabletAffix[]>([]);
+let _itemRegex = $state.raw<ItemRegex[] | null>(null);
+let _itemBasetypes = $state.raw<ItemBasetype[] | null>(null);
 let _favorites = $state<Favorite[]>([]);
 let _loaded = $state(false);
 let _importNote = $state('');

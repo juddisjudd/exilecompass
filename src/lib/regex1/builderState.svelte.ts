@@ -63,19 +63,19 @@ let _settings = $state<Settings>(defaultSettings());
 let _favorites = $state<Favorite[]>([]);
 let _favoritesLoaded = $state(false);
 
-let _gemTokens = $state<GemToken[] | null>(null);
-let _itemMods = $state<ItemModsData | null>(null);
-let _itemBases = $state<BaseType[] | null>(null);
-let _jewelData = $state<JewelData | null>(null);
-let _mapModsData = $state<MapModsData | null>(null);
-let _boatModsData = $state<MapModsData | null>(null);
-let _expeditionData = $state<ExpeditionData | null>(null);
-let _heistData = $state<HeistData | null>(null);
-let _flaskModsData = $state<FlaskModsData | null>(null);
-let _beasts = $state<BeastEntry[] | null>(null);
-let _tattoos = $state<NamedRegexEntry[] | null>(null);
-let _runegrafts = $state<NamedRegexEntry[] | null>(null);
-let _scarabs = $state<ScarabsData | null>(null);
+let _gemTokens = $state.raw<GemToken[] | null>(null);
+let _itemMods = $state.raw<ItemModsData | null>(null);
+let _itemBases = $state.raw<BaseType[] | null>(null);
+let _jewelData = $state.raw<JewelData | null>(null);
+let _mapModsData = $state.raw<MapModsData | null>(null);
+let _boatModsData = $state.raw<MapModsData | null>(null);
+let _expeditionData = $state.raw<ExpeditionData | null>(null);
+let _heistData = $state.raw<HeistData | null>(null);
+let _flaskModsData = $state.raw<FlaskModsData | null>(null);
+let _beasts = $state.raw<BeastEntry[] | null>(null);
+let _tattoos = $state.raw<NamedRegexEntry[] | null>(null);
+let _runegrafts = $state.raw<NamedRegexEntry[] | null>(null);
+let _scarabs = $state.raw<ScarabsData | null>(null);
 
 const _affixMap = $derived.by(() => (_itemMods ? buildAffixMap(_itemMods) : null));
 

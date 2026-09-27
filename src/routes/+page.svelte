@@ -874,7 +874,6 @@
   // (tauri.dev.conf.json override) reads "ExileCompass Dev" while the
   // committed default stays the release name.
   let appName = $state('');
-  let resourceUsage = $state<{ cpuPercent: number; memoryBytes: number } | null>(null);
 
   // First-run (and one-time, for anyone updating from before this existed)
   // setup wizard: forces a log file + a hotkey review before the rest of the
@@ -1032,25 +1031,17 @@
     syncOverlayAttachment();
     pollTimer = setInterval(syncOverlayAttachment, 1000);
 
-    // App CPU/memory for the footer — cheap enough to poll every few seconds;
-    // the Rust side reads the whole process tree (WebView2 children included).
-    const syncResourceUsage = async () => {
-      if (cancelled) return;
-      try {
-        resourceUsage = await invoke('get_resource_usage');
-      } catch {
-        resourceUsage = null;
-      }
-    };
-    syncResourceUsage();
-    const resourceTimer = setInterval(syncResourceUsage, 3000);
-
     // Log file polling — runs every 2 s, independent of game detection
+    let logPollInFlight = false;
     const syncLog = async () => {
-      if (cancelled || !logFilePath || !logWatcherState) return;
+      if (cancelled || logPollInFlight || !logFilePath || !logWatcherState) return;
+      logPollInFlight = true;
       try {
         const collected = rewardsComponent?.getCollected() ?? new Set<string>();
-        const { ids, scenes, areaId, areaIdEvents, dialogue, levelUps, state } = await pollLog(logFilePath, logWatcherState, collected, logWatcherArea, gameMode.current);
+        const polledState = logWatcherState;
+        const { ids, scenes, areaId, areaIdEvents, dialogue, levelUps, state } = await pollLog(logFilePath, polledState, collected, logWatcherArea, gameMode.current);
+        // A new log file or game switch mid-read replaced the state; this result is stale.
+        if (logWatcherState !== polledState) return;
         logWatcherState = state;
         // Feed transitions to whichever game's campaign timer is active (works
         // even if the rewards/timer tab isn't mounted): PoE2 splits off
@@ -1080,7 +1071,11 @@
         // state (unlike Act-Decoder), so this can call straight into
         // levelingRoute.svelte.ts with no event/persist bridging needed.
         if (areaId && gameMode.current === 'poe1') advanceLevelingEdge(areaId);
-      } catch { /* file may not exist yet */ }
+      } catch {
+        /* file may not exist yet */
+      } finally {
+        logPollInFlight = false;
+      }
     };
     const logTimer = setInterval(syncLog, 2000);
 
@@ -1167,7 +1162,6 @@
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
       clearInterval(logTimer);
-      clearInterval(resourceTimer);
       unlistenDrop?.();
       unlistenTrigger?.();
       unlistenVoiceCommand?.();
@@ -2764,14 +2758,6 @@
   <footer class="app-footer">
     <div class="footer-left">
       <span class="app-version">{appVersion ? `v${appVersion}` : ''}</span>
-      {#if resourceUsage}
-        <span class="app-resource-usage" title={m.footer_resource_usage_help()}>
-          {m.footer_resource_usage({
-            cpu: Math.round(resourceUsage.cpuPercent).toString(),
-            mem: Math.round(resourceUsage.memoryBytes / 1024 / 1024).toString(),
-          })}
-        </span>
-      {/if}
     </div>
     <div class="footer-right">
       <button
@@ -2941,15 +2927,6 @@
     font-size: 9px;
     letter-spacing: 0.05em;
     color: color-mix(in srgb, var(--c-accent) 70%, transparent);
-    user-select: none;
-    flex-shrink: 0;
-  }
-
-  .app-resource-usage {
-    font-family: 'Fira Mono', ui-monospace, monospace;
-    font-size: 9px;
-    letter-spacing: 0.03em;
-    color: color-mix(in srgb, var(--c-accent) 50%, transparent);
     user-select: none;
     flex-shrink: 0;
   }

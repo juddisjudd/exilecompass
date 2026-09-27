@@ -141,8 +141,6 @@
   "voice_group_overlay": "Overlay",
   "voice_phrase_click_through_on": "Let clicks pass through to the game",
   "voice_phrase_click_through_off": "Make the overlay clickable again",
-  "footer_resource_usage": "CPU {cpu}% · MEM {mem}MB",
-  "footer_resource_usage_help": "ExileCompass's own CPU and memory use",
   "voice_tts_title": "Voice Replies (Text-to-Speech)",
   "voice_tts_help": "Spoken answers for the build-info and timer commands.",
   "voice_tts_engine_selected": "Selected",
