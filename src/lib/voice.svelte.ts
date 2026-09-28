@@ -276,7 +276,9 @@ export function acceptVoiceCommand(phrase: VoicePhrase): boolean {
 /** Startup: load the saved preference and device/phrase lists, then resume
  *  listening if it was on. Guarded by STARTING_MARKER_KEY so a listener that
  *  crashes the process can't relaunch-loop — after one bad start the
- *  preference is switched off and `disabledAfterCrash` explains why. */
+ *  preference is switched off and `disabledAfterCrash` explains why. A start
+ *  that merely fails (a headset not connected yet) keeps the preference and
+ *  retries, like a session that drops mid-game. */
 export async function applyVoiceEnabledOnStartup(): Promise<void> {
   loadVoiceEnabled();
   loadVoiceSensitivity();
@@ -295,7 +297,7 @@ export async function applyVoiceEnabledOnStartup(): Promise<void> {
   try {
     await startVoiceListening();
   } catch {
-    setVoiceEnabledPref(false);
+    scheduleRestart();
   } finally {
     window.localStorage.removeItem(STARTING_MARKER_KEY);
   }

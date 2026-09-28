@@ -34,7 +34,7 @@ mod tts;
 use tts::{
     tts_delete_elevenlabs_key_keychain, tts_get_elevenlabs_key_keychain,
     tts_list_elevenlabs_voices, tts_list_output_devices, tts_play_audio, tts_speak_elevenlabs,
-    tts_sapi_warm, tts_speak_sapi, tts_set_elevenlabs_key_keychain,
+    tts_sapi_warm, tts_set_elevenlabs_key_keychain, tts_speak_sapi, tts_stop,
 };
 
 /// Resolve the game-specific window finder for a `game` id ("poe1" | "poe2").
@@ -1265,6 +1265,21 @@ fn read_text_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
+/// Kept alive for the session: on Linux the copied text is served by this
+/// handle and disappears when it is dropped.
+static CLIPBOARD: Mutex<Option<arboard::Clipboard>> = Mutex::new(None);
+
+/// Put `text` on the system clipboard. The webview's `navigator.clipboard`
+/// refuses unless the overlay has focus, and for a voice command the game has it.
+#[tauri::command]
+fn copy_text(text: String) -> Result<(), String> {
+    let mut slot = CLIPBOARD.lock().unwrap_or_else(|e| e.into_inner());
+    if slot.is_none() {
+        *slot = Some(arboard::Clipboard::new().map_err(|e| e.to_string())?);
+    }
+    slot.as_mut().unwrap().set_text(text).map_err(|e| e.to_string())
+}
+
 // ── Build folder library ──────────────────────────────────────────────────────
 
 #[derive(serde::Serialize)]
@@ -2111,6 +2126,7 @@ pub fn run() {
             detect_log_file,
             read_log_tail,
             read_text_file,
+            copy_text,
             list_build_files,
             detect_build_folder,
             fetch_pobb_code,
@@ -2142,6 +2158,7 @@ pub fn run() {
             tts_list_elevenlabs_voices,
             tts_list_output_devices,
             tts_play_audio,
+            tts_stop,
             tts_offline_voices,
             tts_offline_download,
             tts_offline_remove,

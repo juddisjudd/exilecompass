@@ -45,6 +45,7 @@
     })();
 
     let unlisten: (() => void) | undefined;
+    let unlistenControl: (() => void) | undefined;
     let cancelled = false;
     (async () => {
       const handle = await listen<{ areaId: string }>('ec-act-decoder-zone', (event) => {
@@ -53,10 +54,21 @@
       if (cancelled) handle();
       else unlisten = handle;
     })();
+    // Voice commands ("compass change layout" …) arrive from the main window.
+    (async () => {
+      const handle = await listen<{ action: 'variant' | 'rotate' | 'flip' }>('ec-act-decoder-control', (event) => {
+        if (event.payload.action === 'variant') cycleVariant(1);
+        else if (event.payload.action === 'rotate') rotate();
+        else flip();
+      });
+      if (cancelled) handle();
+      else unlistenControl = handle;
+    })();
 
     return () => {
       cancelled = true;
       unlisten?.();
+      unlistenControl?.();
     };
   });
 

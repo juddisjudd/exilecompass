@@ -56,3 +56,25 @@ What it has shown so far (two voices, 126 phrase clips, 24 decoys):
   16 kHz clips, so the capture path itself isn't costing recognition.
 - "compass stash"/"compass regex" are the weakest phrases (1/4); "compass
   find" (2/2) was added as another spoken form for the same tab.
+
+Sep 2026, three voices (David, Zira, Mark), 255 phrase clips, 36 decoys:
+250/255, no wrong-phrase detections, no false alarms.
+
+- "compass belt" fired `build` for 2 of 3 voices at every threshold from
+  0.10 to 0.45 — the only wrong-command match in the set, and one no
+  sensitivity setting could fix. "compass build" was replaced by "compass show
+  build"/"compass open build"; belt is now 3/3. "compass regex" (0/3) was
+  replaced by "compass search"/"compass stash search" (3/3 each). Rewording
+  fixes a confusable pair; the threshold slider doesn't.
+- "compass copy regex" is still weak (1/3); "compass copy search" (3/3) is
+  the documented form.
+- Near-homophones fire as expected ("compass nest" → next, "compass bell" →
+  belt); decoy chat without "compass" never fires.
+
+Keep one rule when adding phrases: no phrase may be another id's complete
+phrase followed by more words ("compass next" + "compass next tree"; "compass
+stash" + "compass stash search" is fine, both are `@stash`). The spotter
+confirms a keyword after only `NUM_TRAILING_BLANKS` (~120 ms) of blank frames,
+which a normal gap between words can supply, so the short phrase would risk
+firing first. That is why the tree commands are "compass change tree"/"compass
+previous tree".

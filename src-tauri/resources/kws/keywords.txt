@@ -1,17 +1,20 @@
 ▁COMP AS S ▁NEXT @next
 ▁COMP AS S ▁BACK @back
+▁COMP AS S ▁UN D O @back
 ▁COMP AS S ▁WHAT S ▁NEXT @nextstep
 ▁COMP AS S ▁C UR R ENT ▁ST E P @nextstep
 ▁COMP AS S ▁RE WARD S @rewards
 ▁COMP AS S ▁CA M P A IG N @campaign
-▁COMP AS S ▁BUILD @build
+▁COMP AS S ▁SHOW ▁BUILD @build
+▁COMP AS S ▁O P EN ▁BUILD @build
 ▁COMP AS S ▁LE VE L ING @leveling
 ▁COMP AS S ▁GU ID E @campaign
 ▁COMP AS S ▁G E M S @gems
 ▁COMP AS S ▁T RE E @tree
 ▁COMP AS S ▁PA S S IVE ▁T RE E @tree
 ▁COMP AS S ▁STA SH @stash
-▁COMP AS S ▁RE GE X @stash
+▁COMP AS S ▁SE AR CH @stash
+▁COMP AS S ▁STA SH ▁SE AR CH @stash
 ▁COMP AS S ▁FIND @stash
 ▁COMP AS S ▁C RA F T ING @crafting
 ▁COMP AS S ▁A D D ▁ON S @addons
@@ -51,7 +54,9 @@
 ▁COMP AS S ▁RE AD ▁ R ING S @ringsstats
 ▁COMP AS S ▁RE AD ▁BE L T @beltstats
 ▁COMP AS S ▁START ▁TIME R @timerstart
+▁COMP AS S ▁RE S U ME ▁TIME R @timerstart
 ▁COMP AS S ▁ST O P ▁TIME R @timerstop
+▁COMP AS S ▁PA U SE ▁TIME R @timerstop
 ▁COMP AS S ▁RE S ET ▁TIME R @timerreset
 ▁COMP AS S ▁TIME R @timer
 ▁COMP AS S ▁RU N ▁TIME @timerstatus
@@ -62,3 +67,19 @@
 ▁COMP AS S ▁C LI CK ▁THROUGH ▁OF F @clickthroughoff
 ▁COMP AS S ▁LO CK ▁OVER LA Y @clickthroughon
 ▁COMP AS S ▁UN LO CK ▁OVER LA Y @clickthroughoff
+▁COMP AS S ▁HI DE ▁OVER LA Y @hideoverlay
+▁COMP AS S ▁SHOW ▁OVER LA Y @showoverlay
+▁COMP AS S ▁PA TH ▁OF ▁EX IL E ▁ONE @gamepoe1
+▁COMP AS S ▁PA TH ▁OF ▁EX IL E ▁TWO @gamepoe2
+▁COMP AS S ▁S W IT CH ▁BUILD @switchbuild
+▁COMP AS S ▁CHANGE ▁T RE E @treenext
+▁COMP AS S ▁PRE V IOUS ▁T RE E @treeprev
+▁COMP AS S ▁O P EN ▁DE CO DER @decoderopen
+▁COMP AS S ▁C LO SE ▁DE CO DER @decoderclose
+▁COMP AS S ▁CHANGE ▁LA Y O U T @decodervariant
+▁COMP AS S ▁RO T ATE ▁LA Y O U T @decoderrotate
+▁COMP AS S ▁F LI P ▁LA Y O U T @decoderflip
+▁COMP AS S ▁CO P Y ▁SE AR CH @copyregex
+▁COMP AS S ▁CO P Y ▁RE GE X @copyregex
+▁COMP AS S ▁QU I ET @quiet
+▁COMP AS S ▁ST O P ▁TALK ING @quiet

@@ -3,7 +3,10 @@
 # Synthetic speech is not a microphone, but it catches phrases the model
 # systematically can't hear and any regression in the capture-side DSP.
 #
-#   powershell -File tools/kws-eval/synth.ps1 [-Out <dir>] [-Rates 16000,48000]
+#   powershell -NoProfile -Command "& tools/kws-eval/synth.ps1 [-Out <dir>] [-Rates 16000,48000]"
+#
+# Not `-File`: it hands "16000,48000" over as one string, which [int[]] reads
+# as 1600048000.
 #
 # Output: <Out>/wav<rate>/<id>__<voice>__<phrase>.wav; decoys use id `none`.
 param(

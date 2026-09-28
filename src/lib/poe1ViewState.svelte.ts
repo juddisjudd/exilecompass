@@ -9,6 +9,9 @@
 
 let _treeSpecIndex = $state(0);
 let _treeForBuild: number | null = null;
+// Names of the specs the Tree tab can show, published by PassiveTreeViewer
+// once it has decoded them, so voice commands can step through the same list.
+let _treeSpecNames: { importedAt: number; names: string[] } | null = null;
 let _gemsActiveSet = $state(0);
 let _gemsForBuild: number | null = null;
 
@@ -34,6 +37,16 @@ export function syncTreeSelectionToBuild(importedAt: number, defaultIndex: numbe
   if (_treeForBuild === importedAt) return;
   _treeForBuild = importedAt;
   _treeSpecIndex = defaultIndex;
+}
+
+export function setTreeSpecNames(importedAt: number, names: string[]) {
+  _treeSpecNames = { importedAt, names };
+}
+
+/** Spec names the Tree tab decoded for the build imported at `importedAt`,
+ *  or null if it hasn't shown that build yet this session. */
+export function treeSpecNames(importedAt: number): string[] | null {
+  return _treeSpecNames?.importedAt === importedAt ? _treeSpecNames.names : null;
 }
 
 /** Same as syncTreeSelectionToBuild, for the Gems tab's active skill set. */

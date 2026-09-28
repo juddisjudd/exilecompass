@@ -315,8 +315,8 @@ pub async fn tts_offline_speak(
     }
 
     // One engine instance is kept loaded (model load is ~0.7s for Piper, more
-    // for Kokoro); synthesis runs under its lock. Callers are serialized by
-    // tts.svelte.ts anyway.
+    // for Kokoro); synthesis runs under its lock.
+    let ticket = crate::tts::claim_playback();
     tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
         let state = app.state::<TtsOfflineState>();
         let mut guard = state.0.lock().unwrap();
@@ -341,12 +341,8 @@ pub async fn tts_offline_speak(
         let sample_rate = audio.sample_rate().max(8000) as u32;
         drop(guard);
 
-        let device = crate::tts::resolve_output_device(&device_name)?;
-        let (_stream, handle) = rodio::OutputStream::try_from_device(&device).map_err(|e| e.to_string())?;
-        let sink = rodio::Sink::try_new(&handle).map_err(|e| e.to_string())?;
-        sink.append(rodio::buffer::SamplesBuffer::new(1, sample_rate, samples));
-        sink.sleep_until_end();
-        Ok(())
+        let source = rodio::buffer::SamplesBuffer::new(1, sample_rate, samples);
+        crate::tts::play_source_blocking(source, &device_name, ticket)
     })
     .await
     .map_err(|e| e.to_string())?

@@ -14,16 +14,38 @@
 // async client, so a multi-second SAPI utterance or a slow network response
 // can't freeze the overlay UI thread.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
+
 use cpal::traits::{DeviceTrait, HostTrait};
 
 // ── Output device selection ──────────────────────────────────────────────────
 //
 // Playback goes through rodio on a cpal output device so the user can route
-// replies to a headset while game audio stays on speakers. Both TTS backends
-// feed this: ElevenLabs hands back MP3 bytes, SAPI is asked to render to a
-// WAV file instead of speaking directly. With no device chosen, ElevenLabs
-// still plays through the webview's <audio> (proven path) and SAPI speaks
-// directly — this code only runs for an explicit device.
+// replies to a headset while game audio stays on speakers, and so a reply can
+// be cut off: every engine plays through `play_source_blocking`, which stops
+// as soon as a newer reply (or `tts_stop`) claims playback. SAPI renders to a
+// WAV file for this (8–27 ms for a typical reply). With no device chosen,
+// ElevenLabs still plays through the webview's <audio> (proven path), which
+// tts.svelte.ts stops itself.
+
+static PLAYBACK: AtomicU64 = AtomicU64::new(0);
+
+/// Take over playback for a new reply, cutting off any reply still playing or
+/// still being synthesized. Returns the ticket `play_source_blocking` checks.
+pub(crate) fn claim_playback() -> u64 {
+    PLAYBACK.fetch_add(1, Ordering::SeqCst) + 1
+}
+
+fn is_current(ticket: u64) -> bool {
+    PLAYBACK.load(Ordering::SeqCst) == ticket
+}
+
+/// Stop whatever reply is playing ("compass quiet").
+#[tauri::command]
+pub fn tts_stop() {
+    claim_playback();
+}
 
 #[tauri::command]
 pub fn tts_list_output_devices() -> Result<Vec<String>, String> {
@@ -44,14 +66,30 @@ pub(crate) fn resolve_output_device(name: &Option<String>) -> Result<cpal::Devic
     host.default_output_device().ok_or_else(|| "No audio output device found".to_string())
 }
 
-fn play_bytes_blocking(bytes: Vec<u8>, device_name: &Option<String>) -> Result<(), String> {
+/// Play `source` to the end, unless `ticket` stops being current first.
+pub(crate) fn play_source_blocking<S>(source: S, device_name: &Option<String>, ticket: u64) -> Result<(), String>
+where
+    S: rodio::Source + Send + 'static,
+    S::Item: rodio::Sample + Send,
+    f32: rodio::cpal::FromSample<S::Item>,
+{
+    if !is_current(ticket) {
+        return Ok(());
+    }
     let device = resolve_output_device(device_name)?;
     let (_stream, handle) = rodio::OutputStream::try_from_device(&device).map_err(|e| e.to_string())?;
     let sink = rodio::Sink::try_new(&handle).map_err(|e| e.to_string())?;
-    let source = rodio::Decoder::new(std::io::Cursor::new(bytes)).map_err(|e| e.to_string())?;
     sink.append(source);
-    sink.sleep_until_end();
+    while !sink.empty() && is_current(ticket) {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    sink.stop();
     Ok(())
+}
+
+fn play_bytes_blocking(bytes: Vec<u8>, device_name: &Option<String>, ticket: u64) -> Result<(), String> {
+    let source = rodio::Decoder::new(std::io::Cursor::new(bytes)).map_err(|e| e.to_string())?;
+    play_source_blocking(source, device_name, ticket)
 }
 
 /// Play encoded audio (MP3/WAV) on `device_name`, or the default device.
@@ -60,7 +98,8 @@ pub async fn tts_play_audio(bytes: Vec<u8>, device_name: Option<String>) -> Resu
     if bytes.is_empty() {
         return Ok(());
     }
-    tauri::async_runtime::spawn_blocking(move || play_bytes_blocking(bytes, &device_name))
+    let ticket = claim_playback();
+    tauri::async_runtime::spawn_blocking(move || play_bytes_blocking(bytes, &device_name, ticket))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -70,7 +109,8 @@ pub async fn tts_speak_sapi(text: String, device_name: Option<String>) -> Result
     if text.trim().is_empty() {
         return Ok(());
     }
-    tauri::async_runtime::spawn_blocking(move || speak_sapi_blocking(&text, &device_name))
+    let ticket = claim_playback();
+    tauri::async_runtime::spawn_blocking(move || speak_sapi_blocking(&text, &device_name, ticket))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -92,9 +132,10 @@ mod sapi {
     const IDLE_LIMIT: Duration = Duration::from_secs(600);
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-    // Line protocol on stdin: `<say|wav>\t<wav path>\t<text>`, answered with
-    // one `OK` or `ERR <message>` line per request. UTF-8 without BOM both
-    // ways — the console's default code page would mangle non-ASCII text.
+    // Line protocol on stdin: `<wav path>\t<text>`, rendered to that file and
+    // answered with one `OK` or `ERR <message>` line per request. UTF-8
+    // without BOM both ways — the console's default code page would mangle
+    // non-ASCII text.
     const SCRIPT: &str = "\
         Add-Type -AssemblyName System.Speech; \
         $enc = New-Object System.Text.UTF8Encoding($false); \
@@ -104,10 +145,9 @@ mod sapi {
         $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
         while ($true) { \
             $line = $in.ReadLine(); if ($null -eq $line) { break }; \
-            $p = $line.Split([char]9, 3); \
+            $p = $line.Split([char]9, 2); \
             try { \
-                if ($p[0] -eq 'wav') { $s.SetOutputToWaveFile($p[1]); $s.Speak($p[2]); $s.SetOutputToNull() } \
-                else { $s.SetOutputToDefaultAudioDevice(); $s.Speak($p[2]) }; \
+                $s.SetOutputToWaveFile($p[0]); $s.Speak($p[1]); $s.SetOutputToNull(); \
                 $out.WriteLine('OK') \
             } catch { $s.SetOutputToNull(); $out.WriteLine('ERR ' + $_.Exception.Message) } \
         }";
@@ -170,15 +210,15 @@ mod sapi {
         Ok(())
     }
 
-    /// `mode` is "say" (default output device) or "wav" (render to `wav_path`).
-    pub fn request(mode: &str, wav_path: &str, text: &str) -> Result<(), String> {
+    /// Render `text` to a WAV file at `wav_path`.
+    pub fn render(wav_path: &str, text: &str) -> Result<(), String> {
         let mut slot = lock();
         if !alive(&mut slot) {
             *slot = Some(spawn_worker()?);
         }
         let worker = slot.as_mut().expect("worker present");
         let text: String = text.chars().map(|c| if matches!(c, '\t' | '\r' | '\n') { ' ' } else { c }).collect();
-        let result = exchange(worker, &format!("{mode}\t{wav_path}\t{text}\n"));
+        let result = exchange(worker, &format!("{wav_path}\t{text}\n"));
         worker.last_used = Instant::now();
         if result.is_err() {
             discard(&mut slot);
@@ -213,18 +253,18 @@ pub async fn tts_sapi_warm() {
     }
 }
 
-#[cfg(target_os = "windows")]
-fn speak_sapi_blocking(text: &str, device_name: &Option<String>) -> Result<(), String> {
-    if device_name.is_none() {
-        return sapi::request("say", "", text);
-    }
+/// Per reply, so a reply rendering while another is read back can't overwrite it.
+fn reply_wav_path(ticket: u64) -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("exilecompass-tts-{}-{ticket}.wav", std::process::id()))
+}
 
-    let wav = std::env::temp_dir().join(format!("exilecompass-tts-{}.wav", std::process::id()));
-    let result = sapi::request("wav", &wav.to_string_lossy(), text)
-        .and_then(|_| std::fs::read(&wav).map_err(|e| e.to_string()))
-        .and_then(|bytes| play_bytes_blocking(bytes, device_name));
+#[cfg(target_os = "windows")]
+fn speak_sapi_blocking(text: &str, device_name: &Option<String>, ticket: u64) -> Result<(), String> {
+    let wav = reply_wav_path(ticket);
+    let result = sapi::render(&wav.to_string_lossy(), text)
+        .and_then(|_| std::fs::read(&wav).map_err(|e| e.to_string()));
     let _ = std::fs::remove_file(&wav);
-    result
+    play_bytes_blocking(result?, device_name, ticket)
 }
 
 /// Linux/macOS: use whichever system engine is installed, preferring ones
@@ -233,10 +273,10 @@ fn speak_sapi_blocking(text: &str, device_name: &Option<String>) -> Result<(), S
 /// pico2wave is the better-sounding but less common SVOX voice. `spd-say`
 /// is the last resort and can only speak on the default device.
 #[cfg(not(target_os = "windows"))]
-fn speak_sapi_blocking(text: &str, device_name: &Option<String>) -> Result<(), String> {
+fn speak_sapi_blocking(text: &str, device_name: &Option<String>, ticket: u64) -> Result<(), String> {
     use std::process::Command;
 
-    let wav = std::env::temp_dir().join(format!("exilecompass-tts-{}.wav", std::process::id()));
+    let wav = reply_wav_path(ticket);
     let wav_s = wav.to_string_lossy().into_owned();
     let renderers: [(&str, Vec<&str>); 3] = [
         ("espeak-ng", vec!["-w", &wav_s, text]),
@@ -250,7 +290,7 @@ fn speak_sapi_blocking(text: &str, device_name: &Option<String>) -> Result<(), S
         }
         let bytes = std::fs::read(&wav).map_err(|e| e.to_string());
         let _ = std::fs::remove_file(&wav);
-        return play_bytes_blocking(bytes?, device_name);
+        return play_bytes_blocking(bytes?, device_name, ticket);
     }
 
     if let Ok(out) = Command::new("spd-say").args(["-w", text]).output() {
@@ -282,7 +322,7 @@ pub async fn tts_speak_elevenlabs(
         .map_err(|e| e.to_string())?;
     let body = serde_json::json!({
         "text": text,
-        "model_id": "eleven_multilingual_v2",
+        "model_id": "eleven_flash_v2_5",
     });
     let response = client
         .post(&url)

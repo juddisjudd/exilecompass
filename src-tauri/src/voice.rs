@@ -48,6 +48,10 @@ const LEVEL_SILENCE_HOLD: Duration = Duration::from_secs(4);
 /// A capture stream that stops delivering audio without reporting an error
 /// (device yanked, driver reset) is treated as failed after this long.
 const STALL_TIMEOUT: Duration = Duration::from_secs(5);
+/// With no device picked, how often to check whether the OS default input
+/// changed (a headset switched on while the webcam mic is still plugged in).
+/// cpal keeps capturing the device it opened, so the session is restarted.
+const DEFAULT_DEVICE_CHECK_EVERY: Duration = Duration::from_secs(3);
 
 /// Must match the `@display` names in resources/kws/keywords.txt.
 pub const PHRASES: &[&str] = &[
@@ -106,6 +110,20 @@ pub const PHRASES: &[&str] = &[
     "timermodecampaign",
     "clickthroughon",
     "clickthroughoff",
+    "hideoverlay",
+    "showoverlay",
+    "gamepoe1",
+    "gamepoe2",
+    "switchbuild",
+    "treenext",
+    "treeprev",
+    "decoderopen",
+    "decoderclose",
+    "decodervariant",
+    "decoderrotate",
+    "decoderflip",
+    "copyregex",
+    "quiet",
 ];
 
 #[tauri::command]
@@ -212,6 +230,10 @@ fn resolve_input_device(selected: &Option<String>) -> Result<cpal::Device, Strin
         }
     }
     host.default_input_device().ok_or_else(|| "No microphone found".to_string())
+}
+
+fn default_input_name() -> Option<String> {
+    cpal::default_host().default_input_device().and_then(|d| d.name().ok())
 }
 
 // ── Live listening ────────────────────────────────────────────────────────
@@ -334,6 +356,9 @@ fn run_listening_thread_inner(
 
     let _ = ready_tx.send(Ok(()));
 
+    let followed_default = if device_name.is_none() { default_input_name() } else { None };
+    let mut default_checked = Instant::now();
+
     let reason = loop {
         match control_rx.recv_timeout(Duration::from_secs(1)) {
             Ok(Control::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => break String::new(),
@@ -342,6 +367,14 @@ fn run_listening_thread_inner(
                 let idle_ms = elapsed_ms(started).saturating_sub(last_chunk_ms.load(Ordering::Relaxed));
                 if idle_ms >= STALL_TIMEOUT.as_millis() as u64 {
                     break "The microphone stopped delivering audio".to_string();
+                }
+                if followed_default.is_some() && default_checked.elapsed() >= DEFAULT_DEVICE_CHECK_EVERY {
+                    default_checked = Instant::now();
+                    if let Some(current) = default_input_name() {
+                        if Some(&current) != followed_default.as_ref() {
+                            break format!("Switching to the new default microphone: {current}");
+                        }
+                    }
                 }
             }
         }

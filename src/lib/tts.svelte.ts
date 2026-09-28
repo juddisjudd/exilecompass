@@ -311,22 +311,40 @@ export async function removeOfflineVoice(id: string): Promise<void> {
 // ── Speaking ──────────────────────────────────────────────────────────────
 
 let _audioEl: HTMLAudioElement | null = null;
+let _audioDone: (() => void) | null = null;
+/** Bumped by every reply and by stopSpeaking(); a reply whose number is no
+ *  longer current has been superseded and must not start playing. */
+let _speakGen = 0;
+
+function stopAudioElement() {
+  _audioEl?.pause();
+  _audioDone?.();
+}
 
 function playAudioBytes(bytes: number[]): Promise<void> {
-  const blob = new Blob([new Uint8Array(bytes)], { type: 'audio/mpeg' });
-  const url = URL.createObjectURL(blob);
-  if (_audioEl) {
-    _audioEl.pause();
-    URL.revokeObjectURL(_audioEl.src);
-  }
+  stopAudioElement();
+  const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'audio/mpeg' }));
   const audio = new Audio(url);
   _audioEl = audio;
   return new Promise<void>((resolve) => {
-    const cleanup = () => { URL.revokeObjectURL(url); resolve(); };
-    audio.onended = cleanup;
-    audio.onerror = cleanup;
-    void audio.play().catch(cleanup);
+    const done = () => {
+      if (_audioDone === done) _audioDone = null;
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    _audioDone = done;
+    audio.onended = done;
+    audio.onerror = done;
+    void audio.play().catch(done);
   });
+}
+
+/** Cut off the reply that is playing and drop any still being synthesized. */
+export function stopSpeaking(): void {
+  _speakGen++;
+  _speaking = false;
+  stopAudioElement();
+  void invoke('tts_stop').catch(() => {});
 }
 
 /** Pre-start the Windows system-voice worker (tts.rs) so the first reply
@@ -338,12 +356,15 @@ export function warmSystemVoice(): void {
 }
 
 /** Speak `text` aloud — ElevenLabs if a key is configured, otherwise the free
- *  Windows SAPI fallback. Errors are recorded on `ttsState.error` rather than
- *  thrown, since this is normally fired from a background voice-command
- *  detection with nothing to catch the rejection. */
+ *  Windows SAPI fallback. A new reply cuts off the one still playing: the
+ *  player's latest question is the one that matters. Errors are recorded on
+ *  `ttsState.error` rather than thrown, since this is normally fired from a
+ *  background voice-command detection with nothing to catch the rejection. */
 export async function speak(text: string): Promise<void> {
   const trimmed = text.trim();
   if (!trimmed) return;
+  const gen = ++_speakGen;
+  stopAudioElement();
   _error = '';
   _speaking = true;
   try {
@@ -354,6 +375,7 @@ export async function speak(text: string): Promise<void> {
         apiKey: key,
         voiceId: _voiceId,
       });
+      if (gen !== _speakGen) return;
       if (_outputDevice) {
         await invoke('tts_play_audio', { bytes, deviceName: _outputDevice });
       } else {
@@ -372,8 +394,8 @@ export async function speak(text: string): Promise<void> {
       await invoke('tts_speak_sapi', { text: trimmed, deviceName: _outputDevice });
     }
   } catch (e) {
-    _error = String(e);
+    if (gen === _speakGen) _error = String(e);
   } finally {
-    _speaking = false;
+    if (gen === _speakGen) _speaking = false;
   }
 }

@@ -16,10 +16,11 @@ export type VoicePhraseGroup =
   | 'overlay'
   | 'buildInfo'
   | 'equipment'
+  | 'decoder'
   | 'other';
 
 export const VOICE_GROUP_ORDER: readonly VoicePhraseGroup[] = [
-  'objectives', 'timer', 'navigation', 'overlay', 'buildInfo', 'equipment', 'other',
+  'objectives', 'timer', 'navigation', 'overlay', 'buildInfo', 'equipment', 'decoder', 'other',
 ];
 
 export const VOICE_GROUP_LABEL_KEYS: Record<Exclude<VoicePhraseGroup, 'other'>, string> = {
@@ -29,6 +30,7 @@ export const VOICE_GROUP_LABEL_KEYS: Record<Exclude<VoicePhraseGroup, 'other'>, 
   overlay: 'voice_group_overlay',
   buildInfo: 'voice_group_build_info',
   equipment: 'voice_group_equipment',
+  decoder: 'voice_group_decoder',
 };
 
 export const VOICE_PHRASE_GROUPS: Record<string, VoicePhraseGroup> = {
@@ -87,6 +89,20 @@ export const VOICE_PHRASE_GROUPS: Record<string, VoicePhraseGroup> = {
   timermodecampaign: 'timer',
   clickthroughon: 'overlay',
   clickthroughoff: 'overlay',
+  hideoverlay: 'overlay',
+  showoverlay: 'overlay',
+  gamepoe1: 'overlay',
+  gamepoe2: 'overlay',
+  quiet: 'overlay',
+  copyregex: 'navigation',
+  switchbuild: 'buildInfo',
+  treenext: 'buildInfo',
+  treeprev: 'buildInfo',
+  decoderopen: 'decoder',
+  decoderclose: 'decoder',
+  decodervariant: 'decoder',
+  decoderrotate: 'decoder',
+  decoderflip: 'decoder',
 };
 
 export function voicePhraseGroup(phrase: VoicePhrase): VoicePhraseGroup {
@@ -99,15 +115,15 @@ export function voicePhraseGroup(phrase: VoicePhrase): VoicePhraseGroup {
 export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
   next: 'compass next',
   back: 'compass back',
-  nextstep: 'compass whats next',
+  nextstep: 'compass current step',
   rewards: 'compass rewards',
   campaign: 'compass campaign',
-  build: 'compass build',
+  build: 'compass show build',
   timer: 'compass timer',
   leveling: 'compass leveling',
   gems: 'compass gems',
   tree: 'compass tree',
-  stash: 'compass stash',
+  stash: 'compass search',
   crafting: 'compass crafting',
   addons: 'compass add ons',
   skill1: 'compass first skill',
@@ -152,6 +168,20 @@ export const VOICE_PHRASE_EXAMPLES: Record<string, string> = {
   timermodecampaign: 'compass auto timer',
   clickthroughon: 'compass click through on',
   clickthroughoff: 'compass click through off',
+  hideoverlay: 'compass hide overlay',
+  showoverlay: 'compass show overlay',
+  gamepoe1: 'compass path of exile one',
+  gamepoe2: 'compass path of exile two',
+  quiet: 'compass quiet',
+  copyregex: 'compass copy search',
+  switchbuild: 'compass switch build',
+  treenext: 'compass change tree',
+  treeprev: 'compass previous tree',
+  decoderopen: 'compass open decoder',
+  decoderclose: 'compass close decoder',
+  decodervariant: 'compass change layout',
+  decoderrotate: 'compass rotate layout',
+  decoderflip: 'compass flip layout',
 };
 
 /** i18n key (messages/*.json) holding each phrase's description. */
@@ -211,4 +241,18 @@ export const VOICE_PHRASE_LABEL_KEYS: Record<string, string> = {
   timermodecampaign: 'voice_phrase_timer_mode_campaign',
   clickthroughon: 'voice_phrase_click_through_on',
   clickthroughoff: 'voice_phrase_click_through_off',
+  hideoverlay: 'voice_phrase_hide_overlay',
+  showoverlay: 'voice_phrase_show_overlay',
+  gamepoe1: 'voice_phrase_game_poe1',
+  gamepoe2: 'voice_phrase_game_poe2',
+  quiet: 'voice_phrase_quiet',
+  copyregex: 'voice_phrase_copy_regex',
+  switchbuild: 'voice_phrase_switch_build',
+  treenext: 'voice_phrase_tree_next',
+  treeprev: 'voice_phrase_tree_prev',
+  decoderopen: 'voice_phrase_decoder_open',
+  decoderclose: 'voice_phrase_decoder_close',
+  decodervariant: 'voice_phrase_decoder_variant',
+  decoderrotate: 'voice_phrase_decoder_rotate',
+  decoderflip: 'voice_phrase_decoder_flip',
 };

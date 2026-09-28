@@ -123,18 +123,24 @@ pause after "compass".
 
 | Say | Does |
 |-----|------|
-| **compass next** / **compass back** | Complete or undo the next objective (campaign or leveling step) |
-| **compass whats next** / **compass current step** | Hear the next objective without completing it |
-| **compass campaign · rewards · build · timer** | Switch tabs |
-| **compass start timer · stop timer · reset timer · split** | Drive whichever timer mode is showing |
+| **compass next** / **compass back** (or **undo**) | Complete or undo the next objective (campaign or leveling step) and hear which one |
+| **compass current step** / **compass whats next** | Hear the next objective without completing it |
+| **compass campaign · rewards · show build · timer · search** | Switch tabs |
+| **compass start · stop · pause · resume · reset timer**, **compass split** | Drive whichever timer mode is showing |
 | **compass run time** | Hear the elapsed run time |
 | **compass manual timer · auto timer** | Switch timer mode |
 | **compass click through on / off** (or **lock / unlock overlay**) | Toggle click-through. Useful when the mouse already passes through the overlay |
-| **compass first … fifth skill**, **compass skills** | Hear one skill gem, or list them all |
+| **compass hide overlay / show overlay** | Hide or show the whole overlay |
+| **compass path of exile one / two** | Switch which game the overlay targets |
+| **compass copy search** | Copy the Regex tab's current search, ready to paste into the stash |
+| **compass quiet** | Stop the reply that is playing |
+| **compass first … fifth skill**, **compass skills** | Hear one skill gem, or list them all (both games) |
 | **compass first supports**, **compass spirit supports**, … | Hear what is linked |
-| **compass helmet · weapon · rings · boots …** | Hear what is in a slot |
-| **compass read helmet · read weapon …** | Hear the slot's mods or stat priorities |
+| **compass helmet · weapon · rings · boots …** | Hear what is in a slot (PoE2) |
+| **compass read helmet · read weapon …** | Hear the slot's mods or stat priorities (PoE2) |
 | **compass uniques · flasks · charms · about build** | Lists and build identity |
+| **compass switch build · change tree · previous tree** | PoE1: next saved build, step through its passive trees |
+| **compass open · close decoder**, **compass change · rotate · flip layout** | PoE1: drive the Act-Decoder |
 
 The full list, with every spoken form, is on the
 [Voice commands wiki page](https://github.com/juddisjudd/exilecompass/wiki/Voice-Commands)
@@ -145,8 +151,8 @@ keeps it fast, offline and private.
 
 ### Voice replies
 
-Build-info and timer commands answer out loud. Pick the engine in Settings →
-Voice Replies:
+Commands answer out loud, and a new answer cuts off the one still playing.
+Pick the engine in Settings → Voice Replies:
 
 - **System voice.** The voice built into your operating system. Free, no
   setup, basic quality.

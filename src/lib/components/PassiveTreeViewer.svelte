@@ -3,7 +3,7 @@
   import { m } from '$lib/paraglide/messages.js';
   import { levelingRoute } from '$lib/levelingRoute.svelte';
   import { restorePoe1Build, loadPoe1Build } from '$lib/poe1Pob';
-  import { poe1ViewState, syncTreeSelectionToBuild } from '$lib/poe1ViewState.svelte';
+  import { poe1ViewState, setTreeSpecNames, syncTreeSelectionToBuild } from '$lib/poe1ViewState.svelte';
   import {
     decodeUrlTree,
     buildUrlTreeDelta,
@@ -105,10 +105,12 @@
       }
       loaded = data;
       urlTrees = decoded;
-      if (build) syncTreeSelectionToBuild(build.importedAt, activeDecodedIndex);
+      if (build) {
+        syncTreeSelectionToBuild(build.importedAt, activeDecodedIndex);
+        setTreeSpecNames(build.importedAt, decoded.map((t) => t.name));
+      }
       poe1ViewState.treeSpecIndex = Math.min(poe1ViewState.treeSpecIndex, decoded.length - 1);
       status = 'ready';
-      requestAnimationFrame(focusDelta);
     } catch (e) {
       errorMsg = String(e);
       status = 'error';
@@ -146,9 +148,16 @@
   function jump(next: number) {
     if (next < 0 || next >= urlTrees.length) return;
     poe1ViewState.treeSpecIndex = next;
+  }
+
+  // Re-fit on every spec change, including ones made by voice commands from
+  // outside this component.
+  $effect(() => {
+    void poe1ViewState.treeSpecIndex;
+    if (status !== 'ready') return;
     tip = null;
     requestAnimationFrame(focusDelta);
-  }
+  });
 
   function onWheel(e: WheelEvent) {
     e.preventDefault();

@@ -81,7 +81,7 @@
   } from '$lib/voice.svelte';
   import { VOICE_GROUP_ORDER, VOICE_GROUP_LABEL_KEYS, VOICE_PHRASE_LABEL_KEYS } from '$lib/voicePhrases';
   import {
-    speak, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId,
+    speak, stopSpeaking, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId,
     loadTtsOutputDevices, setTtsOutputDevice,
     setTtsEngine, setOfflineVoice, setOfflineSpeaker, downloadOfflineVoice, removeOfflineVoice,
     type TtsEngine,
@@ -93,8 +93,13 @@
     activePoe1BuildId,
     setActivePoe1Build,
     removePoe1Build,
+    loadPoe1Build,
+    type Poe1Build,
     type StoredPoe1Build,
   } from '$lib/poe1Pob';
+  import { poe1ViewState, treeSpecNames } from '$lib/poe1ViewState.svelte';
+  import { builder } from '$lib/regex/builderState.svelte';
+  import { builder1 } from '$lib/regex1/builderState.svelte';
   import ConfirmReset from '$lib/components/ConfirmReset.svelte';
   import { m } from '$lib/paraglide/messages.js';
   import { getLocale, locales, setLocale } from '$lib/paraglide/runtime.js';
@@ -109,7 +114,9 @@
     setHidden,
   } from '$lib/overlay.svelte';
   import { gameMode, loadGameMode, setGameMode, type GameMode } from '$lib/gameMode.svelte';
-  import { toggleWidget, getWidgetOpacity, setWidgetOpacity } from '$lib/widgets';
+  import {
+    toggleWidget, openWidget, closeWidget, isWidgetOpen, getWidgetOpacity, setWidgetOpacity,
+  } from '$lib/widgets';
   import { theme, THEMES, loadTheme, setTheme } from '$lib/theme.svelte';
   import { uiScale, loadUiScale, setUiScale, UI_SCALE_MIN, UI_SCALE_MAX, UI_SCALE_STEP } from '$lib/uiScale.svelte';
   import {
@@ -346,6 +353,21 @@
     return (sets[pobBuild.activeItemSet] ?? sets[0])?.items ?? [];
   }
 
+  /** PoE1 builds are read from the active PoB skill set, and only groups that
+   *  hold a skill gem count as "skills" (same rule as PoE2's mainType). */
+  function poe1SkillLinks(build: Poe1Build) {
+    const set = build.skillSets[build.activeSkillSet] ?? build.skillSets[0];
+    return (set?.gemLinks ?? []).filter((g) => g.primary.length > 0);
+  }
+
+  /** Gear and spirit gems only exist in PoE2 imports; PoE1 PoB imports carry
+   *  gems and trees. True (after saying so) when that makes the command moot. */
+  function poe2BuildOnly(): boolean {
+    if (gameMode.current !== 'poe1') return false;
+    void speak(m.voice_tts_poe2_only());
+    return true;
+  }
+
   /** "A, B, and C" — comma-joined with a spoken conjunction before the last
    *  item, which TTS reads far more naturally than a flat comma list. */
   function joinSpoken(names: string[]): string {
@@ -374,6 +396,14 @@
   }
 
   function speakNthSkill(n: number) {
+    if (gameMode.current === 'poe1') {
+      const build = loadPoe1Build();
+      if (!build) { void speak(m.voice_tts_no_build()); return; }
+      const link = poe1SkillLinks(build)[n - 1];
+      if (!link) { void speak(m.voice_tts_no_skill_at_position()); return; }
+      void speak(m.voice_tts_skill_reply({ ordinal: ordinalWord(n), name: joinSpoken(link.primary.map((g) => g.name)) }));
+      return;
+    }
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const skill = activeSkillGroups().filter((g) => g.mainType === 'skill')[n - 1];
     if (!skill) { void speak(m.voice_tts_no_skill_at_position()); return; }
@@ -386,13 +416,17 @@
   }
 
   function speakAllSkills() {
-    if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
-    const skills = activeSkillGroups().filter((g) => g.mainType === 'skill').map((g) => g.mainSkill);
+    const poe1 = gameMode.current === 'poe1' ? loadPoe1Build() : null;
+    if (gameMode.current === 'poe1' ? !poe1 : !pobBuild) { void speak(m.voice_tts_no_build()); return; }
+    const skills = poe1
+      ? poe1SkillLinks(poe1).map((g) => g.primary[0].name)
+      : activeSkillGroups().filter((g) => g.mainType === 'skill').map((g) => g.mainSkill);
     if (!skills.length) { void speak(m.voice_tts_no_skills()); return; }
     void speak(m.voice_tts_skills_list({ list: joinSpoken(skills) }));
   }
 
   function speakSpiritGem() {
+    if (poe2BuildOnly()) return;
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const spirits = activeSkillGroups().filter((g) => g.mainType === 'spirit').map((g) => g.mainSkill);
     if (!spirits.length) { void speak(m.voice_tts_no_spirit_gem()); return; }
@@ -404,6 +438,18 @@
   }
 
   function speakNthSkillSupports(n: number) {
+    if (gameMode.current === 'poe1') {
+      const build = loadPoe1Build();
+      if (!build) { void speak(m.voice_tts_no_build()); return; }
+      const link = poe1SkillLinks(build)[n - 1];
+      if (!link) { void speak(m.voice_tts_no_skill_at_position()); return; }
+      if (!link.secondary.length) { void speak(m.voice_tts_no_supports()); return; }
+      void speak(m.voice_tts_supports_reply({
+        skill: joinSpoken(link.primary.map((g) => g.name)),
+        list: joinSpoken(link.secondary.map((g) => g.name)),
+      }));
+      return;
+    }
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const skill = activeSkillGroups().filter((g) => g.mainType === 'skill')[n - 1];
     if (!skill) { void speak(m.voice_tts_no_skill_at_position()); return; }
@@ -415,6 +461,7 @@
   }
 
   function speakSpiritSupports() {
+    if (poe2BuildOnly()) return;
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const spirits = activeSkillGroups().filter((g) => g.mainType === 'spirit');
     if (!spirits.length) { void speak(m.voice_tts_no_spirit_gem()); return; }
@@ -454,6 +501,7 @@
   const MAX_SPOKEN_MODS = 8;
 
   function speakSlotStats(slotKeys: string[]) {
+    if (poe2BuildOnly()) return;
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const items = activeItems().filter((i) => slotKeys.includes(i.slot));
     if (!items.length) {
@@ -503,6 +551,14 @@
   }
 
   function speakBuildInfo() {
+    if (gameMode.current === 'poe1') {
+      const build = loadPoe1Build();
+      if (!build) { void speak(m.voice_tts_no_build()); return; }
+      const detail: string[] = [m.voice_tts_poe1_gem_count({ count: String(build.requiredGems.length) })];
+      if (build.ascendClassName) detail.unshift(build.characterClass);
+      void speak(m.voice_tts_build_info({ name: build.ascendClassName || build.characterClass, detail: detail.join(', ') }));
+      return;
+    }
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const b = pobBuild;
     const name = b.buildName || b.ascendClassName || b.className;
@@ -516,6 +572,7 @@
 
   /** One reply covering one or more equipment slots (rings/weapon span two). */
   function speakSlots(slotKeys: string[]) {
+    if (poe2BuildOnly()) return;
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const items = activeItems().filter((i) => slotKeys.includes(i.slot));
     if (!items.length) {
@@ -647,35 +704,148 @@
   }
 
   function speakUniques() {
+    if (poe2BuildOnly()) return;
     if (!pobBuild) { void speak(m.voice_tts_no_build()); return; }
     const uniques = activeItems().filter((i) => i.rarity === 'Unique').map((i) => i.name);
     if (!uniques.length) { void speak(m.voice_tts_no_uniques()); return; }
     void speak(m.voice_tts_uniques_reply({ list: joinSpoken(uniques) }));
   }
 
+  /** Spoken text for a guide step id: a PoE2 campaign objective or a PoE1
+   *  route step (fragment or gem). */
+  function guideStepText(id: string): string | null {
+    if (gameMode.current === 'poe1') {
+      for (const section of levelingRoute.sections) {
+        const step = section.steps.find((s) => s.id === id);
+        if (step) return levelingStepToText(step);
+      }
+      return null;
+    }
+    for (const act of CAMPAIGN_DATA) {
+      for (const zone of act.zones) {
+        const obj = zone.objectives.find((o) => o.id === id);
+        if (obj) return trObjective(obj.id, obj.text);
+      }
+    }
+    return null;
+  }
+
+  /** "compass next" / "compass back" say what they changed: these are the only
+   *  commands that edit progress, so a misheard one has to be noticeable. */
+  function voiceStepGuide(dir: 'next' | 'back') {
+    const poe1 = gameMode.current === 'poe1';
+    if (poe1 && !levelingRoute.sections.length) { void speak(m.voice_tts_next_step_no_route()); return; }
+    const id = dir === 'next'
+      ? (poe1 ? levelingCompleteNext() : campaignProgress.completeNext())
+      : (poe1 ? levelingUndoLast() : campaignProgress.undoLast());
+    if (!id) {
+      void speak(dir === 'next' ? m.voice_tts_next_step_done() : m.voice_tts_nothing_to_undo());
+      return;
+    }
+    const step = guideStepText(id);
+    if (dir === 'next') void speak(step ? m.voice_tts_step_done({ step }) : m.voice_tts_step_done_plain());
+    else void speak(step ? m.voice_tts_step_undone({ step }) : m.voice_tts_step_undone_plain());
+  }
+
+  /** Asking for a tab means wanting to see it: also closes Settings and shows
+   *  a hidden overlay. A tab only the other game has is answered, not ignored. */
+  function voiceNavigate(view: MainViewId, onlyIn?: GameMode) {
+    if (onlyIn && gameMode.current !== onlyIn) {
+      void speak(onlyIn === 'poe1' ? m.voice_tts_poe1_only() : m.voice_tts_poe2_only());
+      return;
+    }
+    mainView = view;
+    showSettings = false;
+    if (overlayState.hidden) void setHidden(false);
+  }
+
+  const GAME_NAMES: Record<GameMode, string> = { poe1: 'Path of Exile 1', poe2: 'Path of Exile 2' };
+
+  async function voiceSwitchGame(game: GameMode) {
+    if (gameMode.current === game) { void speak(m.voice_tts_game_already({ game: GAME_NAMES[game] })); return; }
+    await setGameMode(game);
+    void speak(m.voice_tts_game_switched({ game: GAME_NAMES[game] }));
+  }
+
+  /** Cycles the saved PoE1 builds in the same order Settings lists them. */
+  async function voiceSwitchBuild() {
+    if (gameMode.current !== 'poe1') { void speak(m.voice_tts_poe1_only()); return; }
+    const builds = listPoe1Builds();
+    if (!builds.length) { void speak(m.voice_tts_no_build()); return; }
+    const at = builds.findIndex((b) => b.id === activePoe1BuildId());
+    if (builds.length === 1 && at === 0) { void speak(m.voice_tts_only_one_build()); return; }
+    const nextAt = (at + 1) % builds.length;
+    const next = builds[nextAt].build;
+    await handlePoe1SetActive(builds[nextAt].id);
+    void speak(m.voice_tts_build_switched({
+      index: String(nextAt + 1),
+      count: String(builds.length),
+      name: next.ascendClassName || next.characterClass,
+    }));
+  }
+
+  /** Steps through the specs the Tree tab shows. The first command after the
+   *  tab last showed a different build (or none) only opens it: the spec list
+   *  is decoded there. */
+  function voiceStepTree(dir: -1 | 1) {
+    if (gameMode.current !== 'poe1') { void speak(m.voice_tts_poe1_only()); return; }
+    const build = loadPoe1Build();
+    if (!build?.buildTrees.length) { void speak(m.voice_tts_no_build()); return; }
+    voiceNavigate('tree');
+    const names = treeSpecNames(build.importedAt);
+    if (!names) return;
+    const next = poe1ViewState.treeSpecIndex + dir;
+    if (next < 0 || next >= names.length) {
+      void speak(dir > 0 ? m.voice_tts_tree_last() : m.voice_tts_tree_first());
+      return;
+    }
+    poe1ViewState.treeSpecIndex = next;
+    void speak(m.voice_tts_tree_spec({ index: String(next + 1), count: String(names.length), name: names[next] }));
+  }
+
+  async function voiceDecoder(action: 'open' | 'close' | 'variant' | 'rotate' | 'flip') {
+    if (gameMode.current !== 'poe1') { void speak(m.voice_tts_poe1_only()); return; }
+    if (action === 'open') return openWidget('act-decoder');
+    if (action === 'close') return closeWidget('act-decoder');
+    if (!(await isWidgetOpen('act-decoder'))) { void speak(m.voice_tts_decoder_closed()); return; }
+    await emit('ec-act-decoder-control', { action });
+  }
+
+  /** Copies the Regex tab's current search for the active game. Goes through
+   *  Rust: the webview clipboard API needs the overlay focused, and mid-game
+   *  the game has focus. */
+  async function voiceCopyRegex() {
+    const text = gameMode.current === 'poe1' ? builder1.result : builder.result;
+    if (!text) { void speak(m.voice_tts_nothing_to_copy()); return; }
+    try {
+      await invoke('copy_text', { text });
+      void speak(m.voice_tts_copied());
+    } catch {
+      void speak(m.voice_tts_copy_failed());
+    }
+  }
+
   /** Routes a `voice-command` detection to whatever that phrase id does.
    *  Kept as one dispatch point (rather than spread across the event
    *  listener) so it's the single place to look when adding a new phrase to
    *  voice.rs's PHRASES registry. Navigation commands resolve to the current
-   *  game's tab (campaign/leveling, build/gems); a tab only one game has
-   *  (rewards, crafting, tree) is silently ignored in the other, matching how
-   *  toggleActDecoder is PoE1-only. */
+   *  game's tab (campaign/leveling, build/gems). */
   function handleVoiceCommand(phrase: string) {
     if (!acceptVoiceCommand(phrase)) return;
     switch (phrase) {
-      case 'next': void GLOBAL_ACTIONS.campaignCompleteNext?.(); break;
-      case 'back': void GLOBAL_ACTIONS.campaignUndoLast?.(); break;
+      case 'next': voiceStepGuide('next'); break;
+      case 'back': voiceStepGuide('back'); break;
       case 'nextstep': speakNextStep(); break;
-      case 'rewards': if (gameMode.current === 'poe2') mainView = 'rewards'; break;
+      case 'rewards': voiceNavigate('rewards', 'poe2'); break;
       case 'campaign':
-      case 'leveling': mainView = gameMode.current === 'poe1' ? 'leveling' : 'campaign'; break;
-      case 'build': mainView = gameMode.current === 'poe1' ? 'gems' : 'build'; break;
-      case 'gems': if (gameMode.current === 'poe1') mainView = 'gems'; break;
-      case 'tree': if (gameMode.current === 'poe1') mainView = 'tree'; break;
-      case 'stash': mainView = 'stash'; break;
-      case 'crafting': if (gameMode.current === 'poe2') mainView = 'crafting'; break;
-      case 'addons': mainView = 'addons'; break;
-      case 'timer': mainView = 'timer'; break;
+      case 'leveling': voiceNavigate(gameMode.current === 'poe1' ? 'leveling' : 'campaign'); break;
+      case 'build': voiceNavigate(gameMode.current === 'poe1' ? 'gems' : 'build'); break;
+      case 'gems': voiceNavigate('gems', 'poe1'); break;
+      case 'tree': voiceNavigate('tree', 'poe1'); break;
+      case 'stash': voiceNavigate('stash'); break;
+      case 'crafting': voiceNavigate('crafting', 'poe2'); break;
+      case 'addons': voiceNavigate('addons'); break;
+      case 'timer': voiceNavigate('timer'); break;
       case 'skill1': speakNthSkill(1); break;
       case 'skill2': speakNthSkill(2); break;
       case 'skill3': speakNthSkill(3); break;
@@ -718,6 +888,20 @@
       case 'timermodecampaign': setTimerMode('campaign'); break;
       case 'clickthroughon': void applyClickThrough(true); break;
       case 'clickthroughoff': void applyClickThrough(false); break;
+      case 'hideoverlay': void setHidden(true); break;
+      case 'showoverlay': void setHidden(false); break;
+      case 'gamepoe1': void voiceSwitchGame('poe1'); break;
+      case 'gamepoe2': void voiceSwitchGame('poe2'); break;
+      case 'switchbuild': void voiceSwitchBuild(); break;
+      case 'treenext': voiceStepTree(1); break;
+      case 'treeprev': voiceStepTree(-1); break;
+      case 'decoderopen': void voiceDecoder('open'); break;
+      case 'decoderclose': void voiceDecoder('close'); break;
+      case 'decodervariant': void voiceDecoder('variant'); break;
+      case 'decoderrotate': void voiceDecoder('rotate'); break;
+      case 'decoderflip': void voiceDecoder('flip'); break;
+      case 'copyregex': void voiceCopyRegex(); break;
+      case 'quiet': stopSpeaking(); break;
     }
   }
 
@@ -2690,9 +2874,9 @@
           {:else if mainView === 'leveling'}
             <PoE1LevelingGuide />
           {:else if mainView === 'tree'}
-            <PassiveTreeViewer />
+            {#key poe1ActiveId}<PassiveTreeViewer />{/key}
           {:else if mainView === 'gems'}
-            <GemLinksViewer />
+            {#key poe1ActiveId}<GemLinksViewer />{/key}
           {:else if mainView === 'rewards'}
             <PermanentRewards bind:this={rewardsComponent} />
           {:else if mainView === 'stash'}
