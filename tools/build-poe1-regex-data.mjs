@@ -94,5 +94,6 @@ write('MapMods', data('mapmods/Generated.Map.ENGLISH.json'), (d) => {
 
 write('BoatMods', data('boatmods/Generated.BoatMods.ENGLISH.json'), (d) => {
   list('BoatMods.tokens', d.tokens, 50, ['id', 'regex', 'rawText', 'options']);
-  record('BoatMods.optimizationTable', d.optimizationTable, 10, ['ids', 'regex']);
+  // Unread by the boat generator, and poe.re's GGPK generation (#536) ships it empty.
+  record('BoatMods.optimizationTable', d.optimizationTable, 0, ['ids', 'regex']);
 });

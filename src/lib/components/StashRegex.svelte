@@ -107,9 +107,9 @@
   function hasRange(o: { name: string; ranges: number[][] }): boolean {
     return LEADING_RANGE.test(o.name) && o.ranges.length > 0 && o.ranges[0][0] > 0;
   }
-  function affixLabel(name: string): string {
-    const d = name.replace(/\|/g, ' • ');
-    return LEADING_RANGE.test(name) ? d.replace(/^#{1,2}/, '') : d.replace(/##/g, '#');
+  function affixLabel(o: { name: string; ranges: number[][] }): string {
+    const d = o.name.replace(/\|/g, ' • ');
+    return hasRange(o) ? d.replace(/^#{1,2}/, '') : d.replace(/##/g, '#');
   }
 
   function filtered<T extends { name: string }>(list: T[]): T[] {
@@ -267,7 +267,7 @@
       <div class="active-conditions" style="--g: {groupColor(builder.activeGroup)}">
         {#each builder.groups[builder.activeGroup].conditions as c, ci (c.id)}
           <span class="cond-chip">
-            <span class="cond-label">{affixLabel(c.name)}</span>
+            <span class="cond-label">{affixLabel(c)}</span>
             <button onclick={() => removeConditionAt(builder.activeGroup, ci)} title={m.regex_group_remove()}>✕</button>
           </span>
         {/each}
@@ -369,7 +369,7 @@
       />
     {/if}
     <button class="affix-name" type="button" onclick={() => toggleCondition(opt)}>
-      {affixLabel(opt.name)}
+      {affixLabel(opt)}
     </button>
     {#if sel}<span class="badge badge-neutral grp-badge" style="--g: {groupColor(gi)}">{gi + 1}</span>{/if}
   </div>
@@ -401,7 +401,7 @@
           />
         {/if}
         <button class="affix-name" type="button" onclick={() => toggleArrayCondition(arr, opt)}>
-          {affixLabel(opt.name)}
+          {affixLabel(opt)}
         </button>
       </div>
     {/each}

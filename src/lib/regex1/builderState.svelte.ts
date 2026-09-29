@@ -36,6 +36,7 @@ import type {
 } from './types';
 
 import { generateVendorRegex } from './generators/vendor';
+import { generateGemsRegex } from './generators/gems';
 import { generateItemsRegex, buildAffixMap } from './generators/items';
 import { generateJewelRegex } from './generators/jewel';
 import { generateMapModRegex } from './generators/mapmods';
@@ -81,7 +82,7 @@ const _affixMap = $derived.by(() => (_itemMods ? buildAffixMap(_itemMods) : null
 
 async function ensureLoaded(category: Category): Promise<void> {
   switch (category) {
-    case 'vendor':
+    case 'gems':
       if (!_gemTokens) _gemTokens = await loadGems();
       break;
     case 'items':
@@ -125,7 +126,9 @@ async function ensureLoaded(category: Category): Promise<void> {
 const _result = $derived.by(() => {
   switch (_category) {
     case 'vendor':
-      return _gemTokens ? generateVendorRegex(_settings.vendor, _gemTokens) : '';
+      return generateVendorRegex(_settings.vendor);
+    case 'gems':
+      return _gemTokens ? generateGemsRegex(_gemTokens, _settings.gems) : '';
     case 'items':
       return _affixMap ? generateItemsRegex(_affixMap, _settings.items) : '';
     case 'jewel':

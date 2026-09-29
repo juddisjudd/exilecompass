@@ -10,7 +10,7 @@ export interface WaystoneAffix extends ParsedAffix {
 }
 export type TabletAffix = ParsedAffix;
 
-type WaystoneOptions = { name: string; prefix: boolean; tags: string[] };
+type WaystoneOptions = { name: string; types: string[]; tags: string[] };
 type TabletOptions = { prefix: boolean; tags: string[] };
 
 let waystoneCache: Promise<WaystoneAffix[]> | null = null;
@@ -24,7 +24,7 @@ export function loadWaystoneAffixes(): Promise<WaystoneAffix[]> {
         json.tokens
           .map((token) => ({
             ...parseAffixToken(token),
-            prefix: token.options.prefix,
+            prefix: token.options.types.includes('PREFIX'),
           }))
           .sort((a, b) => a.name.localeCompare(b.name)),
       );

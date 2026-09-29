@@ -58,7 +58,6 @@ export interface VendorSettings {
     sceptre: boolean; mace: boolean; axe: boolean; sword: boolean; bow: boolean;
     claw: boolean; dagger: boolean; staff: boolean; wand: boolean; shield: boolean;
   };
-  gems: number[];
   resultSettings: ResultSettings;
 }
 
@@ -81,7 +80,36 @@ export const defaultVendorSettings = (): VendorSettings => ({
   plusGems: { lightning: false, fire: false, cold: false, phys: false, chaos: false, any: false },
   damage: { phys: false, firemult: false, coldmult: false, chaosmult: false },
   weapon: { sceptre: false, mace: false, axe: false, sword: false, bow: false, claw: false, dagger: false, staff: false, wand: false, shield: false },
-  gems: [],
+  resultSettings: defaultResultSettings(),
+});
+
+// ── Gems ─────────────────────────────────────────────────────────────────────
+// Level/quality bounds stay strings: upstream's generator clamps and parses them.
+export interface GemsSettings {
+  levelEnabled: boolean;
+  levelMin: string;
+  levelMax: string;
+  qualityEnabled: boolean;
+  qualityMin: string;
+  qualityMax: string;
+  showSkills: boolean;
+  showSupports: boolean;
+  supportType: 'all' | 'awakened';
+  selected: number[]; // gem token ids
+  resultSettings: ResultSettings;
+}
+
+export const defaultGemsSettings = (): GemsSettings => ({
+  levelEnabled: false,
+  levelMin: '1',
+  levelMax: '21',
+  qualityEnabled: false,
+  qualityMin: '0',
+  qualityMax: '23',
+  showSkills: true,
+  showSupports: true,
+  supportType: 'all',
+  selected: [],
   resultSettings: defaultResultSettings(),
 });
 
@@ -307,6 +335,7 @@ export const defaultScarabSettings = (): ScarabSettings => ({ selected: [], resu
 // ── Aggregate ────────────────────────────────────────────────────────────────
 export interface Settings {
   vendor: VendorSettings;
+  gems: GemsSettings;
   items: ItemsSettings;
   jewel: JewelSettings;
   mapMods: MapModsSettings;
@@ -323,6 +352,7 @@ export interface Settings {
 export function defaultSettings(): Settings {
   return {
     vendor: defaultVendorSettings(),
+    gems: defaultGemsSettings(),
     items: defaultItemsSettings(),
     jewel: defaultJewelSettings(),
     mapMods: defaultMapModsSettings(),
@@ -338,6 +368,6 @@ export function defaultSettings(): Settings {
 }
 
 export const CATEGORY_ORDER: Category[] = [
-  'vendor', 'items', 'mapMods', 'boat', 'expedition', 'heist',
+  'vendor', 'gems', 'items', 'mapMods', 'boat', 'expedition', 'heist',
   'flasks', 'beast', 'tattoo', 'runegraft', 'scarab', 'jewel',
 ];

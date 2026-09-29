@@ -5,6 +5,7 @@
 
 export type Category =
   | 'vendor'
+  | 'gems'
   | 'items'
   | 'jewel'
   | 'mapMods'
@@ -17,7 +18,7 @@ export type Category =
   | 'runegraft'
   | 'scarab';
 
-// ── Vendor / Gems ────────────────────────────────────────────────────────────
+// ── Gems ─────────────────────────────────────────────────────────────────────
 export interface GemTokenOptions {
   c: 'r' | 'g' | 'b' | 'w';
   support: boolean;

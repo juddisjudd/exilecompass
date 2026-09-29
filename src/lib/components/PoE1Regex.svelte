@@ -10,7 +10,7 @@
     applyFavorite1,
     toggleInArray,
   } from '$lib/regex1/builderState.svelte';
-  import type { Category } from '$lib/regex1/types';
+  import type { Category, GemToken } from '$lib/regex1/types';
   import { GIANNA_PRESET, GIANNA_PLUS_ONE_PRESET } from '$lib/regex1/generators/heist';
   import { BOAT_AREAS } from '$lib/regex1/generators/boat';
 
@@ -45,6 +45,7 @@
 
   const CATEGORIES: { id: Category; label: () => string }[] = [
     { id: 'vendor', label: () => m.poe1regex_cat_vendor() },
+    { id: 'gems', label: () => m.poe1regex_cat_gems() },
     { id: 'items', label: () => m.poe1regex_cat_items() },
     { id: 'mapMods', label: () => m.poe1regex_cat_mapmods() },
     { id: 'boat', label: () => m.poe1regex_cat_boat() },
@@ -91,6 +92,17 @@
   function matches(text: string, query: string): boolean {
     const q = query.trim().toLowerCase();
     return q === '' || text.toLowerCase().includes(q);
+  }
+
+  const GEM_COLOR_ORDER: Record<string, number> = { r: 1, g: 2, b: 3, w: 4 };
+  const sortedGems = $derived(
+    [...(builder1.gemTokens ?? [])].sort((a, b) =>
+      `${GEM_COLOR_ORDER[a.options.c]}${a.rawText}`.localeCompare(`${GEM_COLOR_ORDER[b.options.c]}${b.rawText}`),
+    ),
+  );
+  function gemVisible(g: GemToken): boolean {
+    const s = settings.gems;
+    return g.options.support ? s.showSupports && (s.supportType === 'all' || g.rawText.toLowerCase().includes('awakened')) : s.showSkills;
   }
 
   function heistLevel(name: string): { start: number; end: number } {
@@ -206,91 +218,124 @@
     <!-- Options -->
     <div class="options-panel ec-panel">
       {#if builder1.category === 'vendor'}
+        <div class="group-label">{m.poe1regex_vendor_links()}</div>
+        <div class="opt-grid opt-grid-tight">
+          {#snippet vc(key: keyof typeof settings.vendor.colors, label: string)}
+            <label class="opt" class:on={settings.vendor.colors[key] as boolean}>
+              <input type="checkbox" checked={settings.vendor.colors[key] as boolean} onchange={(e) => ((settings.vendor.colors[key] as boolean) = e.currentTarget.checked)} />
+              <span>{label}</span>
+            </label>
+          {/snippet}
+          {@render vc('rrr', 'R-R-R')}{@render vc('ggg', 'G-G-G')}{@render vc('bbb', 'B-B-B')}
+          {@render vc('rrA', 'R-R-Any')}{@render vc('ggA', 'G-G-Any')}{@render vc('bbA', 'B-B-Any')}
+          {@render vc('rrg', 'R-R-G')}{@render vc('rrb', 'R-R-B')}{@render vc('ggr', 'G-G-R')}
+          {@render vc('ggb', 'G-G-B')}{@render vc('bbr', 'B-B-R')}{@render vc('bbg', 'B-B-G')}
+          {@render vc('rgb', 'R-G-B')}
+          {@render vc('raa', 'R-Any-Any')}{@render vc('gaa', 'G-Any-Any')}{@render vc('baa', 'B-Any-Any')}
+          {@render vc('rr', 'R-R (2L)')}{@render vc('gg', 'G-G (2L)')}{@render vc('bb', 'B-B (2L)')}
+          {@render vc('rb', 'R-B (2L)')}{@render vc('gr', 'G-R (2L)')}{@render vc('bg', 'B-G (2L)')}
+        </div>
+        <div class="opt-grid opt-grid-tight" style="margin-top:6px">
+          {#snippet vs(key: 'anyTwoLink'|'anyThreeLink'|'anyFourLink'|'anyFiveLink'|'anySixLink'|'anyTwoColorLink'|'anyThreeColorLink'|'anyFourColorLink'|'anyFiveColorLink'|'anySixColorLink'|'anySixSocket', label: string)}
+            <label class="opt" class:on={settings.vendor[key]}>
+              <input type="checkbox" checked={settings.vendor[key]} onchange={(e) => (settings.vendor[key] = e.currentTarget.checked)} />
+              <span>{label}</span>
+            </label>
+          {/snippet}
+          {@render vs('anyTwoLink', 'Any 2-Link')}{@render vs('anyThreeLink', 'Any 3-Link')}{@render vs('anyFourLink', 'Any 4-Link')}
+          {@render vs('anyFiveLink', 'Any 5-Link')}{@render vs('anySixLink', 'Any 6-Link')}{@render vs('anySixSocket', 'Any 6-Socket')}
+          {@render vs('anyTwoColorLink', 'Any 2 Colored')}{@render vs('anyThreeColorLink', 'Any 3 Colored')}{@render vs('anyFourColorLink', 'Any 4 Colored')}
+          {@render vs('anyFiveColorLink', 'Any 5 Colored')}{@render vs('anySixColorLink', 'Any 6 Colored')}
+        </div>
+        <label class="opt" class:on={settings.vendor.colors.specLink} style="margin-top:6px">
+          <input type="checkbox" checked={settings.vendor.colors.specLink} onchange={(e) => (settings.vendor.colors.specLink = e.currentTarget.checked)} />
+          <span>{m.poe1regex_vendor_speclink()}</span>
+        </label>
+        {#if settings.vendor.colors.specLink}
+          <div class="minmax">
+            <label>R <input type="number" min="0" max="6" value={settings.vendor.colors.specLinkColors.r ?? ''} oninput={(e) => (settings.vendor.colors.specLinkColors.r = e.currentTarget.value ? Number(e.currentTarget.value) : undefined)} /></label>
+            <label>G <input type="number" min="0" max="6" value={settings.vendor.colors.specLinkColors.g ?? ''} oninput={(e) => (settings.vendor.colors.specLinkColors.g = e.currentTarget.value ? Number(e.currentTarget.value) : undefined)} /></label>
+            <label>B <input type="number" min="0" max="6" value={settings.vendor.colors.specLinkColors.b ?? ''} oninput={(e) => (settings.vendor.colors.specLinkColors.b = e.currentTarget.value ? Number(e.currentTarget.value) : undefined)} /></label>
+          </div>
+        {/if}
+
+        <div class="group-label">{m.poe1regex_vendor_movement()}</div>
+        <div class="opt-grid opt-grid-tight">
+          <label class="opt" class:on={settings.vendor.movement.ten}><input type="checkbox" checked={settings.vendor.movement.ten} onchange={(e) => (settings.vendor.movement.ten = e.currentTarget.checked)} /><span>10%</span></label>
+          <label class="opt" class:on={settings.vendor.movement.fifteen}><input type="checkbox" checked={settings.vendor.movement.fifteen} onchange={(e) => (settings.vendor.movement.fifteen = e.currentTarget.checked)} /><span>15%</span></label>
+        </div>
+
+        <div class="group-label">{m.poe1regex_vendor_plusgems()}</div>
+        <div class="opt-grid opt-grid-tight">
+          {#snippet pg(key: keyof typeof settings.vendor.plusGems, label: string)}
+            <label class="opt" class:on={settings.vendor.plusGems[key]}><input type="checkbox" checked={settings.vendor.plusGems[key]} onchange={(e) => (settings.vendor.plusGems[key] = e.currentTarget.checked)} /><span>{label}</span></label>
+          {/snippet}
+          {@render pg('any', 'Any Element')}{@render pg('fire', 'Fire')}{@render pg('cold', 'Cold')}
+          {@render pg('lightning', 'Lightning')}{@render pg('chaos', 'Chaos')}{@render pg('phys', 'Phys')}
+        </div>
+
+        <div class="group-label">{m.poe1regex_vendor_damage()}</div>
+        <div class="opt-grid opt-grid-tight">
+          {#snippet dm(key: keyof typeof settings.vendor.damage, label: string)}
+            <label class="opt" class:on={settings.vendor.damage[key]}><input type="checkbox" checked={settings.vendor.damage[key]} onchange={(e) => (settings.vendor.damage[key] = e.currentTarget.checked)} /><span>{label}</span></label>
+          {/snippet}
+          {@render dm('phys', 'Physical damage')}{@render dm('firemult', 'Fire DoT Mult')}
+          {@render dm('coldmult', 'Cold DoT Mult')}{@render dm('chaosmult', 'Chaos DoT Mult')}
+        </div>
+
+        <div class="group-label">{m.poe1regex_vendor_weapon()}</div>
+        <div class="opt-grid opt-grid-tight">
+          {#snippet wp(key: keyof typeof settings.vendor.weapon, label: string)}
+            <label class="opt" class:on={settings.vendor.weapon[key]}><input type="checkbox" checked={settings.vendor.weapon[key]} onchange={(e) => (settings.vendor.weapon[key] = e.currentTarget.checked)} /><span>{label}</span></label>
+          {/snippet}
+          {@render wp('sceptre', 'Sceptre')}{@render wp('mace', 'Mace')}{@render wp('axe', 'Axe')}
+          {@render wp('sword', 'Sword')}{@render wp('bow', 'Bow')}{@render wp('claw', 'Claw')}
+          {@render wp('dagger', 'Dagger')}{@render wp('staff', 'Staff')}{@render wp('wand', 'Wand')}
+          {@render wp('shield', 'Shield')}
+        </div>
+        <p class="field-help-inline">{m.poe1regex_vendor_weapon_warning()}</p>
+
+      {:else if builder1.category === 'gems'}
         {#if !builder1.gemTokens}
           <span class="empty-hint">{m.regex_loading()}</span>
         {:else}
-          <div class="group-label">{m.poe1regex_vendor_links()}</div>
-          <div class="opt-grid opt-grid-tight">
-            {#snippet vc(key: keyof typeof settings.vendor.colors, label: string)}
-              <label class="opt" class:on={settings.vendor.colors[key] as boolean}>
-                <input type="checkbox" checked={settings.vendor.colors[key] as boolean} onchange={(e) => ((settings.vendor.colors[key] as boolean) = e.currentTarget.checked)} />
-                <span>{label}</span>
-              </label>
-            {/snippet}
-            {@render vc('rrr', 'R-R-R')}{@render vc('ggg', 'G-G-G')}{@render vc('bbb', 'B-B-B')}
-            {@render vc('rrA', 'R-R-Any')}{@render vc('ggA', 'G-G-Any')}{@render vc('bbA', 'B-B-Any')}
-            {@render vc('rrg', 'R-R-G')}{@render vc('rrb', 'R-R-B')}{@render vc('ggr', 'G-G-R')}
-            {@render vc('ggb', 'G-G-B')}{@render vc('bbr', 'B-B-R')}{@render vc('bbg', 'B-B-G')}
-            {@render vc('rgb', 'R-G-B')}
-            {@render vc('raa', 'R-Any-Any')}{@render vc('gaa', 'G-Any-Any')}{@render vc('baa', 'B-Any-Any')}
-            {@render vc('rr', 'R-R (2L)')}{@render vc('gg', 'G-G (2L)')}{@render vc('bb', 'B-B (2L)')}
-            {@render vc('rb', 'R-B (2L)')}{@render vc('gr', 'G-R (2L)')}{@render vc('bg', 'B-G (2L)')}
-          </div>
-          <div class="opt-grid opt-grid-tight" style="margin-top:6px">
-            {#snippet vs(key: 'anyTwoLink'|'anyThreeLink'|'anyFourLink'|'anyFiveLink'|'anySixLink'|'anyTwoColorLink'|'anyThreeColorLink'|'anyFourColorLink'|'anyFiveColorLink'|'anySixColorLink'|'anySixSocket', label: string)}
-              <label class="opt" class:on={settings.vendor[key]}>
-                <input type="checkbox" checked={settings.vendor[key]} onchange={(e) => (settings.vendor[key] = e.currentTarget.checked)} />
-                <span>{label}</span>
-              </label>
-            {/snippet}
-            {@render vs('anyTwoLink', 'Any 2-Link')}{@render vs('anyThreeLink', 'Any 3-Link')}{@render vs('anyFourLink', 'Any 4-Link')}
-            {@render vs('anyFiveLink', 'Any 5-Link')}{@render vs('anySixLink', 'Any 6-Link')}{@render vs('anySixSocket', 'Any 6-Socket')}
-            {@render vs('anyTwoColorLink', 'Any 2 Colored')}{@render vs('anyThreeColorLink', 'Any 3 Colored')}{@render vs('anyFourColorLink', 'Any 4 Colored')}
-            {@render vs('anyFiveColorLink', 'Any 5 Colored')}{@render vs('anySixColorLink', 'Any 6 Colored')}
-          </div>
-          <label class="opt" class:on={settings.vendor.colors.specLink} style="margin-top:6px">
-            <input type="checkbox" checked={settings.vendor.colors.specLink} onchange={(e) => (settings.vendor.colors.specLink = e.currentTarget.checked)} />
-            <span>{m.poe1regex_vendor_speclink()}</span>
+          <label class="opt" class:on={settings.gems.levelEnabled}>
+            <input type="checkbox" checked={settings.gems.levelEnabled} onchange={(e) => (settings.gems.levelEnabled = e.currentTarget.checked)} />
+            <span>{m.poe1regex_gems_level()}</span>
           </label>
-          {#if settings.vendor.colors.specLink}
+          {#if settings.gems.levelEnabled}
             <div class="minmax">
-              <label>R <input type="number" min="0" max="6" value={settings.vendor.colors.specLinkColors.r ?? ''} oninput={(e) => (settings.vendor.colors.specLinkColors.r = e.currentTarget.value ? Number(e.currentTarget.value) : undefined)} /></label>
-              <label>G <input type="number" min="0" max="6" value={settings.vendor.colors.specLinkColors.g ?? ''} oninput={(e) => (settings.vendor.colors.specLinkColors.g = e.currentTarget.value ? Number(e.currentTarget.value) : undefined)} /></label>
-              <label>B <input type="number" min="0" max="6" value={settings.vendor.colors.specLinkColors.b ?? ''} oninput={(e) => (settings.vendor.colors.specLinkColors.b = e.currentTarget.value ? Number(e.currentTarget.value) : undefined)} /></label>
+              <label>Min <input type="number" min="1" max="21" value={settings.gems.levelMin} oninput={(e) => (settings.gems.levelMin = e.currentTarget.value)} /></label>
+              <label>Max <input type="number" min="1" max="21" value={settings.gems.levelMax} oninput={(e) => (settings.gems.levelMax = e.currentTarget.value)} /></label>
+            </div>
+          {/if}
+          <label class="opt" class:on={settings.gems.qualityEnabled}>
+            <input type="checkbox" checked={settings.gems.qualityEnabled} onchange={(e) => (settings.gems.qualityEnabled = e.currentTarget.checked)} />
+            <span>{m.poe1regex_gems_quality()}</span>
+          </label>
+          {#if settings.gems.qualityEnabled}
+            <div class="minmax">
+              <label>Min <input type="number" min="0" max="23" value={settings.gems.qualityMin} oninput={(e) => (settings.gems.qualityMin = e.currentTarget.value)} /></label>
+              <label>Max <input type="number" min="0" max="23" value={settings.gems.qualityMax} oninput={(e) => (settings.gems.qualityMax = e.currentTarget.value)} /></label>
             </div>
           {/if}
 
-          <div class="group-label">{m.poe1regex_vendor_movement()}</div>
+          <div class="group-label">{m.poe1regex_gems_type()}</div>
           <div class="opt-grid opt-grid-tight">
-            <label class="opt" class:on={settings.vendor.movement.ten}><input type="checkbox" checked={settings.vendor.movement.ten} onchange={(e) => (settings.vendor.movement.ten = e.currentTarget.checked)} /><span>10%</span></label>
-            <label class="opt" class:on={settings.vendor.movement.fifteen}><input type="checkbox" checked={settings.vendor.movement.fifteen} onchange={(e) => (settings.vendor.movement.fifteen = e.currentTarget.checked)} /><span>15%</span></label>
+            <label class="opt" class:on={settings.gems.showSkills}><input type="checkbox" checked={settings.gems.showSkills} onchange={(e) => (settings.gems.showSkills = e.currentTarget.checked)} /><span>{m.poe1regex_gems_skills()}</span></label>
+            <label class="opt" class:on={settings.gems.showSupports}><input type="checkbox" checked={settings.gems.showSupports} onchange={(e) => (settings.gems.showSupports = e.currentTarget.checked)} /><span>{m.poe1regex_gems_supports()}</span></label>
           </div>
+          {#if settings.gems.showSupports}
+            <div class="seg-row" style="margin-top:6px">
+              <button class="seg-btn" class:active={settings.gems.supportType === 'all'} onclick={() => (settings.gems.supportType = 'all')} type="button">{m.poe1regex_gems_support_all()}</button>
+              <button class="seg-btn" class:active={settings.gems.supportType === 'awakened'} onclick={() => (settings.gems.supportType = 'awakened')} type="button">{m.poe1regex_gems_support_awakened()}</button>
+            </div>
+          {/if}
 
-          <div class="group-label">{m.poe1regex_vendor_plusgems()}</div>
-          <div class="opt-grid opt-grid-tight">
-            {#snippet pg(key: keyof typeof settings.vendor.plusGems, label: string)}
-              <label class="opt" class:on={settings.vendor.plusGems[key]}><input type="checkbox" checked={settings.vendor.plusGems[key]} onchange={(e) => (settings.vendor.plusGems[key] = e.currentTarget.checked)} /><span>{label}</span></label>
-            {/snippet}
-            {@render pg('any', 'Any Element')}{@render pg('fire', 'Fire')}{@render pg('cold', 'Cold')}
-            {@render pg('lightning', 'Lightning')}{@render pg('chaos', 'Chaos')}{@render pg('phys', 'Phys')}
-          </div>
-
-          <div class="group-label">{m.poe1regex_vendor_damage()}</div>
-          <div class="opt-grid opt-grid-tight">
-            {#snippet dm(key: keyof typeof settings.vendor.damage, label: string)}
-              <label class="opt" class:on={settings.vendor.damage[key]}><input type="checkbox" checked={settings.vendor.damage[key]} onchange={(e) => (settings.vendor.damage[key] = e.currentTarget.checked)} /><span>{label}</span></label>
-            {/snippet}
-            {@render dm('phys', 'Physical damage')}{@render dm('firemult', 'Fire DoT Mult')}
-            {@render dm('coldmult', 'Cold DoT Mult')}{@render dm('chaosmult', 'Chaos DoT Mult')}
-          </div>
-
-          <div class="group-label">{m.poe1regex_vendor_weapon()}</div>
-          <div class="opt-grid opt-grid-tight">
-            {#snippet wp(key: keyof typeof settings.vendor.weapon, label: string)}
-              <label class="opt" class:on={settings.vendor.weapon[key]}><input type="checkbox" checked={settings.vendor.weapon[key]} onchange={(e) => (settings.vendor.weapon[key] = e.currentTarget.checked)} /><span>{label}</span></label>
-            {/snippet}
-            {@render wp('sceptre', 'Sceptre')}{@render wp('mace', 'Mace')}{@render wp('axe', 'Axe')}
-            {@render wp('sword', 'Sword')}{@render wp('bow', 'Bow')}{@render wp('claw', 'Claw')}
-            {@render wp('dagger', 'Dagger')}{@render wp('staff', 'Staff')}{@render wp('wand', 'Wand')}
-            {@render wp('shield', 'Shield')}
-          </div>
-          <p class="field-help-inline">{m.poe1regex_vendor_weapon_warning()}</p>
-
-          <div class="group-label">{m.poe1regex_vendor_gems()}</div>
           <input class="custom-input" bind:value={gemFilter} placeholder={m.poe1regex_search_placeholder()} spellcheck="false" />
-          <div class="pick-list">
-            {#each builder1.gemTokens.filter((t) => matches(t.rawText, gemFilter)) as token (token.id)}
-              <button type="button" class="pick-row" class:on={settings.vendor.gems.includes(token.id)} onclick={() => toggleInArray(settings.vendor.gems, token.id)}>
+          <div class="pick-list pick-list-tall">
+            {#each sortedGems.filter((t) => gemVisible(t) && matches(t.rawText, gemFilter)) as token (token.id)}
+              <button type="button" class="pick-row" class:on={settings.gems.selected.includes(token.id)} onclick={() => toggleInArray(settings.gems.selected, token.id)}>
                 <span class="gem-color gem-{token.options.c}"></span>{token.rawText}
               </button>
             {/each}

@@ -87,11 +87,11 @@ const FILES = {
     ]),
   ),
   ...Object.fromEntries(POE1_MODULES.map((f) => [`poe/src/generated/${f}`, { to: `${POE1_SRC}/src/generated/${f}` }])),
-  'poe2/generated/waystone/Generated.Waystone.json': { to: 'static/generated/Generated.Waystone.min.json', transform: minify },
-  'poe2/generated/tablet/Generated.Tablet.json': { to: 'static/generated/Generated.Tablet.min.json', transform: minify },
-  'poe2/generated/item/Generated.Item.json': { to: 'static/generated/Generated.Item.min.json', transform: minify },
-  'poe2/generated/item/Generated.Basetypes.Item.json': { to: 'static/generated/Generated.Basetypes.Item.min.json', transform: minify },
-  'poe2/generated/relic/Generated.Relic.json': { to: 'src/lib/regex/relicData.ts', transform: relicModule },
+  'poe2/generated/waystone/Generated.Waystone.ENGLISH.json': { to: 'static/generated/Generated.Waystone.min.json', transform: minify },
+  'poe2/generated/tablet/Generated.Tablet.ENGLISH.json': { to: 'static/generated/Generated.Tablet.min.json', transform: minify },
+  'poe2/generated/item/Generated.Item.ENGLISH.json': { to: 'static/generated/Generated.Item.min.json', transform: minify },
+  'poe2/generated/item/Generated.Basetypes.Item.ENGLISH.json': { to: 'static/generated/Generated.Basetypes.Item.min.json', transform: minify },
+  'poe2/generated/relic/Generated.Relic.ENGLISH.json': { to: 'src/lib/regex/relicData.ts', transform: relicModule },
 };
 
 function die(msg) {
@@ -116,9 +116,11 @@ const every = (arr, min, pred) => Array.isArray(arr) && arr.length >= min && arr
 
 function validatePoe2(local, text) {
   const name = local.split('/').pop();
-  if (name === 'Generated.Waystone.min.json' || name === 'Generated.Tablet.min.json') {
-    const json = JSON.parse(text);
-    const ok = every(json.tokens, 20, (t) => typeof t.regex === 'string' && typeof t.rawText === 'string' && typeof t.options?.prefix === 'boolean');
+  if (name === 'Generated.Waystone.min.json') {
+    const ok = every(JSON.parse(text).tokens, 20, (t) => typeof t.regex === 'string' && typeof t.rawText === 'string' && every(t.options?.types, 1, (x) => typeof x === 'string'));
+    if (!ok) die(`${local}: unexpected shape (tokens[] with regex/rawText/options.types[])`);
+  } else if (name === 'Generated.Tablet.min.json') {
+    const ok = every(JSON.parse(text).tokens, 20, (t) => typeof t.regex === 'string' && typeof t.rawText === 'string' && typeof t.options?.prefix === 'boolean');
     if (!ok) die(`${local}: unexpected shape (tokens[] with regex/rawText/options.prefix)`);
   } else if (name === 'Generated.Item.min.json') {
     const ok = every(JSON.parse(text), 30, (e) =>

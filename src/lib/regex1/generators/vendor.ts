@@ -5,7 +5,6 @@
 // a literal `"`. The `s:`/`ts:` prefixes are reverse-engineered PoE search
 // field markers matched against internal item search text; don't try to
 // "clean up" or regenerate them.
-import type { GemToken } from '../types';
 import { appendResultExtras, type VendorSettings } from '../settings';
 
 export function addExpression(str: string, textToAdd: string | undefined): string {
@@ -256,15 +255,7 @@ function generateWeaponType(s: VendorSettings): string {
   return '';
 }
 
-function generateGems(s: VendorSettings, gemTokens: GemToken[]): string {
-  if (!s.gems.length) return '';
-  const tokensById = new Map(gemTokens.map((t) => [t.id, t.regex]));
-  const gems = s.gems.map((id) => tokensById.get(id)).filter((e): e is string => e !== undefined);
-  if (gems.length === 0) return '';
-  return gems.reduce((expr, gemKey) => addExpression(expr, gemKey));
-}
-
-export function generateVendorRegex(s: VendorSettings, gemTokens: GemToken[]): string {
+export function generateVendorRegex(s: VendorSettings): string {
   let result = '';
   result = addExpression(result, generate6Socket(s));
   result = addExpression(result, generateAnyColoredLinkStr(s));
@@ -278,7 +269,6 @@ export function generateVendorRegex(s: VendorSettings, gemTokens: GemToken[]): s
   result = addExpression(result, plusGemsStr(s));
   result = addExpression(result, generateWeaponDamage(s));
   result = addExpression(result, generateWeaponType(s));
-  result = addExpression(result, generateGems(s, gemTokens));
   result = simplifyRBG(result);
   if (result.match('"| ')) {
     result = result.replaceAll('"', '');
@@ -287,17 +277,10 @@ export function generateVendorRegex(s: VendorSettings, gemTokens: GemToken[]): s
   return appendResultExtras(result, s.resultSettings);
 }
 
-export function generateVendorWarnings(s: VendorSettings, gemTokens: GemToken[]): string[] {
+export function generateVendorWarnings(s: VendorSettings): string[] {
   const warnings: string[] = [];
   if (plusGemsStr(s) && s.weapon.wand) {
     warnings.push('All wands will be displayed [conflict: +1 wand & weapon base=wand].');
-  }
-  const usesVendorGems = !!generateGems(s, gemTokens);
-  if (usesVendorGems && generateWeaponType(s)) {
-    warnings.push('Undesired gems will be displayed [conflict: weapon types & vendor gems]');
-  }
-  if (usesVendorGems && s.damage.phys) {
-    warnings.push('Heavy Strike will be displayed [conflict: phys damage & vendor gems]');
   }
   return warnings;
 }
