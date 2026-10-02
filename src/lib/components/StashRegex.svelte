@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { m } from '$lib/paraglide/messages.js';
+  import { m } from '#lib/paraglide/messages.js';
   import {
     builder,
     initBuilder,
@@ -19,11 +19,11 @@
     toggleArrayCondition,
     arrayCondition,
     setArrayValue,
-  } from '$lib/regex/builderState.svelte';
-  import type { Category } from '$lib/regex/settings';
-  import type { SelectOption } from '$lib/regex/types';
-  import { VENDOR_OPTIONS, VENDOR_SECTIONS } from '$lib/regex/vendorOptions';
-  import { itemModKey } from '$lib/regex/generators/item';
+  } from '#lib/regex/builderState.svelte.js';
+  import type { Category } from '#lib/regex/settings.js';
+  import type { SelectOption } from '#lib/regex/types.js';
+  import { VENDOR_OPTIONS, VENDOR_SECTIONS } from '#lib/regex/vendorOptions.js';
+  import { itemModKey } from '#lib/regex/generators/item.js';
 
   onMount(() => {
     initBuilder();

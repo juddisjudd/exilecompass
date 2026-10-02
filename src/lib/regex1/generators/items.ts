@@ -3,7 +3,7 @@
 // see the PoE1 regex research notes). Mods are looked up by the composite key
 // `${baseType}-${category}-${desc}` (upstream's `affixMap`), scoped to the
 // currently selected base type.
-import { generateNumberRegex } from '$lib/regex/numberRegex';
+import { generateNumberRegex } from '#lib/regex/numberRegex.js';
 import type { ItemAffixRegex, ItemModsData } from '../types';
 import { appendResultExtras, type ItemsSettings } from '../settings';
 

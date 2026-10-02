@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import { persistGet, persistSet, persistRemove } from '$lib/persist';
-import type { GameMode } from '$lib/gameMode.svelte';
+import { persistGet, persistSet, persistRemove } from '#lib/persist.js';
+import type { GameMode } from '#lib/gameMode.svelte.js';
 
 // ── Storage (disk-backed for restart reliability) ───────────────────────────────
 // Keyed per game — PoE1 and PoE2 log files are watched independently, so

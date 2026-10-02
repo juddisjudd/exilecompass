@@ -10,7 +10,7 @@
 // `formatExcludes` helper directly rather than re-deriving them.
 
 import type { Category } from './types';
-import { defaultResultSettings, formatExcludes, type ResultSettings } from '$lib/regex/settings';
+import { defaultResultSettings, formatExcludes, type ResultSettings } from '#lib/regex/settings.js';
 
 export type { ResultSettings };
 export { formatExcludes };

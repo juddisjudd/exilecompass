@@ -9,7 +9,7 @@
 // switches (the Timer component unmounts when you leave its tab) and is
 // persisted to disk so an in-progress run survives an app restart.
 
-import { persistGet, persistSet, persistRemove } from '$lib/persist';
+import { persistGet, persistSet, persistRemove } from '#lib/persist.js';
 
 const STORAGE_KEY = 'EXILECOMPASS_CAMPAIGN_TIMER_V1';
 

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { persistGet, persistSet, persistRemove } from '$lib/persist';
+import { persistGet, persistSet, persistRemove } from '#lib/persist.js';
 
 // Text-to-speech for voice-command replies. Two backends:
 //   - ElevenLabs (bring-your-own-key) if a key is configured — better voice

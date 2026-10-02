@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import REWARDS_DATA from '$lib/data/rewards.json';
-  import { m } from '$lib/paraglide/messages.js';
-  import { trReward, trRewardGroup } from '$lib/dataI18n';
+  import REWARDS_DATA from '#lib/data/rewards.json';
+  import { m } from '#lib/paraglide/messages.js';
+  import { trReward, trRewardGroup } from '#lib/dataI18n.js';
   import ConfirmReset from './ConfirmReset.svelte';
 
   const STATE_KEY = 'PERMANENT_REWARDS_STATE_V2';

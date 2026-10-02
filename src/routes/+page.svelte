@@ -6,22 +6,22 @@
     register as registerGlobalShortcut,
     unregister as unregisterGlobalShortcut,
   } from '@tauri-apps/plugin-global-shortcut';
-  import TitleBar from '$lib/components/TitleBar.svelte';
-  import { account } from '$lib/account.svelte';
-  import PoeFrame from '$lib/components/PoeFrame.svelte';
-  import CampaignGuide from '$lib/components/CampaignGuide.svelte';
-  import PermanentRewards from '$lib/components/PermanentRewards.svelte';
-  import StashRegex from '$lib/components/StashRegex.svelte';
-  import PoE1Regex from '$lib/components/PoE1Regex.svelte';
-  import CraftingGuide from '$lib/components/CraftingGuide.svelte';
-  import PoE1LevelingGuide from '$lib/components/PoE1LevelingGuide.svelte';
-  import PassiveTreeViewer from '$lib/components/PassiveTreeViewer.svelte';
-  import GemLinksViewer from '$lib/components/GemLinksViewer.svelte';
-  import SpeedrunTimer from '$lib/components/SpeedrunTimer.svelte';
-  import BuildOverview from '$lib/components/BuildOverview.svelte';
-  import AddonsHub from '$lib/components/addons/AddonsHub.svelte';
-  import AddonsPanel from '$lib/components/addons/AddonsPanel.svelte';
-  import { addonsHost, initAddonsHost } from '$lib/plugins/host.svelte';
+  import TitleBar from '#lib/components/TitleBar.svelte';
+  import { account } from '#lib/account.svelte.js';
+  import PoeFrame from '#lib/components/PoeFrame.svelte';
+  import CampaignGuide from '#lib/components/CampaignGuide.svelte';
+  import PermanentRewards from '#lib/components/PermanentRewards.svelte';
+  import StashRegex from '#lib/components/StashRegex.svelte';
+  import PoE1Regex from '#lib/components/PoE1Regex.svelte';
+  import CraftingGuide from '#lib/components/CraftingGuide.svelte';
+  import PoE1LevelingGuide from '#lib/components/PoE1LevelingGuide.svelte';
+  import PassiveTreeViewer from '#lib/components/PassiveTreeViewer.svelte';
+  import GemLinksViewer from '#lib/components/GemLinksViewer.svelte';
+  import SpeedrunTimer from '#lib/components/SpeedrunTimer.svelte';
+  import BuildOverview from '#lib/components/BuildOverview.svelte';
+  import AddonsHub from '#lib/components/addons/AddonsHub.svelte';
+  import AddonsPanel from '#lib/components/addons/AddonsPanel.svelte';
+  import { addonsHost, initAddonsHost } from '#lib/plugins/host.svelte.js';
   import {
     importBuild,
     loadStoredBuild,
@@ -35,31 +35,31 @@
     type PobBuild,
     type PobItem,
     type BuildFileEntry,
-  } from '$lib/pob';
+  } from '#lib/pob.js';
   import {
     initWatcherForFile,
     loadWatcherState,
     clearWatcherState,
     pollLog,
     type LogWatcherState,
-  } from '$lib/logWatcher';
-  import { persistGet, persistSet, persistRemove } from '$lib/persist';
-  import { campaignTimer } from '$lib/campaignTimer.svelte';
-  import { poe1CampaignTimer } from '$lib/poe1CampaignTimer.svelte';
-  import { manualTimer, timerMode } from '$lib/manualTimer.svelte';
-  import { campaignProgress } from '$lib/campaignProgress.svelte';
+  } from '#lib/logWatcher.js';
+  import { persistGet, persistSet, persistRemove } from '#lib/persist.js';
+  import { campaignTimer } from '#lib/campaignTimer.svelte.js';
+  import { poe1CampaignTimer } from '#lib/poe1CampaignTimer.svelte.js';
+  import { manualTimer, timerMode } from '#lib/manualTimer.svelte.js';
+  import { campaignProgress } from '#lib/campaignProgress.svelte.js';
   import {
     load as loadCampaignAutoProgress,
     handleScene as handleCampaignAutoProgressScene,
     handleDialogue as handleCampaignAutoProgressDialogue,
-  } from '$lib/campaignAutoProgress.svelte';
-  import { load as loadActiveCharacter, handleLevelUp as handleActiveCharacterLevelUp } from '$lib/activeCharacter.svelte';
+  } from '#lib/campaignAutoProgress.svelte.js';
+  import { load as loadActiveCharacter, handleLevelUp as handleActiveCharacterLevelUp } from '#lib/activeCharacter.svelte.js';
   import {
     levelingCompleteNext, levelingUndoLast, levelingRoute, advanceLevelingEdge,
     levelingPeekNext, levelingStepToText,
-  } from '$lib/levelingRoute.svelte';
-  import { CAMPAIGN_DATA } from '$lib/campaign';
-  import { trObjective, trZone } from '$lib/dataI18n';
+  } from '#lib/levelingRoute.svelte.js';
+  import { CAMPAIGN_DATA } from '#lib/campaign.js';
+  import { trObjective, trZone } from '#lib/dataI18n.js';
   import {
     voiceState,
     setVoiceEnabled,
@@ -78,14 +78,14 @@
     VOICE_METER_TARGET_DB,
     voiceMeterPct,
     type VoicePhrase,
-  } from '$lib/voice.svelte';
-  import { VOICE_GROUP_ORDER, VOICE_GROUP_LABEL_KEYS, VOICE_PHRASE_LABEL_KEYS } from '$lib/voicePhrases';
+  } from '#lib/voice.svelte.js';
+  import { VOICE_GROUP_ORDER, VOICE_GROUP_LABEL_KEYS, VOICE_PHRASE_LABEL_KEYS } from '#lib/voicePhrases.js';
   import {
     speak, stopSpeaking, ttsState, loadTtsSettings, setElevenLabsKey, clearElevenLabsKey, setVoiceId,
     loadTtsOutputDevices, setTtsOutputDevice,
     setTtsEngine, setOfflineVoice, setOfflineSpeaker, downloadOfflineVoice, removeOfflineVoice,
     type TtsEngine,
-  } from '$lib/tts.svelte';
+  } from '#lib/tts.svelte.js';
   import {
     importPoe1Build,
     clearPoe1Build,
@@ -96,13 +96,13 @@
     loadPoe1Build,
     type Poe1Build,
     type StoredPoe1Build,
-  } from '$lib/poe1Pob';
-  import { poe1ViewState, treeSpecNames } from '$lib/poe1ViewState.svelte';
-  import { builder } from '$lib/regex/builderState.svelte';
-  import { builder1 } from '$lib/regex1/builderState.svelte';
-  import ConfirmReset from '$lib/components/ConfirmReset.svelte';
-  import { m } from '$lib/paraglide/messages.js';
-  import { getLocale, locales, setLocale } from '$lib/paraglide/runtime.js';
+  } from '#lib/poe1Pob.js';
+  import { poe1ViewState, treeSpecNames } from '#lib/poe1ViewState.svelte.js';
+  import { builder } from '#lib/regex/builderState.svelte.js';
+  import { builder1 } from '#lib/regex1/builderState.svelte.js';
+  import ConfirmReset from '#lib/components/ConfirmReset.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import { getLocale, locales, setLocale } from '#lib/paraglide/runtime.js';
   import {
     overlayState,
     refreshStatus,
@@ -112,13 +112,13 @@
     setClickThrough,
     toggleHidden,
     setHidden,
-  } from '$lib/overlay.svelte';
-  import { gameMode, loadGameMode, setGameMode, type GameMode } from '$lib/gameMode.svelte';
+  } from '#lib/overlay.svelte.js';
+  import { gameMode, loadGameMode, setGameMode, type GameMode } from '#lib/gameMode.svelte.js';
   import {
     toggleWidget, openWidget, closeWidget, isWidgetOpen, getWidgetOpacity, setWidgetOpacity,
-  } from '$lib/widgets';
-  import { theme, THEMES, loadTheme, setTheme } from '$lib/theme.svelte';
-  import { uiScale, loadUiScale, setUiScale, UI_SCALE_MIN, UI_SCALE_MAX, UI_SCALE_STEP } from '$lib/uiScale.svelte';
+  } from '#lib/widgets.js';
+  import { theme, THEMES, loadTheme, setTheme } from '#lib/theme.svelte.js';
+  import { uiScale, loadUiScale, setUiScale, UI_SCALE_MIN, UI_SCALE_MAX, UI_SCALE_STEP } from '#lib/uiScale.svelte.js';
   import {
     configToChords,
     getDefaultTriggerConfig,
@@ -127,7 +127,7 @@
     comboToChord,
     type TriggerConfig,
     type TriggerMode,
-  } from '$lib/triggers';
+  } from '#lib/triggers.js';
   import { listen, emit } from '@tauri-apps/api/event';
   import {
     HOTKEY_ACTIONS,
@@ -139,13 +139,13 @@
     saveHotkeyBindings,
     type HotkeyActionId,
     type HotkeyBindings,
-  } from '$lib/hotkeys';
+  } from '#lib/hotkeys.js';
   import { invoke } from '@tauri-apps/api/core';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { getVersion, getName } from '@tauri-apps/api/app';
   import { openUrl } from '@tauri-apps/plugin-opener';
-  import { checkForUpdate, installUpdate, isUpdateSupported, RELEASES_URL } from '$lib/updater';
+  import { checkForUpdate, installUpdate, isUpdateSupported, RELEASES_URL } from '#lib/updater.js';
   import type { Update } from '@tauri-apps/plugin-updater';
 
   type AppLocale = (typeof locales)[number];

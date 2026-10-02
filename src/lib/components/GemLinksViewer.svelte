@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { m } from '$lib/paraglide/messages.js';
-  import { loadPoe1Build, type Poe1Build, type Poe1GemLinkGem } from '$lib/poe1Pob';
-  import { poe1ViewState, syncGemsSelectionToBuild } from '$lib/poe1ViewState.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import { loadPoe1Build, type Poe1Build, type Poe1GemLinkGem } from '#lib/poe1Pob.js';
+  import { poe1ViewState, syncGemsSelectionToBuild } from '#lib/poe1ViewState.svelte.js';
 
   // Display-only reference view of the imported build's skill setups
   // (upstream exile-leveling's "Gems" sidebar tab). All display fields were

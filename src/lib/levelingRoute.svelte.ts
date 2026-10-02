@@ -509,7 +509,7 @@ function buildSections(vendor: Vendor, sources: string[]): LevelingSection[] {
 // and poe1GemProgress (gem steps, by gem id — one checkbox state per gem, as
 // upstream does). These helpers drive the global hotkeys across both.
 
-import { poe1LevelingProgress } from '$lib/poe1LevelingProgress.svelte';
+import { poe1LevelingProgress } from '#lib/poe1LevelingProgress.svelte.js';
 
 export const GEM_PROGRESS_KEY = 'EXILECOMPASS_POE1_GEM_PROGRESS_V1';
 

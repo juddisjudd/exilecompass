@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { InstalledAddon } from '$lib/plugins/host.svelte';
+  import type { InstalledAddon } from '#lib/plugins/host.svelte.js';
 
   interface Props {
     addons: InstalledAddon[];

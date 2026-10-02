@@ -368,7 +368,7 @@ The README next to it explains how to regenerate the model's keyword file.
 <summary>Building from source</summary>
 
 ExileCompass is built with [Tauri 2](https://tauri.app/) (Rust) and
-[SvelteKit 5](https://svelte.dev/). With [Bun](https://bun.sh/) and the
+[SvelteKit 3](https://svelte.dev/). With [Bun](https://bun.sh/) and the
 [Rust toolchain](https://rustup.rs/) installed:
 
 ```bash

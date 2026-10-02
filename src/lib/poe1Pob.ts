@@ -6,7 +6,7 @@
 // `fetch_pobb_code` command (no CORS proxy needed, unlike upstream).
 // The heavy gem/quest data loads lazily through the leveling vendor module.
 
-import { resolveCode, zlibInflate } from '$lib/pob';
+import { resolveCode, zlibInflate } from '#lib/pob.js';
 import {
   setLevelingBuild,
   poe1GemProgress,
@@ -17,8 +17,8 @@ import {
   EDGE_KEY,
   type Bandit,
   type LevelingBuild,
-} from '$lib/levelingRoute.svelte';
-import { poe1LevelingProgress, LEVELING_PROGRESS_KEY, deletePoe1LevelingProgressFor } from '$lib/poe1LevelingProgress.svelte';
+} from '#lib/levelingRoute.svelte.js';
+import { poe1LevelingProgress, LEVELING_PROGRESS_KEY, deletePoe1LevelingProgressFor } from '#lib/poe1LevelingProgress.svelte.js';
 
 export interface Poe1BuildTree {
   name: string;

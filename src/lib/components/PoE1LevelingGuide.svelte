@@ -10,10 +10,10 @@
     poe1GemProgress,
     type LevelingPart,
     type LevelingStep,
-  } from '$lib/levelingRoute.svelte';
-  import { m } from '$lib/paraglide/messages.js';
-  import { poe1LevelingProgress } from '$lib/poe1LevelingProgress.svelte';
-  import { restorePoe1Build } from '$lib/poe1Pob';
+  } from '#lib/levelingRoute.svelte.js';
+  import { m } from '#lib/paraglide/messages.js';
+  import { poe1LevelingProgress } from '#lib/poe1LevelingProgress.svelte.js';
+  import { restorePoe1Build } from '#lib/poe1Pob.js';
   import ConfirmReset from './ConfirmReset.svelte';
 
   // Mirrors CampaignGuide.svelte's pattern: completion lives in the shared

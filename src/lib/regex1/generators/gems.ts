@@ -1,5 +1,5 @@
 // Ported from poe.re's poe/src/pages/gems/GemsOutput.ts.
-import { generateNumberRangeRegex } from '$lib/regex/numberRegex';
+import { generateNumberRangeRegex } from '#lib/regex/numberRegex.js';
 import type { GemToken } from '../types';
 import { appendResultExtras, type GemsSettings } from '../settings';
 

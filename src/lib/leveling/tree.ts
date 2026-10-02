@@ -5,7 +5,7 @@
 // a generated style string using the app's theme tokens.
 
 import type { SkillTree } from './vendor/tree.js';
-import type { Poe1BuildTree } from '$lib/poe1Pob';
+import type { Poe1BuildTree } from '#lib/poe1Pob.js';
 
 // ── Loaded-tree shape (data loading lives in treeData.ts — Vite-glob based,
 //    kept separate so this module stays pure/testable under plain runtimes) ──

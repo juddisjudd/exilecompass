@@ -2,7 +2,7 @@
 // the user's in-progress build survives switching away from and back to the
 // Stash tab. Mirrors the getter-based pattern in src/lib/overlay.svelte.ts.
 
-import { persistGet, persistSet } from '$lib/persist';
+import { persistGet, persistSet } from '#lib/persist.js';
 import { defaultSettings, type Category, type ModGroup, type Settings } from './settings';
 import type { ItemBasetype, ItemRegex, SelectOption } from './types';
 import {

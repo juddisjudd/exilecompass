@@ -38,16 +38,19 @@
     "@tauri-apps/plugin-updater": "^2.13.1"
   },
   "devDependencies": {
-    "@inlang/paraglide-js": "^2.22.0",
-    "@sveltejs/adapter-static": "^3.0.10",
-    "@sveltejs/kit": "^2.70.1",
-    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@inlang/paraglide-js": "^2.25.4",
+    "@sveltejs/adapter-static": "^4.0.0",
+    "@sveltejs/kit": "^3.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tauri-apps/cli": "^2.12.1",
-    "@types/node": "^26.1.1",
-    "svelte": "^5.56.7",
-    "svelte-check": "^4.7.3",
+    "@types/node": "^26.6.4",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
     "typescript": "~6.0.3",
-    "vite": "^8.1.5",
-    "yaml": "^2.9.0"
+    "vite": "^8.3.2",
+    "yaml": "^2.9.1"
+  },
+  "imports": {
+    "#lib/*": "./src/lib/*"
   }
 }

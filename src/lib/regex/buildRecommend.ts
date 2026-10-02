@@ -7,7 +7,7 @@
 // surfaced — unique-specific or unsearchable lines are skipped rather than
 // guessed at.
 
-import type { PobItem } from '$lib/pob';
+import type { PobItem } from '#lib/pob.js';
 import { VENDOR_OPTIONS, type VendorOption } from './vendorOptions';
 
 const byLabel = new Map(VENDOR_OPTIONS.map((o) => [o.label, o]));

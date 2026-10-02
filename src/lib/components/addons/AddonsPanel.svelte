@@ -1,10 +1,10 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { openUrl } from '@tauri-apps/plugin-opener';
-  import { persistGet, persistSet } from '$lib/persist';
-  import { loadStoredBuild, BUILD_CHANGED_EVENT } from '$lib/pob';
-  import { gameMode } from '$lib/gameMode.svelte';
-  import type { InstalledAddon } from '$lib/plugins/host.svelte';
+  import { persistGet, persistSet } from '#lib/persist.js';
+  import { loadStoredBuild, BUILD_CHANGED_EVENT } from '#lib/pob.js';
+  import { gameMode } from '#lib/gameMode.svelte.js';
+  import type { InstalledAddon } from '#lib/plugins/host.svelte.js';
 
   interface AddonRequestResponse {
     status: number;

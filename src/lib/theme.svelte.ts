@@ -11,7 +11,7 @@
 // bridge every other cross-window widget need uses (see CLAUDE.md's Secondary
 // overlay widget windows section) — WidgetShell.svelte consumes both.
 
-import { persistSet } from '$lib/persist';
+import { persistSet } from '#lib/persist.js';
 import { emit } from '@tauri-apps/api/event';
 
 export type ThemeId = 'default' | 'abyss' | 'breach' | 'ritual' | 'vaal' | 'aldur' | 'mono';

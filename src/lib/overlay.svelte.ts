@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { syncWidgetClickThrough } from '$lib/widgets';
+import { syncWidgetClickThrough } from '#lib/widgets.js';
 
 export interface WindowInfo {
   hwnd: number;

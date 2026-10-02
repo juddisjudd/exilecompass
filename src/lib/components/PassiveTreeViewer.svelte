@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { m } from '$lib/paraglide/messages.js';
-  import { levelingRoute } from '$lib/levelingRoute.svelte';
-  import { restorePoe1Build, loadPoe1Build } from '$lib/poe1Pob';
-  import { poe1ViewState, setTreeSpecNames, syncTreeSelectionToBuild } from '$lib/poe1ViewState.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import { levelingRoute } from '#lib/levelingRoute.svelte.js';
+  import { restorePoe1Build, loadPoe1Build } from '#lib/poe1Pob.js';
+  import { poe1ViewState, setTreeSpecNames, syncTreeSelectionToBuild } from '#lib/poe1ViewState.svelte.js';
   import {
     decodeUrlTree,
     buildUrlTreeDelta,
@@ -12,8 +12,8 @@
     EMPTY_URL_TREE,
     type LoadedTree,
     type UrlTreeData,
-  } from '$lib/leveling/tree';
-  import { loadSkillTree } from '$lib/leveling/treeData';
+  } from '#lib/leveling/tree.js';
+  import { loadSkillTree } from '#lib/leveling/treeData.js';
 
   const STYLE_ID = 'passive-tree-svg';
 

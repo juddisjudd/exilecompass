@@ -2,8 +2,8 @@
   import type { Snippet } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { listen } from '@tauri-apps/api/event';
-  import { persistGet, persistSet } from '$lib/persist';
-  import { applyTheme, type ThemeId } from '$lib/theme.svelte';
+  import { persistGet, persistSet } from '#lib/persist.js';
+  import { applyTheme, type ThemeId } from '#lib/theme.svelte.js';
 
   let { children }: { children?: Snippet } = $props();
 

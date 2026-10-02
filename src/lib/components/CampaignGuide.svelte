@@ -1,17 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { CAMPAIGN_DATA } from '$lib/campaign';
-  import { m } from '$lib/paraglide/messages.js';
-  import { trAct, trZone, trObjective, trObjectiveReward, trNotes, trActTip } from '$lib/dataI18n';
-  import { campaignProgress } from '$lib/campaignProgress.svelte';
+  import { CAMPAIGN_DATA } from '#lib/campaign.js';
+  import { m } from '#lib/paraglide/messages.js';
+  import { trAct, trZone, trObjective, trObjectiveReward, trNotes, trActTip } from '#lib/dataI18n.js';
+  import { campaignProgress } from '#lib/campaignProgress.svelte.js';
   import {
     campaignAutoProgress,
     jumpToEdge,
     reset as resetAutoProgress,
     setEnabled as setAutoProgressEnabled,
-  } from '$lib/campaignAutoProgress.svelte';
-  import { activeCharacter } from '$lib/activeCharacter.svelte';
+  } from '#lib/campaignAutoProgress.svelte.js';
+  import { activeCharacter } from '#lib/activeCharacter.svelte.js';
   import ConfirmReset from './ConfirmReset.svelte';
 
   // Completion lives in the shared module (so global hotkeys can mark objectives).

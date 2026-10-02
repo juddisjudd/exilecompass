@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { m } from '$lib/paraglide/messages.js';
+  import { m } from '#lib/paraglide/messages.js';
   import {
     builder1,
     initBuilder1,
@@ -9,10 +9,10 @@
     deleteFavorite1,
     applyFavorite1,
     toggleInArray,
-  } from '$lib/regex1/builderState.svelte';
-  import type { Category, GemToken } from '$lib/regex1/types';
-  import { GIANNA_PRESET, GIANNA_PLUS_ONE_PRESET } from '$lib/regex1/generators/heist';
-  import { BOAT_AREAS } from '$lib/regex1/generators/boat';
+  } from '#lib/regex1/builderState.svelte.js';
+  import type { Category, GemToken } from '#lib/regex1/types.js';
+  import { GIANNA_PRESET, GIANNA_PLUS_ONE_PRESET } from '#lib/regex1/generators/heist.js';
+  import { BOAT_AREAS } from '#lib/regex1/generators/boat.js';
 
   onMount(() => {
     initBuilder1();

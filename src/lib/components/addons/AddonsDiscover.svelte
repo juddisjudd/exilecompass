@@ -1,7 +1,7 @@
 <script lang="ts">
-  import AddonGamesBadge from '$lib/components/addons/AddonGamesBadge.svelte';
-  import type { DiscoverAddon, InstalledAddon } from '$lib/plugins/host.svelte';
-  import { isNewerVersion } from '$lib/plugins/host.svelte';
+  import AddonGamesBadge from '#lib/components/addons/AddonGamesBadge.svelte';
+  import type { DiscoverAddon, InstalledAddon } from '#lib/plugins/host.svelte.js';
+  import { isNewerVersion } from '#lib/plugins/host.svelte.js';
 
   interface Props {
     addons: DiscoverAddon[];

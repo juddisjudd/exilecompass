@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { gameMode } from '$lib/gameMode.svelte';
+  import { gameMode } from '#lib/gameMode.svelte.js';
 
   // Which games an add-on supports. An empty list (older manifests with no
   // registry entry to borrow from) renders nothing rather than guessing.

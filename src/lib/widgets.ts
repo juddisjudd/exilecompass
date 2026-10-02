@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import { WebviewWindow, getAllWebviewWindows } from '@tauri-apps/api/webviewWindow';
-import { persistGet, persistSet } from '$lib/persist';
+import { persistGet, persistSet } from '#lib/persist.js';
 
 // Secondary overlay widget windows (Act-Decoder, PoB tree HUD, macro wheel,
 // Labyrinth tracker, ...). Every widget window label must start with

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { m } from '$lib/paraglide/messages.js';
-  import { campaignTimer } from '$lib/campaignTimer.svelte';
-  import { poe1CampaignTimer } from '$lib/poe1CampaignTimer.svelte';
-  import { manualTimer, timerMode } from '$lib/manualTimer.svelte';
-  import { gameMode } from '$lib/gameMode.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import { campaignTimer } from '#lib/campaignTimer.svelte.js';
+  import { poe1CampaignTimer } from '#lib/poe1CampaignTimer.svelte.js';
+  import { manualTimer, timerMode } from '#lib/manualTimer.svelte.js';
+  import { gameMode } from '#lib/gameMode.svelte.js';
 
   // PoE1 and PoE2 auto-splits are tracked by separate timer instances (PoE1's
   // is driven by area-id act prefixes, PoE2's by [SCENE] names — see

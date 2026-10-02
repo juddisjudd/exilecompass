@@ -2,7 +2,7 @@
 // component so it tracks across tab switches. Position only — never touches
 // objective completion (campaignProgress.svelte.ts).
 
-import { CAMPAIGN_DATA } from '$lib/campaign';
+import { CAMPAIGN_DATA } from '#lib/campaign.js';
 import SCENES from './data/campaign/scenes.json';
 import { buildEdges, matchDialogue, matchScene, type CampaignEdge } from './campaignEdges';
 

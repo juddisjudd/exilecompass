@@ -18,7 +18,7 @@
 //   "actTips":     { "<actNumber>": ["Tip 1 text", "Tip 2 text"] }  // order matches CampaignAct.tips
 // }
 
-import { getLocale } from '$lib/paraglide/runtime.js';
+import { getLocale } from '#lib/paraglide/runtime.js';
 import de from './data/i18n/de.json';
 import es from './data/i18n/es.json';
 import fr from './data/i18n/fr.json';

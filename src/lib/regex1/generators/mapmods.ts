@@ -3,7 +3,7 @@
 // fragments are ported (see PoE1 regex research notes — every other language
 // there is either an untranslated copy of English or, for the map-mod tokens
 // themselves, not bundled by this app at all).
-import { generateNumberRegex } from '$lib/regex/numberRegex';
+import { generateNumberRegex } from '#lib/regex/numberRegex.js';
 import type { MapModsData } from '../types';
 import { appendResultExtras, type MapModsSettings } from '../settings';
 

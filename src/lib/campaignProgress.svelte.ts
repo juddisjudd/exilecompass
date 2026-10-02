@@ -5,7 +5,7 @@
 // component unmounting when you switch tabs. Persisted to localStorage.
 
 import { SvelteSet } from 'svelte/reactivity';
-import { CAMPAIGN_DATA } from '$lib/campaign';
+import { CAMPAIGN_DATA } from '#lib/campaign.js';
 
 const KEY = 'EXILECOMPASS_CAMPAIGN_PROGRESS_V1';
 const LEGACY_KEY = 'CAMPAIGN_GUIDE_STATE_V1'; // older combined state (expanded + completed)

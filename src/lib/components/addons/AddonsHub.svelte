@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { open } from '@tauri-apps/plugin-dialog';
-  import AddonsInstalled from '$lib/components/addons/AddonsInstalled.svelte';
-  import AddonsDiscover from '$lib/components/addons/AddonsDiscover.svelte';
-  import AddonsPanel from '$lib/components/addons/AddonsPanel.svelte';
+  import AddonsInstalled from '#lib/components/addons/AddonsInstalled.svelte';
+  import AddonsDiscover from '#lib/components/addons/AddonsDiscover.svelte';
+  import AddonsPanel from '#lib/components/addons/AddonsPanel.svelte';
   import {
     addonsHost,
     closeAddonPanel,
@@ -17,7 +17,7 @@
     toggleAddonPinned,
     uninstallAddon,
     type AddonsSection,
-  } from '$lib/plugins/host.svelte';
+  } from '#lib/plugins/host.svelte.js';
 
   const sections: Array<{ id: AddonsSection; label: string }> = [
     { id: 'installed', label: 'Installed' },

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { listen } from '@tauri-apps/api/event';
-  import { persistGet, persistSet } from '$lib/persist';
-  import manifest from '$lib/data/actDecoderManifest.poe1.json';
+  import { persistGet, persistSet } from '#lib/persist.js';
+  import manifest from '#lib/data/actDecoderManifest.poe1.json';
 
   interface ZoneState {
     variantIndex: number;

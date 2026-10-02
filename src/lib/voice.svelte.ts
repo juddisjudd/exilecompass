@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { warmSystemVoice } from '$lib/tts.svelte';
+import { warmSystemVoice } from '#lib/tts.svelte.js';
 
 // Phrase metadata (groups, spoken examples, label keys) lives in the rune-free
 // voicePhrases.ts so the docs generator can import it; re-exported here for

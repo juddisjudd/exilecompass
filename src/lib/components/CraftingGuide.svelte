@@ -8,10 +8,10 @@
     type CraftingItemRef,
     type CraftingStep,
     type EquipmentSlot,
-  } from '$lib/crafting';
-  import { initialGuides, fetchGuides, cachedFetchedAt } from '$lib/crafting-data';
-  import { m } from '$lib/paraglide/messages.js';
-  import { getLocale } from '$lib/paraglide/runtime.js';
+  } from '#lib/crafting.js';
+  import { initialGuides, fetchGuides, cachedFetchedAt } from '#lib/crafting-data.js';
+  import { m } from '#lib/paraglide/messages.js';
+  import { getLocale } from '#lib/paraglide/runtime.js';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import ConfirmReset from './ConfirmReset.svelte';
 

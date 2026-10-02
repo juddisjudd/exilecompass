@@ -3,8 +3,8 @@
 // on startup — the same reliability tier as the log file path / build folder
 // settings in persist.ts.
 
-import { persistGet, persistSet } from '$lib/persist';
-import { setActiveGame } from '$lib/overlay.svelte';
+import { persistGet, persistSet } from '#lib/persist.js';
+import { setActiveGame } from '#lib/overlay.svelte.js';
 
 export type GameMode = 'poe2' | 'poe1';
 

@@ -3,7 +3,7 @@
 // category's data is fetched lazily the first time that category is opened
 // (ItemMods.min.json alone is ~3MB, so nothing is loaded eagerly).
 
-import { persistGet, persistSet } from '$lib/persist';
+import { persistGet, persistSet } from '#lib/persist.js';
 import { CATEGORY_ORDER, defaultSettings, type Settings } from './settings';
 import type { Category } from './types';
 import {

@@ -4,11 +4,11 @@
     SLOT_ORDER, RARITY_COLOR,
     type PobBuild, type PobItem, type BuildFileEntry,
     classFromAscendancy,
-  } from '$lib/pob';
-  import { recommendVendorOptionsForItem } from '$lib/regex/buildRecommend';
-  import { loadVendorRecommendation } from '$lib/regex/builderState.svelte';
+  } from '#lib/pob.js';
+  import { recommendVendorOptionsForItem } from '#lib/regex/buildRecommend.js';
+  import { loadVendorRecommendation } from '#lib/regex/builderState.svelte.js';
   import { openUrl } from '@tauri-apps/plugin-opener';
-  import { m } from '$lib/paraglide/messages.js';
+  import { m } from '#lib/paraglide/messages.js';
 
   async function openSourceUrl(url: string) {
     try { await openUrl(url); } catch { /* ignore */ }
