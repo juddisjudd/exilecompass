@@ -57,6 +57,12 @@ jobs:
         with:
           bun-version: latest
 
+      # `bun run` starts vite and svelte-kit under Node; SvelteKit 3 needs 22.17+.
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
       # The log is kept for the failure issue below. It lives outside the
       # checkout: release.mjs refuses a dirty tree, and an untracked file in
       # the repo root counts — that alone failed every release for a day in
