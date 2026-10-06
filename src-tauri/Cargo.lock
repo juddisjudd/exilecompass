@@ -1365,7 +1365,7 @@ dependencies = [
 
 [[package]]
 name = "exilecompass"
-version = "1.6.3"
+version = "1.6.4"
 dependencies = [
  "arboard",
  "bzip2 0.4.4",
