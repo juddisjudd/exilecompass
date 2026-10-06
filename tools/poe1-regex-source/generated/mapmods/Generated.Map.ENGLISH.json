@@ -14,7 +14,7 @@
         },
         {
             "id": -2050206104,
-            "regex": "te of",
+            "regex": "te o",
             "rawText": "Players have (20-60)% less Recovery Rate of Life and Energy Shield",
             "generalizedText": "^players have #% less recovery rate of life and energy shield$",
             "options": {
@@ -76,7 +76,7 @@
         },
         {
             "id": -1772662453,
-            "regex": "id el",
+            "regex": "id e",
             "rawText": "Monsters have (30-70)% chance to Avoid Elemental Ailments",
             "generalizedText": "^monsters have #% chance to avoid elemental ailments$",
             "options": {
@@ -320,7 +320,7 @@
         },
         {
             "id": -931745379,
-            "regex": "g vin",
+            "regex": "g vi",
             "rawText": "Monsters inflict 2 Grasping Vines on Hit",
             "generalizedText": "^monsters inflict # grasping vines on hit$",
             "options": {
@@ -1028,7 +1028,7 @@
         },
         {
             "id": 1082020744,
-            "regex": "bom",
+            "regex": "ions$",
             "rawText": "Area is inhabited by Abominations",
             "generalizedText": "^area is inhabited by abominations$",
             "options": {
@@ -1350,7 +1350,7 @@
         },
         {
             "id": 1861748274,
-            "regex": "^au",
+            "regex": "^aur",
             "rawText": "Auras from Player Skills which affect Allies also affect Enemies",
             "generalizedText": "^auras from player skills which affect allies also affect enemies$",
             "options": {
