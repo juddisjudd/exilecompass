@@ -59,8 +59,8 @@ ${entries.join(', \n')}]`;
 // re-escape backslashes (`\\d+` where the source has `\d+`), which would ship
 // a broken stash search for every token carrying one.
 const POE1_DATA = [
-  'item/Generated.Item.json',
-  'item/Generated.Basetypes.Item.json',
+  'item/Generated.Item.ENGLISH.json',
+  'item/Generated.Basetypes.Item.ENGLISH.json',
   'beast/Generated.BeastRegex.ENGLISH.json',
   'boatmods/Generated.BoatMods.ENGLISH.json',
   'expedition/Generated.Expedition.json',
@@ -83,7 +83,7 @@ const FILES = {
       `poe/generated/${f}`,
       // Only the item mods are big enough (11 MB pretty-printed) to be worth
       // minifying; the rest land exactly as upstream ships them.
-      { to: `${POE1_SRC}/generated/${f}`, transform: f === 'item/Generated.Item.json' ? minify : undefined },
+      { to: `${POE1_SRC}/generated/${f}`, transform: f === 'item/Generated.Item.ENGLISH.json' ? minify : undefined },
     ]),
   ),
   ...Object.fromEntries(POE1_MODULES.map((f) => [`poe/src/generated/${f}`, { to: `${POE1_SRC}/src/generated/${f}` }])),
@@ -116,10 +116,7 @@ const every = (arr, min, pred) => Array.isArray(arr) && arr.length >= min && arr
 
 function validatePoe2(local, text) {
   const name = local.split('/').pop();
-  if (name === 'Generated.Waystone.min.json') {
-    const ok = every(JSON.parse(text).tokens, 20, (t) => typeof t.regex === 'string' && typeof t.rawText === 'string' && every(t.options?.types, 1, (x) => typeof x === 'string'));
-    if (!ok) die(`${local}: unexpected shape (tokens[] with regex/rawText/options.types[])`);
-  } else if (name === 'Generated.Tablet.min.json') {
+  if (name === 'Generated.Waystone.min.json' || name === 'Generated.Tablet.min.json') {
     const ok = every(JSON.parse(text).tokens, 20, (t) => typeof t.regex === 'string' && typeof t.rawText === 'string' && typeof t.options?.prefix === 'boolean');
     if (!ok) die(`${local}: unexpected shape (tokens[] with regex/rawText/options.prefix)`);
   } else if (name === 'Generated.Item.min.json') {

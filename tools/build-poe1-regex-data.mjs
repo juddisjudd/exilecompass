@@ -46,12 +46,12 @@ const data = (file) => JSON.parse(readFileSync(join(SRC_DIR, 'generated', file),
 const load = (file) => import(join(SRC_DIR, 'src/generated', file));
 const byKey = (arr, key) => Object.fromEntries(arr.map((e) => [e[key], e]));
 
-write('ItemMods', byKey(data('item/Generated.Item.json'), 'basetype'), (d) => {
+write('ItemMods', byKey(data('item/Generated.Item.ENGLISH.json'), 'basetype'), (d) => {
   record('ItemMods', d, 30, ['basetype', 'categoryRegex']);
   if (!Object.values(d).every((item) => Array.isArray(item.categoryRegex))) fail('ItemMods', 'categoryRegex is not an array');
 });
 
-write('ItemBases', data('item/Generated.Basetypes.Item.json'), (d) => list('ItemBases', d, 30, ['name', 'items']));
+write('ItemBases', data('item/Generated.Basetypes.Item.ENGLISH.json'), (d) => list('ItemBases', d, 30, ['name', 'items']));
 
 write('BeastRegex', data('beast/Generated.BeastRegex.ENGLISH.json'), (d) => list('BeastRegex', d, 20, ['beast', 'regex', 'red', 'harvest']));
 

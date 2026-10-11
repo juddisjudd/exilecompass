@@ -31,7 +31,7 @@ function generate6Socket(s: VendorSettings): string {
 function generate3LinkStr(s: VendorSettings): string {
   const { rrr, ggg, bbb, rrg, rrb, ggr, ggb, bbr, bbg, rgb, rrA, ggA, bbA, raa, baa, gaa } = s.colors;
   let result = '';
-  if (s.anyThreeLink) return addExpression(result, '-\\w-');
+  if (s.anyThreeLink) return addExpression(result, '-[rgbw]-');
   if (rrr) result = addExpression(result, 'r-r-r');
   if (ggg) result = addExpression(result, 'g-g-g');
   if (bbb) result = addExpression(result, 'b-b-b');
